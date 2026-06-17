@@ -1,0 +1,25 @@
+{
+	"common": {
+		"close": "Close",
+		"send": "Send",
+		"copy": "Copy",
+		"reset": "Reset",
+		"back": "Back"
+	},
+	"aiChat": {
+		"title": "Meeting AI",
+		"subtitle": "Meeting context loaded",
+		"welcomeTitle": "Hi! I know everything about this meeting.",
+		"welcomeSubtitle": "Ask about the transcript, action items, or decisions — or pick one of the options below.",
+		"placeholder": "Ask about the meeting...",
+		"disclaimer": "AI responses may need verification",
+		"chipSummary": "Quick summary",
+		"chipTasks": "Action items",
+		"chipFollowUp": "Follow-up email",
+		"chipDecisions": "Key decisions"
+	},
+	"settings": {
+		"devMode": "Developer Mode",
+		"devModeDescription": "Enable experimental glass effects and developer tools."
+	}
+}

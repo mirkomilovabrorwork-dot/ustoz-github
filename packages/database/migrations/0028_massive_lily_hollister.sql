@@ -1,0 +1,9 @@
+ALTER TABLE `notifications` MODIFY COLUMN `videoId` varchar(15);--> statement-breakpoint
+ALTER TABLE `comments` ADD CONSTRAINT `comments_videoId_videos_id_fk` FOREIGN KEY (`videoId`) REFERENCES `videos`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `comments` ADD CONSTRAINT `comments_parentCommentId_comments_id_fk` FOREIGN KEY (`parentCommentId`) REFERENCES `comments`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `notifications` ADD CONSTRAINT `notifications_videoId_videos_id_fk` FOREIGN KEY (`videoId`) REFERENCES `videos`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `shared_videos` ADD CONSTRAINT `shared_videos_videoId_videos_id_fk` FOREIGN KEY (`videoId`) REFERENCES `videos`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `space_videos` ADD CONSTRAINT `space_videos_videoId_videos_id_fk` FOREIGN KEY (`videoId`) REFERENCES `videos`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `storage_objects` ADD CONSTRAINT `storage_objects_videoId_videos_id_fk` FOREIGN KEY (`videoId`) REFERENCES `videos`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `video_edit_history` ADD CONSTRAINT `video_edit_history_videoId_videos_id_fk` FOREIGN KEY (`videoId`) REFERENCES `videos`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `video_uploads` ADD CONSTRAINT `video_uploads_video_id_videos_id_fk` FOREIGN KEY (`video_id`) REFERENCES `videos`(`id`) ON DELETE cascade ON UPDATE no action;

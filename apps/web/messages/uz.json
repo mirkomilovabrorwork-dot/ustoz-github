@@ -1,0 +1,25 @@
+{
+	"common": {
+		"close": "Yopish",
+		"send": "Yuborish",
+		"copy": "Nusxalash",
+		"reset": "Qayta boshlash",
+		"back": "Orqaga"
+	},
+	"aiChat": {
+		"title": "Meeting AI",
+		"subtitle": "Ushbu uchrashuv konteksti yuklandi",
+		"welcomeTitle": "Salom! Men bu uchrashuv haqida hamma narsani bilaman.",
+		"welcomeSubtitle": "Transkript, vazifalar va qarorlar bo'yicha savol bering — yoki quyidagilardan birini tanlang.",
+		"placeholder": "Uchrashuv haqida so'rang...",
+		"disclaimer": "AI javoblari tekshirilishi kerak bo'lishi mumkin",
+		"chipSummary": "Qisqacha xulosa",
+		"chipTasks": "Vazifalar ro'yxati",
+		"chipFollowUp": "Follow-up xat",
+		"chipDecisions": "Asosiy qarorlar"
+	},
+	"settings": {
+		"devMode": "Developer Mode",
+		"devModeDescription": "Eksperimental shisha effektlar va developer vositalarini yoqish."
+	}
+}

@@ -1,0 +1,47 @@
+{
+	"type": "module",
+	"scripts": {
+		"build": "dotenv -e .env -- turbo run build",
+		"build:web": "turbo run build:web",
+		"build:web:docker": "pnpm run --filter=@cap/web build:docker",
+		"db:generate": "dotenv -e .env -- pnpm --filter @cap/database db:generate",
+		"db:push": "dotenv -e .env -- pnpm --filter @cap/database db:push",
+		"db:studio": "dotenv -e .env -- pnpm --filter @cap/database db:studio",
+		"dev": "pnpm run docker:up && trap 'pnpm run docker:stop' EXIT && dotenv -e .env -- turbo run dev --env-mode=loose --ui tui",
+		"dev:web": "dotenv -e .env -- turbo run dev --filter=@cap/web --env-mode=loose --ui tui",
+		"docker:clean": "turbo run docker:clean",
+		"docker:stop": "turbo run docker:stop",
+		"docker:up": "turbo run docker:up",
+		"format": "pnpm exec biome check --write",
+		"lint": "pnpm exec biome lint",
+		"typecheck": "pnpm --dir apps/web exec next typegen && pnpm tsc -b",
+		"test": "turbo run test",
+		"test:web": "pnpm --filter=@cap/web test",
+		"web": "pnpm --filter=@cap/web",
+		"env-setup": "node scripts/env-cli.js",
+		"clean": "find . -name node_modules -o -name .next -o -name .output -o -name .turbo -o -name dist -type d -prune | xargs rm -rf",
+		"with-env": "dotenv -e .env --"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.2.0",
+		"@clack/prompts": "^0.10.0",
+		"@effect/language-service": "^0.44.0",
+		"dotenv-cli": "latest",
+		"mysql2": "^3.15.2",
+		"tsdown": "^0.15.6",
+		"turbo": "^2.3.4",
+		"typescript": "^5.8.3"
+	},
+	"pnpm": {
+		"peerDependencyRules": {
+			"allowedVersions": {
+				"next-auth>next": ">=16.0.0"
+			}
+		}
+	},
+	"packageManager": "pnpm@10.5.2",
+	"name": "cap-v2",
+	"engines": {
+		"node": ">=20"
+	}
+}
