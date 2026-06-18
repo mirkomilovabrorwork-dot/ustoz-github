@@ -26,28 +26,47 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import clsx from "clsx";
 import { motion } from "framer-motion";
-import { Check, ChevronDown, Plus } from "lucide-react";
+import { Check, ChevronDown, Moon, MoreVertical, Plus, Sun } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { cloneElement, type RefObject, useRef, useState } from "react";
+import { signOut } from "next-auth/react";
+import {
+	cloneElement,
+	forwardRef,
+	memo,
+	type RefObject,
+	useImperativeHandle,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { NewOrganization } from "@/components/forms/NewOrganization";
 import { SignedImageUrl } from "@/components/SignedImageUrl";
 import { StorageIndicator } from "@/components/StorageIndicator";
 import { Tooltip } from "@/components/Tooltip";
+import { UpgradeModal } from "@/components/UpgradeModal";
 import {
 	canViewOrganizationSettings,
 	getEffectiveOrganizationRole,
 } from "@/lib/permissions/roles";
-import { useDashboardContext } from "../../Contexts";
+import { useDashboardContext, useTheme } from "../../Contexts";
 import {
+	ArrowUpIcon,
 	CapIcon,
 	ChartLineIcon,
 	CodeIcon,
 	CogIcon,
+	DownloadIcon,
+	HomeIcon,
 	ImportIcon,
+	LogoutIcon,
+	MessageCircleMoreIcon,
+	ReferIcon,
 	RecordIcon,
+	SettingsGearIcon,
 } from "../AnimatedIcons";
 import type { CogIconHandle } from "../AnimatedIcons/Cog";
+import type { DownloadIconHandle } from "../AnimatedIcons/Download";
 import { MemberAvatars } from "./MemberAvatars";
 import SpacesList from "./SpacesList";
 import { updateActiveOrganization } from "./server";
@@ -388,8 +407,9 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 
 					<SpacesList toggleMobileNav={() => toggleMobileNav?.()} />
 				</div>
-				<div className="pb-4 mt-auto w-full">
+				<div className="pb-4 mt-auto w-full flex flex-col gap-2">
 					<StorageIndicator />
+					<SidebarUser />
 				</div>
 			</nav>
 			<DialogContent className="p-0 w-full max-w-md rounded-xl bg-gray-2">
@@ -428,6 +448,246 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 		</Dialog>
 	);
 };
+
+const SidebarUser = () => {
+	const [menuOpen, setMenuOpen] = useState(false);
+	const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+	const { user, sidebarCollapsed } = useDashboardContext();
+	const { theme, setThemeHandler } = useTheme();
+	const nextTheme = theme === "light" ? "dark" : "light";
+	const themeLabel =
+		theme === "light" ? "Toggle Dark Mode" : "Toggle Light Mode";
+
+	const menuItems = useMemo(
+		() => [
+			{
+				name: "Homepage",
+				icon: <HomeIcon />,
+				href: "/home",
+				onClick: () => setMenuOpen(false),
+				iconClassName: "text-gray-11 group-hover:text-gray-12",
+				showCondition: true,
+			},
+			{
+				name: "Upgrade to Pro",
+				icon: <ArrowUpIcon />,
+				onClick: () => {
+					setMenuOpen(false);
+					setUpgradeModalOpen(true);
+				},
+				iconClassName: "text-amber-400 group-hover:text-amber-500",
+				showCondition: buildEnv.NEXT_PUBLIC_IS_CAP && !user.isPro,
+			},
+			{
+				name: "Earn 40% Referral",
+				icon: <ReferIcon />,
+				href: "/dashboard/refer",
+				onClick: () => setMenuOpen(false),
+				iconClassName: "text-gray-11 group-hover:text-gray-12",
+				showCondition: buildEnv.NEXT_PUBLIC_IS_CAP,
+			},
+			{
+				name: "Chat Support",
+				icon: <MessageCircleMoreIcon />,
+				onClick: () => window.open("https://cap.link/discord", "_blank"),
+				iconClassName: "text-gray-11 group-hover:text-gray-12",
+				showCondition: true,
+			},
+			{
+				name: "Download App",
+				icon: <DownloadIcon />,
+				onClick: () => window.open("https://cap.so/download", "_blank"),
+				iconClassName: "text-gray-11 group-hover:text-gray-12",
+				showCondition: true,
+			},
+			{
+				name: themeLabel,
+				icon: <SidebarThemeMenuIcon />,
+				onClick: () => {
+					setMenuOpen(false);
+					if (document.startViewTransition) {
+						document.startViewTransition(() => {
+							setThemeHandler(nextTheme);
+						});
+					} else {
+						setThemeHandler(nextTheme);
+					}
+				},
+				iconClassName: "text-gray-11 group-hover:text-gray-12",
+				showCondition: true,
+			},
+			{
+				name: "Settings",
+				icon: <SettingsGearIcon />,
+				href: "/dashboard/settings/account",
+				onClick: () => setMenuOpen(false),
+				iconClassName: "text-gray-11 group-hover:text-gray-12",
+				showCondition: true,
+			},
+			{
+				name: "Sign Out",
+				icon: <LogoutIcon />,
+				onClick: () => {
+					setMenuOpen(false);
+					signOut();
+				},
+				iconClassName: "text-gray-11 group-hover:text-gray-12",
+				showCondition: true,
+			},
+		],
+		[nextTheme, setThemeHandler, themeLabel, user.isPro],
+	);
+
+	return (
+		<>
+			<UpgradeModal
+				open={upgradeModalOpen}
+				onOpenChange={setUpgradeModalOpen}
+			/>
+			<Tooltip
+				disable={!sidebarCollapsed}
+				content={user.name ?? "User"}
+				position="right"
+			>
+				<Popover open={menuOpen} onOpenChange={setMenuOpen}>
+					<PopoverTrigger asChild>
+						<div
+							data-state={menuOpen ? "open" : "closed"}
+							className={clsx(
+								"flex items-center rounded-xl border cursor-pointer transition-colors",
+								"data-[state=open]:border-gray-3 data-[state=open]:bg-gray-3 border-transparent hover:border-gray-3 hover:bg-gray-3",
+								sidebarCollapsed
+									? "justify-center p-1.5"
+									: "gap-2 justify-between p-2",
+							)}
+						>
+							<div className="flex items-center gap-2">
+								<SignedImageUrl
+									image={user.imageUrl}
+									name={user.name ?? "User"}
+									letterClass="text-xs"
+									className="flex-shrink-0 size-6 text-gray-12"
+								/>
+								{!sidebarCollapsed && (
+									<span className="text-sm truncate text-gray-12">
+										{user.name ?? "User"}
+									</span>
+								)}
+							</div>
+							{!sidebarCollapsed && (
+								<MoreVertical
+									data-state={menuOpen ? "open" : "closed"}
+									className="w-4 h-4 data-[state=open]:text-gray-12 transition-colors text-gray-10 group-hover:text-gray-12"
+								/>
+							)}
+						</div>
+					</PopoverTrigger>
+					<PopoverContent
+						className={clsx(
+							"p-1 w-48",
+							sidebarCollapsed ? "ml-3" : "mx-auto",
+						)}
+						side="top"
+						align="start"
+					>
+						<Command>
+							<CommandGroup>
+								{menuItems
+									.filter((item) => item.showCondition)
+									.map((item, index) => (
+										<SidebarMenuItem
+											key={index.toString()}
+											icon={item.icon}
+											name={item.name}
+											href={"href" in item ? item.href : undefined}
+											onClick={item.onClick}
+											iconClassName={item.iconClassName}
+										/>
+									))}
+							</CommandGroup>
+						</Command>
+					</PopoverContent>
+				</Popover>
+			</Tooltip>
+		</>
+	);
+};
+
+interface SidebarMenuItemProps {
+	icon: React.ReactElement<{
+		ref: RefObject<DownloadIconHandle | null>;
+		className: string;
+		size: number;
+	}>;
+	name: string;
+	href?: string;
+	onClick: () => void;
+	iconClassName?: string;
+}
+
+const SidebarMenuItem = memo(
+	({ icon, name, href, onClick, iconClassName }: SidebarMenuItemProps) => {
+		const iconRef = useRef<DownloadIconHandle>(null);
+		const content = (
+			<>
+				<div className="flex flex-shrink-0 justify-center items-center w-3.5 h-3.5">
+					{cloneElement(icon, {
+						ref: iconRef,
+						className: iconClassName,
+						size: 14,
+					})}
+				</div>
+				<p className={clsx("text-sm text-gray-12")}>{name}</p>
+			</>
+		);
+
+		return (
+			<CommandItem
+				key={name}
+				className="px-2 py-1.5 rounded-lg transition-colors duration-300 cursor-pointer hover:bg-gray-5 group"
+				onSelect={onClick}
+				onMouseEnter={() => {
+					iconRef.current?.startAnimation();
+				}}
+				onMouseLeave={() => {
+					iconRef.current?.stopAnimation();
+				}}
+			>
+				{href ? (
+					<Link
+						className="flex gap-2 items-center w-full"
+						href={href}
+						prefetch={true}
+						onClick={onClick}
+					>
+						{content}
+					</Link>
+				) : (
+					<div className="flex gap-2 items-center w-full">{content}</div>
+				)}
+			</CommandItem>
+		);
+	},
+);
+
+SidebarMenuItem.displayName = "SidebarMenuItem";
+
+const SidebarThemeMenuIcon = forwardRef<
+	DownloadIconHandle,
+	{ className?: string; size?: number }
+>(({ className, size = 14 }, ref) => {
+	const { theme } = useTheme();
+	const Icon = theme === "light" ? Moon : Sun;
+
+	useImperativeHandle(ref, () => ({
+		startAnimation: () => undefined,
+		stopAnimation: () => undefined,
+	}));
+
+	return <Icon className={className} size={size} />;
+});
+
+SidebarThemeMenuIcon.displayName = "SidebarThemeMenuIcon";
 
 const NavItem = ({
 	name,

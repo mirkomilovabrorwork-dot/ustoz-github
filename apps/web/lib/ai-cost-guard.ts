@@ -39,7 +39,7 @@ async function getMonthlySpendMicros(
 		.from(aiUsageEvents)
 		.where(and(eq(col, id), eq(aiUsageEvents.billingMonth, billingMonth)));
 
-	return result?.total ?? 0;
+	return Number(result?.total ?? 0);
 }
 
 interface CostGuardOptions<T> {

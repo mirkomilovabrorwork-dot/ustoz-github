@@ -193,11 +193,19 @@ async function extractAudio(
 	// Media server removed — single-file MP4, no server-side processing
 	let audioBuffer: Buffer;
 
-	const hasAudio = await checkHasAudioTrack(videoUrl);
+	const probe = await checkHasAudioTrack(videoUrl);
 	console.log(
-		`[transcribe] Local ffmpeg audio check for ${videoId}: hasAudio=${hasAudio}`,
+		`[transcribe] Local ffmpeg audio check for ${videoId}: hasAudio=${probe.hasAudio}, durationSec=${probe.durationSec}`,
 	);
-	if (!hasAudio) {
+
+	if (probe.durationSec != null) {
+		await db()
+			.update(videos)
+			.set({ duration: probe.durationSec })
+			.where(eq(videos.id, videoId as Video.VideoId));
+	}
+
+	if (!probe.hasAudio) {
 		return null;
 	}
 
@@ -306,7 +314,7 @@ async function transcribeAudio(
 		userId: context.userId,
 		videoId: context.videoId,
 		operation: "transcription",
-		model: "gemini-2.5-flash-lite",
+		model: "gemini-3-flash-preview",
 		fn: async () => {
 			const res = await transcribeWithGemini(audioUrl, {
 				apiKey: resolvedApiKey,

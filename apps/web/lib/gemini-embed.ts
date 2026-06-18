@@ -1,5 +1,5 @@
 const BATCH_SIZE = 100;
-export const EMBED_MODEL = "text-embedding-004";
+export const EMBED_MODEL = "gemini-embedding-001";
 
 interface BatchEmbedResponse {
 	embeddings: Array<{

@@ -3,7 +3,6 @@ import { organizations, videos, videoUploads } from "@cap/database/schema";
 import { serverEnv } from "@cap/env";
 import type { Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
-import { start } from "workflow/api";
 import { transcribeVideoWorkflow } from "@/workflows/transcribe";
 
 type TranscribeResult = {
@@ -115,17 +114,20 @@ export async function transcribeVideo(
 			`[transcribeVideo] Triggering transcription workflow for video ${videoId}`,
 		);
 
-		await start(transcribeVideoWorkflow, [
-			{
-				videoId,
-				userId,
-				aiGenerationEnabled,
-			},
-		]);
+		transcribeVideoWorkflow({
+			videoId,
+			userId,
+			aiGenerationEnabled,
+		}).catch((err) => {
+			console.error(
+				`[transcribeVideo] Inline workflow failed for video ${videoId}:`,
+				err,
+			);
+		});
 
 		return {
 			success: true,
-			message: "Transcription workflow started",
+			message: "Transcription started inline",
 		};
 	} catch (error) {
 		console.error("[transcribeVideo] Failed to trigger workflow:", error);

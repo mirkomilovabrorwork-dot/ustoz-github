@@ -83,7 +83,7 @@ const STATE_KEY = "capExtState";
 const SETTINGS_KEY = "capExtSettings";
 
 const DEFAULT_SETTINGS: ExtensionSettings = {
-	apiBaseUrl: "https://cap-web-production-4817.up.railway.app",
+	apiBaseUrl: "https://web-production-e6fe4.up.railway.app",
 	apiKey: "",
 	autoRecordOnMeet: false,
 	autoRecordCountdownSec: 5,

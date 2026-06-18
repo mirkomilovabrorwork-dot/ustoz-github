@@ -48,9 +48,10 @@ export async function getMonthlySpend(scope: {
 	const breakdown: Record<string, number> = {};
 
 	for (const row of rows) {
-		const cents = Math.round(row.totalMicros / 10_000);
+		const micros = Number(row.totalMicros);
+		const cents = Math.round(micros / 10_000);
 		breakdown[row.operation] = cents;
-		totalMicros += row.totalMicros;
+		totalMicros += micros;
 	}
 
 	const totalUsdCents = Math.round(totalMicros / 10_000);

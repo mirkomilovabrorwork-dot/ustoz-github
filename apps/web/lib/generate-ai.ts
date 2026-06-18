@@ -4,7 +4,6 @@ import type { VideoMetadata } from "@cap/database/types";
 import { serverEnv } from "@cap/env";
 import type { Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
-import { start } from "workflow/api";
 import { generateAiWorkflow } from "@/workflows/generate-ai";
 
 type GenerateAiResult = {
@@ -82,11 +81,16 @@ export async function startAiGeneration(
 			})
 			.where(eq(videos.id, videoId));
 
-		await start(generateAiWorkflow, [{ videoId, userId }]);
+		generateAiWorkflow({ videoId, userId }).catch((err) => {
+			console.error(
+				`[startAiGeneration] Inline workflow failed for video ${videoId}:`,
+				err,
+			);
+		});
 
 		return {
 			success: true,
-			message: "AI generation workflow started",
+			message: "AI generation started inline",
 		};
 	} catch {
 		await db()

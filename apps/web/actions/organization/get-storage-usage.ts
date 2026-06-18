@@ -12,7 +12,7 @@ import {
 import type { Organisation } from "@cap/web-domain";
 import { eq, sql } from "drizzle-orm";
 
-const DEFAULT_QUOTA = 50 * 1024 * 1024 * 1024;
+const DEFAULT_QUOTA = 10 * 1024 * 1024 * 1024;
 
 type StorageUsage = {
 	usedBytes: number;

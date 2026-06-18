@@ -79,6 +79,11 @@ export function StorageIndicator() {
 	const pct = Math.min(100, data.percentUsed);
 	const barColor =
 		pct >= 90 ? "bg-red-500" : pct > 75 ? "bg-amber-500" : "bg-blue-500";
+	const freeStr = (() => {
+		const f = 100 - pct;
+		const s = f.toFixed(1);
+		return s.endsWith(".0") ? f.toFixed(0) : s;
+	})();
 
 	return (
 		<Link
@@ -98,7 +103,7 @@ export function StorageIndicator() {
 				/>
 			</div>
 			<p className="mt-1.5 text-[11px] text-gray-10">
-				{pct >= 99 ? "Quota full" : `${(100 - pct).toFixed(1)}% free`}
+				{pct >= 99 ? "Quota full" : `${freeStr}% free`}
 			</p>
 		</Link>
 	);

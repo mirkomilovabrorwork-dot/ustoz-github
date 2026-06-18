@@ -551,7 +551,7 @@ async function AuthorizedContent({
 	});
 	const env = serverEnv();
 	const transcriptionGenerationAvailable =
-		Boolean(env.DEEPGRAM_API_KEY) && !rules.settings.disableTranscript;
+		Boolean(env.GEMINI_API_KEY) && !rules.settings.disableTranscript;
 	const aiProviderAvailable = Boolean(env.GEMINI_API_KEY);
 
 	let aiGenerationEnabled = false;

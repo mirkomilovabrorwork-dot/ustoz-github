@@ -46,11 +46,10 @@ COPY --from=deps /app/packages/config/node_modules ./packages/config/node_module
 COPY . .
 
 # NEXT_PUBLIC_DOCKER_BUILD enables standalone output mode in next.config.mjs
-# WORKFLOW_NEXT_PRIVATE_BUILT=1 skips the workflow esbuild step during build
-# (workflow routes are pre-compiled in apps/web/app/.well-known/workflow/)
-# NODE_OPTIONS limits memory to avoid OOM during large Next.js builds
+# Let the workflow plugin regenerate route handlers during build — the
+# pre-compiled files in apps/web/app/.well-known/workflow/ are gitignored
+# and won't be regenerated on a fresh clone otherwise.
 ENV NEXT_PUBLIC_DOCKER_BUILD=true
-ENV WORKFLOW_NEXT_PRIVATE_BUILT=1
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build-time public env vars (baked into Next.js client bundle)
@@ -75,6 +74,12 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
+# Use the system ffmpeg installed below instead of the ffmpeg-static binary,
+# which isn't bundled into the Next.js standalone output.
+ENV FFMPEG_PATH=/usr/bin/ffmpeg
+
+# ffmpeg is required by the transcription pipeline to extract audio from video.
+RUN apk add --no-cache ffmpeg
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs

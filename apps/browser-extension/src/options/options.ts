@@ -1,6 +1,6 @@
 import type { ExtensionSettings } from "../background/state";
 
-const DEFAULT_API_BASE_URL = "https://cap-web-production-4817.up.railway.app";
+const DEFAULT_API_BASE_URL = "https://web-production-e6fe4.up.railway.app";
 
 function sendMessage(message: Record<string, unknown>): Promise<unknown> {
 	return new Promise((resolve, reject) => {

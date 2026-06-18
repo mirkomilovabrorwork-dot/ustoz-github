@@ -202,7 +202,19 @@ export async function convertWavToMp3(wavBuffer: Buffer): Promise<Buffer> {
 	});
 }
 
-export async function checkHasAudioTrack(videoUrl: string): Promise<boolean> {
+export interface VideoProbeResult {
+	hasAudio: boolean;
+	durationSec: number | null;
+}
+
+function parseDurationFromStderr(stderr: string): number | null {
+	const match = stderr.match(/Duration:\s*(\d+):(\d+):(\d+)\.(\d+)/);
+	if (!match) return null;
+	const [, h, m, s, cs] = match;
+	return Number(h) * 3600 + Number(m) * 60 + Number(s) + Number(cs) / 100;
+}
+
+export async function checkHasAudioTrack(videoUrl: string): Promise<VideoProbeResult> {
 	let ffmpeg: string;
 	try {
 		ffmpeg = getFfmpegPath();
@@ -245,10 +257,12 @@ export async function checkHasAudioTrack(videoUrl: string): Promise<boolean> {
 				return;
 			}
 
+			const durationSec = parseDurationFromStderr(stderr);
+
 			console.log(
-				`[checkHasAudioTrack] Result: hasVideo=${hasVideo}, hasAudio=${hasAudio}`,
+				`[checkHasAudioTrack] Result: hasVideo=${hasVideo}, hasAudio=${hasAudio}, durationSec=${durationSec}`,
 			);
-			resolve(hasAudio);
+			resolve({ hasAudio, durationSec });
 		});
 	});
 }

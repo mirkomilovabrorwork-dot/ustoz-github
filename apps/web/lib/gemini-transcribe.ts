@@ -157,7 +157,7 @@ export async function transcribeWithGemini(
 	}
 
 	const genRes = await fetch(
-		`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
+		`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`,
 		{
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -172,7 +172,60 @@ export async function transcribeWithGemini(
 								},
 							},
 							{
-								text: "Transcribe this audio verbatim. The speakers may use Uzbek, Russian, and English in the same sentence (code-switching is common). Output as WebVTT format with timestamps every 5-15 seconds. Preserve the original language of each phrase. Do not translate. Start with 'WEBVTT' header.",
+								text: `You are a professional Uzbek meeting transcription editor.
+
+Transcribe the attached online/offline meeting fully and accurately in Uzbek Latin.
+
+Rules:
+
+1. Transcribe the entire meeting from beginning to end. Do not summarize, skip, shorten, or stop halfway.
+
+2. Uzbek words must be written only in Uzbek Latin. Do not write Uzbek words in Cyrillic.
+
+3. This meeting has multiple speakers. Identify speakers by voice, context, and conversation flow.
+
+If speaker names are known from the audio, use their names.
+
+If names are not clear, use:
+Speaker 1:
+Speaker 2:
+Speaker 3:
+
+Keep speaker labels consistent across the whole transcript.
+
+If two people talk over each other and both cannot be clearly separated, write:
+[ustma-ust gaplashildi]
+
+4. Add real, accurate timestamps from the audio. Do not use sample, fake, guessed, or template timestamps.
+
+Put timestamps only where they exactly match the audio:
+- at the beginning,
+- when the speaker changes,
+- when a new discussion topic starts,
+- when decisions, tasks, objections, or important points appear,
+- when there is a meaningful pause or transition.
+
+Timestamp format:
+**[HH:MM:SS]**
+
+5. Clean the transcript professionally:
+- remove filler sounds like "umm", "aa", "eee", "э"
+- remove repeated stutters
+- remove meaningless false starts
+- keep the original meaning and speaking style
+
+6. If an Uzbek word is unclear, correct it based on surrounding context. If it is impossible to identify, write [noaniq].
+
+7. Keep foreign words exactly as spoken:
+- Russian words must stay in Cyrillic and be bold: **сразу**, **любой**, **дефицит**
+- English words must stay in English/Latin and be bold: **deadline**, **CRM**, **dashboard**
+- Do not translate foreign words.
+- Do not transliterate Russian words into Latin.
+- Bold every foreign word or phrase.
+
+8. Output only the transcript. No intro, no explanation, no table, no numbering.
+
+IMPORTANT: Start your response with "WEBVTT" header and format each line as WebVTT cues with timestamps in HH:MM:SS.mmm --> HH:MM:SS.mmm format. The speaker labels, bold formatting, and content rules above still apply within each cue text.`,
 							},
 						],
 					},

@@ -2,8 +2,8 @@ const PRICES: Record<
 	string,
 	{ inputPerMillion: number; outputPerMillion: number }
 > = {
-	"gemini-2.0-flash": { inputPerMillion: 0.1, outputPerMillion: 0.4 },
-	"text-embedding-004": { inputPerMillion: 0, outputPerMillion: 0 },
+	"gemini-3-flash-preview": { inputPerMillion: 0.1, outputPerMillion: 0.4 },
+	"gemini-embedding-001": { inputPerMillion: 0, outputPerMillion: 0 },
 };
 
 const DEFAULT_PRICE = { inputPerMillion: 0.15, outputPerMillion: 0.6 };

@@ -158,4 +158,6 @@ const nextConfig = {
 		process.env.NEXT_PUBLIC_DOCKER_BUILD === "true" ? "standalone" : undefined,
 };
 
-export default withWorkflow(withNextIntl(nextConfig));
+// Workflow plugin disabled — transcription/AI generation runs inline as
+// fire-and-forget from lib/transcribe.ts and lib/generate-ai.ts.
+export default withNextIntl(nextConfig);

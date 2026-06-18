@@ -42,9 +42,8 @@
 	],
 	"externally_connectable": {
 		"matches": [
-			"https://cap-web-production-4817.up.railway.app/*",
+			"https://web-production-e6fe4.up.railway.app/*",
 			"https://*.up.railway.app/*",
-			"https://cap.so/*",
 			"http://localhost:3000/*"
 		]
 	}
