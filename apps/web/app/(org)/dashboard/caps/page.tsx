@@ -26,7 +26,7 @@ import { runPromise } from "@/lib/server";
 import { Caps } from "./Caps";
 
 export const metadata: Metadata = {
-	title: "My Caps — data365",
+	title: "Instructional recordings — data365",
 };
 
 // Helper function to fetch shared spaces data for videos

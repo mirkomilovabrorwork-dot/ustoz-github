@@ -88,7 +88,7 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 
 	const manageNavigation = [
 		{
-			name: "My Caps",
+			name: "Instructional recordings",
 			href: `/dashboard/caps`,
 			extraText: userCapsCount,
 			icon: <CapIcon />,

@@ -150,15 +150,15 @@ export function DashboardSearch({
 		() => [
 			{
 				id: "my-caps",
-				title: "My Caps",
+				title: "Instructional recordings",
 				subtitle: "Open your video library",
 				href: "/dashboard/caps",
-				value: "my caps videos recordings library",
+				value: "instructional recordings videos library",
 				icon: FileVideo,
 			},
 			{
 				id: "record-cap",
-				title: "Record a Cap",
+				title: "Record",
 				subtitle: "Start a new browser recording",
 				href: "/dashboard/caps/record",
 				value: "record cap screen video browser recorder",
@@ -364,7 +364,7 @@ export function DashboardSearch({
 			>
 				<Search className="flex-shrink-0 size-4 transition-colors text-gray-10 group-hover:text-gray-11" />
 				<span className="flex-1 text-[13px] text-left truncate text-gray-10">
-					Search caps, spaces, settings…
+					Search recordings, spaces, settings…
 				</span>
 				<kbd className="hidden items-center px-1.5 h-5 text-[11px] font-medium rounded-md border select-none sm:inline-flex text-gray-10 border-gray-4 bg-gray-1">
 					{shortcutKey}
@@ -381,7 +381,7 @@ export function DashboardSearch({
 							ref={inputRef}
 							value={query}
 							onValueChange={updateQuery}
-							placeholder="Search caps, spaces, settings…"
+							placeholder="Search recordings, spaces, settings…"
 							className="h-[52px] text-[15px] pr-12 outline-none"
 						/>
 						<CommandList className="overflow-y-auto px-2 pt-1 pb-2 h-[min(60vh,440px)] max-h-[min(60vh,440px)]">
