@@ -54,8 +54,8 @@ ENV WORKFLOW_NEXT_PRIVATE_BUILT=1
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build-time public env vars (baked into Next.js client bundle)
-ARG WEB_URL=https://cap-v2.up.railway.app
-ARG NEXT_PUBLIC_WEB_URL=https://cap-v2.up.railway.app
+ARG WEB_URL=https://web-production-e6fe4.up.railway.app
+ARG NEXT_PUBLIC_WEB_URL=https://web-production-e6fe4.up.railway.app
 ENV WEB_URL=$WEB_URL
 ENV NEXT_PUBLIC_WEB_URL=$NEXT_PUBLIC_WEB_URL
 
