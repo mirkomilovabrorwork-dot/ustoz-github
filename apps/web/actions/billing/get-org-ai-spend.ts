@@ -2,7 +2,12 @@
 
 import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
-import { aiUsageEvents, users, videos } from "@cap/database/schema";
+import {
+	type AiOperation,
+	aiUsageEvents,
+	users,
+	videos,
+} from "@cap/database/schema";
 import { Organisation } from "@cap/web-domain";
 import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { getOrganizationAccess } from "@/actions/organization/authorization";
@@ -128,11 +133,20 @@ export async function getOrgAiSpend(
 		);
 	}
 
+	const AI_OPERATIONS: readonly AiOperation[] = [
+		"transcription",
+		"summary",
+		"embedding",
+		"chat",
+	];
+
 	const whereConditions = [
-		eq(aiUsageEvents.orgId, orgId),
+		eq(aiUsageEvents.orgId, Organisation.OrganisationId.make(orgId)),
 		gte(aiUsageEvents.createdAt, start),
 		lt(aiUsageEvents.createdAt, end),
-		...(operation ? [eq(aiUsageEvents.operation, operation)] : []),
+		...(operation && (AI_OPERATIONS as readonly string[]).includes(operation)
+			? [eq(aiUsageEvents.operation, operation as AiOperation)]
+			: []),
 	];
 
 	const [countResult, rows] = await Promise.all([

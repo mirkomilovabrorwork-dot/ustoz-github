@@ -2,7 +2,7 @@ import { nanoId } from "@cap/database/helpers";
 import * as Db from "@cap/database/schema";
 import { Video } from "@cap/web-domain";
 import * as Dz from "drizzle-orm";
-import type { MySqlInsertBase } from "drizzle-orm/mysql-core";
+import type { AnyMySqlInsert } from "drizzle-orm/mysql-core";
 import { Effect, Option } from "effect";
 import type { Schema } from "effect/Schema";
 import { Database } from "../Database.ts";
@@ -64,24 +64,55 @@ export class VideosRepo extends Effect.Service<VideosRepo>()("VideosRepo", {
 
 				yield* db.use((db) =>
 					db.transaction(async (db) => {
-						const promises: MySqlInsertBase<any, any, any>[] = [
+						const {
+							ownerId,
+							orgId,
+							name,
+							public: isPublic,
+							source,
+							metadata,
+							bucketId,
+							storageIntegrationId,
+							folderId,
+							transcriptionStatus,
+							width,
+							height,
+							duration,
+							password,
+						} = data;
+
+						// The DB `source` column models the `extensionWeb` variant with
+						// extra fields (`context`, `meetingId`, `sourceUrl`) that the
+						// client-safe domain `Video.source` schema does not carry. Map the
+						// domain value onto the DB shape explicitly so the variant that
+						// needs `context` is constructed with a valid value.
+						const dbSource: typeof Db.videos.$inferInsert["source"] =
+							source.type === "extensionWeb"
+								? { type: "extensionWeb", context: "instruction" }
+								: { type: source.type };
+
+						const promises: AnyMySqlInsert[] = [
 							db.insert(Db.videos).values([
 								{
-									...data,
 									id,
-									orgId: data.orgId,
-									bucket: Option.getOrNull(data.bucketId ?? Option.none()),
+									ownerId,
+									orgId,
+									name,
+									public: isPublic,
+									source: dbSource,
+									metadata: Option.getOrNull(metadata ?? Option.none()),
+									bucket: Option.getOrNull(bucketId ?? Option.none()),
 									storageIntegrationId: Option.getOrNull(
-										data.storageIntegrationId ?? Option.none(),
+										storageIntegrationId ?? Option.none(),
 									),
-									metadata: Option.getOrNull(data.metadata ?? Option.none()),
 									transcriptionStatus: Option.getOrNull(
-										data.transcriptionStatus ?? Option.none(),
+										transcriptionStatus ?? Option.none(),
 									),
-									folderId: Option.getOrNull(data.folderId ?? Option.none()),
-									width: Option.getOrNull(data.width ?? Option.none()),
-									height: Option.getOrNull(data.height ?? Option.none()),
-									duration: Option.getOrNull(data.duration ?? Option.none()),
+									folderId: Option.getOrNull(folderId ?? Option.none()),
+									width: Option.getOrNull(width ?? Option.none()),
+									height: Option.getOrNull(height ?? Option.none()),
+									duration: Option.getOrNull(duration ?? Option.none()),
+									...(password !== undefined ? { password } : {}),
 								},
 							]),
 						];

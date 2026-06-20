@@ -31,7 +31,7 @@ export const AiBudgetCard = () => {
 	const isAdmin = canManageOrganizationSettings(currentRole);
 
 	const orgSettings = activeOrganization?.organization.settings as
-		| (typeof activeOrganization.organization.settings & {
+		| (NonNullable<typeof activeOrganization>["organization"]["settings"] & {
 				aiBudget?: AiBudgetSettings;
 		  })
 		| null

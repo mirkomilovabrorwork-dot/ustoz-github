@@ -154,7 +154,7 @@ export async function createNotification(
 				recipientId,
 				type,
 				data,
-				videoId: notification.videoId,
+				videoId: Video.VideoId.make(notification.videoId),
 			});
 
 			revalidatePath("/dashboard");
@@ -188,7 +188,7 @@ export async function createNotification(
 					and(
 						eq(notifications.type, "view"),
 						eq(notifications.recipientId, videoResult.ownerId),
-						eq(notifications.videoId, notification.videoId),
+						eq(notifications.videoId, Video.VideoId.make(notification.videoId)),
 						sql`JSON_EXTRACT(${notifications.data}, '$.authorId') = ${notification.authorId}`,
 					),
 				)
@@ -230,7 +230,7 @@ export async function createNotification(
 			recipientId: videoResult.ownerId,
 			type,
 			data,
-			videoId: notification.videoId,
+			videoId: Video.VideoId.make(notification.videoId),
 		});
 
 		revalidatePath("/dashboard");
@@ -383,7 +383,7 @@ export async function createAnonymousViewNotification({
 					eq(notifications.type, "anon_view"),
 					eq(notifications.recipientId, videoWithOwner.ownerId),
 					gte(notifications.createdAt, rateWindowStart),
-					eq(notifications.videoId, videoId),
+					eq(notifications.videoId, Video.VideoId.make(videoId)),
 				),
 			)
 			.limit(1);
@@ -397,7 +397,7 @@ export async function createAnonymousViewNotification({
 			recipientId: videoWithOwner.ownerId,
 			type: "anon_view",
 			data: { videoId, anonName, location },
-			videoId,
+			videoId: Video.VideoId.make(videoId),
 			dedupKey,
 		});
 		revalidatePath("/dashboard");

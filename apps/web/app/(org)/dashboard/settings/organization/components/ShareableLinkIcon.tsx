@@ -134,7 +134,7 @@ export const ShareableLinkIcon = () => {
 					</div>
 					<Switch
 						disabled={
-							(!user.isPro && buildEnv.NEXT_PUBLIC_IS_CAP) ||
+							Boolean(!user.isPro && buildEnv.NEXT_PUBLIC_IS_CAP) ||
 							!hasOrganizationIcon ||
 							isMutating
 						}
@@ -168,7 +168,7 @@ export const ShareableLinkIcon = () => {
 						uploadIcon.mutate({ organizationId, file });
 					}}
 					disabled={
-						(!user.isPro && buildEnv.NEXT_PUBLIC_IS_CAP) ||
+						Boolean(!user.isPro && buildEnv.NEXT_PUBLIC_IS_CAP) ||
 						useOrganizationIconChecked ||
 						isMutating
 					}

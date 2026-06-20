@@ -356,32 +356,48 @@ app.post(
 					let formattedParts: { PartNumber: number; ETag: string }[];
 
 					if (needsEtagResolution) {
+						// The browser-extension uploader cannot always read the ETag
+						// response header from the cross-origin S3 PUT (it depends on the
+						// bucket's CORS ExposeHeaders config), so it records a placeholder
+						// "RESOLVE_SERVER_SIDE" ETag. Resolve those server-side via
+						// listParts before completing — S3 rejects completion with a
+						// placeholder/empty ETag, which would break the F006 retry path.
 						console.log(
-							"Client sent placeholder ETags — resolving via ListParts",
+							"Client sent placeholder ETags — resolving real ETags via listParts",
 						);
-						const listResult = yield* bucket.multipart.listParts(
+
+						const listed = yield* bucket.multipart.listParts(
 							fileKey,
 							uploadId,
 						);
-						const s3Parts = listResult.Parts ?? [];
-						const etagMap = new Map(
-							s3Parts
-								.filter(
-									(p): p is typeof p & { PartNumber: number; ETag: string } =>
-										p.PartNumber != null && p.ETag != null,
-								)
-								.map((p) => [p.PartNumber, p.ETag]),
-						);
+						const etagByPartNumber = new Map<number, string>();
+						for (const part of listed.Parts ?? []) {
+							if (part.PartNumber !== undefined && part.ETag) {
+								etagByPartNumber.set(part.PartNumber, part.ETag);
+							}
+						}
 
-						formattedParts = sortedParts.map((part) => ({
-							PartNumber: part.partNumber,
-							ETag:
-								etagMap.get(part.partNumber) ??
-								part.etag,
-						}));
+						formattedParts = sortedParts.map((part) => {
+							const isPlaceholder =
+								!part.etag || part.etag === "RESOLVE_SERVER_SIDE";
+							const resolvedEtag = isPlaceholder
+								? etagByPartNumber.get(part.partNumber)
+								: part.etag;
+
+							if (!resolvedEtag) {
+								throw new Error(
+									`Unable to resolve ETag for part ${part.partNumber}; it was not found in the multipart upload`,
+								);
+							}
+
+							return {
+								PartNumber: part.partNumber,
+								ETag: resolvedEtag,
+							};
+						});
 
 						console.log(
-							`Resolved ${etagMap.size} ETags from S3 for ${sortedParts.length} parts`,
+							`Resolved ${formattedParts.length} part ETags via listParts`,
 						);
 					} else {
 						formattedParts = sortedParts.map((part) => ({

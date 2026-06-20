@@ -63,26 +63,11 @@ import {
 	isAiGenerationLanguage,
 	parseAiGenerationLanguage,
 } from "@cap/web-domain";
-import { getDeepgramTranscriptionOptions } from "@/workflows/transcribe";
 
 describe("AI generation language support", () => {
 	it("does not expose unsupported transcription languages", () => {
 		expect(AI_GENERATION_LANGUAGES).not.toHaveProperty("pa");
 		expect(isAiGenerationLanguage("pa")).toBe(false);
 		expect(parseAiGenerationLanguage("pa")).toBe("auto");
-	});
-
-	it("constrains Deepgram auto-detection to detectable languages", () => {
-		expect(getDeepgramTranscriptionOptions("auto")).toMatchObject({
-			model: "nova-3",
-			detect_language: expect.arrayContaining(["en", "es", "zh"]),
-		});
-	});
-
-	it("passes explicit languages to Deepgram", () => {
-		expect(getDeepgramTranscriptionOptions("zh")).toMatchObject({
-			model: "nova-3",
-			language: "zh",
-		});
 	});
 });

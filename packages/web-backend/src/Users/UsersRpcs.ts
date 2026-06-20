@@ -37,17 +37,21 @@ export const UsersRpcsLive = User.UserRpcs.toLayer(
 							return { step: "skipToDashboard" as const, data: undefined };
 					}
 				}).pipe(
-					Effect.catchTag(
-						"DatabaseError",
-						() => new InternalError({ type: "database" }),
+					Effect.mapError(
+						(e): InternalError => {
+							if (e instanceof InternalError) return e;
+							return new InternalError({ type: "database" });
+						},
 					),
 				),
 			UserUpdate: (data) =>
 				users.update(data).pipe(
-					Effect.catchTags({
-						DatabaseError: () => new InternalError({ type: "database" }),
-						S3Error: () => new InternalError({ type: "s3" }),
-					}),
+					Effect.mapError(
+						(e): InternalError => {
+							if (e instanceof InternalError) return e;
+							return new InternalError({ type: "unknown" });
+						},
+					),
 				),
 		};
 	}),

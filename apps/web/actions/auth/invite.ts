@@ -137,7 +137,7 @@ export async function redeemInvite(
 			.where(eq(users.email, normalizedEmail))
 			.limit(1);
 
-		const userId = existingUser?.id ?? (nanoId() as User.UserId);
+		let userId = existingUser?.id ?? (nanoId() as User.UserId);
 		let passwordHash: string | null = null;
 
 		if (existingUser) {

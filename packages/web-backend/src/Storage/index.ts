@@ -258,6 +258,15 @@ const makeS3Access = (s3: S3BucketAccess) => ({
 				"Key" | "Bucket" | "UploadId"
 			>,
 		) => mapStorageError(s3.multipart.abort(key, uploadId, args)),
+		listParts: (key: string, uploadId: string) =>
+			mapStorageError(s3.multipart.listParts(key, uploadId)).pipe(
+				Effect.map((result) => ({
+					Parts: result.Parts?.map((part) => ({
+						PartNumber: part.PartNumber,
+						ETag: part.ETag,
+					})),
+				})),
+			),
 	},
 	createUploadTarget: (key: string, input: UploadTargetInput) =>
 		Effect.gen(function* () {
@@ -662,6 +671,12 @@ const makeGoogleDriveAccess = ({
 				mapStorageError(repo.deleteObjectByKey(integrationId, key)).pipe(
 					Effect.as({}),
 				),
+			// Google Drive resumable uploads do not use per-part ETags, so there are
+			// no parts to enumerate; placeholder-ETag resolution is never needed here.
+			listParts: (_key: string, _uploadId: string) =>
+				Effect.succeed<{
+					Parts?: { PartNumber?: number; ETag?: string }[];
+				}>({ Parts: [] }),
 		},
 		createUploadTarget: (key: string, input: UploadTargetInput) =>
 			createGoogleDriveResumableUpload(

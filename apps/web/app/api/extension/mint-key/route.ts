@@ -17,9 +17,10 @@ export async function POST() {
 		.orderBy(desc(authApiKeys.createdAt))
 		.limit(1);
 
-	if (existing.length > 0) {
+	const first = existing[0];
+	if (first) {
 		return NextResponse.json({
-			token: existing[0].id,
+			token: first.id,
 			email: user.email,
 		});
 	}

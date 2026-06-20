@@ -1,4 +1,4 @@
-import { InternalError, Organisation } from "@cap/web-domain";
+import { InternalError, Organisation, Policy } from "@cap/web-domain";
 import { Effect } from "effect";
 import { Organisations } from ".";
 
@@ -9,16 +9,29 @@ export const OrganisationsRpcsLive = Organisation.OrganisationRpcs.toLayer(
 		return {
 			OrganisationUpdate: (data) =>
 				orgs.update(data).pipe(
-					Effect.catchTags({
-						DatabaseError: () => new InternalError({ type: "database" }),
-						S3Error: () => new InternalError({ type: "s3" }),
-					}),
+					Effect.mapError(
+						(
+							e,
+						): InternalError | Organisation.NotFoundError | Policy.PolicyDeniedError => {
+							if (e instanceof Organisation.NotFoundError) return e;
+							if (e instanceof Policy.PolicyDeniedError) return e;
+							if (e instanceof InternalError) return e;
+							return new InternalError({ type: "unknown" });
+						},
+					),
 				),
 			OrganisationSoftDelete: (data) =>
 				orgs.softDelete(data.id).pipe(
-					Effect.catchTags({
-						DatabaseError: () => new InternalError({ type: "database" }),
-					}),
+					Effect.mapError(
+						(
+							e,
+						): InternalError | Organisation.NotFoundError | Policy.PolicyDeniedError => {
+							if (e instanceof Organisation.NotFoundError) return e;
+							if (e instanceof Policy.PolicyDeniedError) return e;
+							if (e instanceof InternalError) return e;
+							return new InternalError({ type: "database" });
+						},
+					),
 				),
 		};
 	}),

@@ -29,9 +29,9 @@ export async function saveAiBudget(params: {
 			.update(users)
 			.set({
 				preferences: {
-					...(user.preferences ?? {}),
+					...(user.preferences as Record<string, unknown> | null ?? {}),
 					aiBudget: { monthlyUsdCents, alertAtPct, enabled },
-				},
+				} as typeof users.$inferSelect.preferences,
 			})
 			.where(eq(users.id, user.id));
 

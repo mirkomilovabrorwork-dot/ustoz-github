@@ -116,7 +116,7 @@ export default async function NotificationsPage(props: {
 		);
 	})
 		.pipe(runPromise)
-		.then((results) => results.filter(Boolean));
+		.then((results) => results.filter((x): x is APINotification => x !== null));
 
 	return (
 		<NotificationsClient

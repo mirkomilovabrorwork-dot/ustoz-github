@@ -87,8 +87,11 @@ function SpendBarChart({
 	const byDate: Record<string, Record<string, number>> = {};
 	for (const row of data) {
 		if (!byDate[row.date]) byDate[row.date] = {};
-		byDate[row.date][row.operation] =
-			(byDate[row.date][row.operation] ?? 0) + row.costUsdCents;
+		const dayBucket = byDate[row.date];
+		if (dayBucket) {
+			dayBucket[row.operation] =
+				(dayBucket[row.operation] ?? 0) + row.costUsdCents;
+		}
 	}
 
 	const dates = Object.keys(byDate).sort();

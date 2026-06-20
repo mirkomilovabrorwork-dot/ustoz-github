@@ -2,7 +2,7 @@ import { db } from "@cap/database";
 import { nanoId } from "@cap/database/helpers";
 import { type AiOperation, aiUsageEvents } from "@cap/database/schema";
 import { priceForMicros } from "@cap/utils";
-import type { Organisation, User, Video } from "@cap/web-domain";
+import { Organisation, User, type Video } from "@cap/web-domain";
 import { and, eq, sql } from "drizzle-orm";
 
 export class BudgetExceededError extends Error {
@@ -30,14 +30,17 @@ async function getMonthlySpendMicros(
 	id: string,
 	billingMonth: string,
 ): Promise<number> {
-	const col = column === "orgId" ? aiUsageEvents.orgId : aiUsageEvents.userId;
+	const idCondition =
+		column === "orgId"
+			? eq(aiUsageEvents.orgId, Organisation.OrganisationId.make(id))
+			: eq(aiUsageEvents.userId, User.UserId.make(id));
 
 	const [result] = await db()
 		.select({
 			total: sql<number>`COALESCE(SUM(${aiUsageEvents.costUsdMicros}), 0)`,
 		})
 		.from(aiUsageEvents)
-		.where(and(eq(col, id), eq(aiUsageEvents.billingMonth, billingMonth)));
+		.where(and(idCondition, eq(aiUsageEvents.billingMonth, billingMonth)));
 
 	return Number(result?.total ?? 0);
 }

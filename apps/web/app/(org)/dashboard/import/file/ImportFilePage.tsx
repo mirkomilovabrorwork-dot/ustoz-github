@@ -1,7 +1,8 @@
 "use client";
 
 import { buildEnv } from "@cap/env";
-import type { Folder, Organisation } from "@cap/web-domain";
+import type { Organisation } from "@cap/web-domain";
+import { Folder } from "@cap/web-domain";
 import { faArrowLeft, faUpload } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useStore } from "@tanstack/react-store";

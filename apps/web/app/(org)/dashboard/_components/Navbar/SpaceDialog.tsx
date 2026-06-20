@@ -533,7 +533,7 @@ export const NewSpaceForm: React.FC<NewSpaceFormProps> = (props) => {
 						<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
 							{settingOptions.map((option) => {
 								const disabled =
-									(option.pro && !user?.isPro && buildEnv.NEXT_PUBLIC_IS_CAP) ||
+									Boolean(option.pro && !user?.isPro && buildEnv.NEXT_PUBLIC_IS_CAP) ||
 									((option.value === "disableSummary" ||
 										option.value === "disableChapters") &&
 										settings.disableTranscript);
