@@ -18,6 +18,62 @@ interface RetryItem {
 
 let inMemoryBuffer: Uint8Array = new Uint8Array(0);
 
+interface PartRetryPayload {
+	partNumber: number;
+	videoId: string;
+	uploadId: string;
+	partDataBase64: string;
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+	let binary = "";
+	const chunkSize = 0x8000;
+
+	for (let i = 0; i < bytes.length; i += chunkSize) {
+		binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+	}
+
+	return btoa(binary);
+}
+
+function base64ToBytes(base64: string): Uint8Array {
+	const binary = atob(base64);
+	const bytes = new Uint8Array(binary.length);
+
+	for (let i = 0; i < binary.length; i += 1) {
+		bytes[i] = binary.charCodeAt(i);
+	}
+
+	return bytes;
+}
+
+function getPartRetryPayload(item: RetryItem): PartRetryPayload | undefined {
+	const { partNumber, videoId, uploadId, partDataBase64 } = item.payload;
+
+	if (
+		typeof partNumber !== "number" ||
+		typeof videoId !== "string" ||
+		typeof uploadId !== "string" ||
+		typeof partDataBase64 !== "string"
+	) {
+		return undefined;
+	}
+
+	return { partNumber, videoId, uploadId, partDataBase64 };
+}
+
+function upsertCompletedPart(
+	parts: CompletedPart[],
+	completedPart: CompletedPart,
+): CompletedPart[] {
+	const withoutPart = parts.filter(
+		(part) => part.PartNumber !== completedPart.PartNumber,
+	);
+	return [...withoutPart, completedPart].sort(
+		(a, b) => a.PartNumber - b.PartNumber,
+	);
+}
+
 function appendToBuffer(chunk: Uint8Array): void {
 	const merged = new Uint8Array(inMemoryBuffer.length + chunk.length);
 	merged.set(inMemoryBuffer, 0);
@@ -107,6 +163,134 @@ async function uploadPart(
 	};
 }
 
+async function recordCompletedPart(
+	videoId: string,
+	uploadId: string,
+	completedPart: CompletedPart,
+	partSize: number,
+): Promise<void> {
+	const state = await getState();
+
+	if (
+		(state.kind !== "recording" && state.kind !== "uploading") ||
+		state.videoId !== videoId ||
+		state.uploadId !== uploadId
+	) {
+		return;
+	}
+
+	const alreadyRecorded = state.parts.some(
+		(part) => part.PartNumber === completedPart.PartNumber,
+	);
+
+	await setState({
+		...state,
+		parts: upsertCompletedPart(state.parts, completedPart),
+		uploadedBytes: alreadyRecorded
+			? state.uploadedBytes
+			: state.uploadedBytes + partSize,
+	});
+}
+
+function enqueuePartRetryPayload(
+	partData: Uint8Array,
+	partNumber: number,
+	videoId: string,
+	uploadId: string,
+): Omit<RetryItem, "attempts" | "nextRetryAt"> {
+	return {
+		kind: "part",
+		payload: {
+			partNumber,
+			videoId,
+			uploadId,
+			partDataBase64: bytesToBase64(partData),
+		},
+	};
+}
+
+function scheduleRetry(item: RetryItem, now: number): RetryItem | undefined {
+	const nextAttempts = item.attempts + 1;
+	if (nextAttempts >= MAX_ATTEMPTS) return undefined;
+
+	const delaySec = BACKOFF_SECONDS[nextAttempts - 1] ?? 256;
+	return {
+		...item,
+		attempts: nextAttempts,
+		nextRetryAt: now + delaySec * 1000,
+	};
+}
+
+async function retryQueuedPartsForUpload(
+	videoId: string,
+	uploadId: string,
+	parts: CompletedPart[],
+	settings: ExtensionSettings,
+): Promise<{ parts: CompletedPart[]; failed: boolean }> {
+	const queue = await getRetryQueue();
+	const remaining: RetryItem[] = [];
+	const now = Date.now();
+	let nextParts = parts;
+	let failed = false;
+
+	for (const item of queue) {
+		const payload = item.kind === "part" ? getPartRetryPayload(item) : undefined;
+		if (item.kind !== "part") {
+			remaining.push(item);
+			continue;
+		}
+
+		if (!payload) {
+			if (
+				item.payload.videoId === videoId &&
+				item.payload.uploadId === uploadId
+			) {
+				failed = true;
+				await moveToDeadLetter(item);
+			} else {
+				remaining.push(item);
+			}
+			continue;
+		}
+
+		if (payload.videoId !== videoId || payload.uploadId !== uploadId) {
+			remaining.push(item);
+			continue;
+		}
+
+		try {
+			const partData = base64ToBytes(payload.partDataBase64);
+			const completedPart = await uploadPart(
+				partData,
+				payload.partNumber,
+				payload.videoId,
+				payload.uploadId,
+				settings,
+			);
+			nextParts = upsertCompletedPart(nextParts, completedPart);
+			await recordCompletedPart(
+				payload.videoId,
+				payload.uploadId,
+				completedPart,
+				partData.length,
+			);
+		} catch (err) {
+			console.error("[upload] Queued part retry failed:", err);
+			failed = true;
+
+			const rescheduled = scheduleRetry(item, now);
+			if (rescheduled) {
+				remaining.push(rescheduled);
+			} else {
+				await moveToDeadLetter({ ...item, attempts: item.attempts + 1 });
+			}
+		}
+	}
+
+	await setRetryQueue(remaining);
+	return { parts: nextParts, failed };
+}
+
 export async function initializeUpload(
 	mode: "instruction" | "meeting",
 	meetingId?: string,
@@ -181,18 +365,25 @@ export async function handleChunk(
 			});
 		} catch (err) {
 			console.error("[upload] Part upload failed:", err);
-			await addToRetryQueue({
-				kind: "part",
-				payload: {
-					partNumber: state.nextPartNumber,
-					videoId: state.videoId,
-					uploadId: state.uploadId,
-				},
-			});
+			await addToRetryQueue(
+				enqueuePartRetryPayload(
+					partData,
+					state.nextPartNumber,
+					state.videoId,
+					state.uploadId,
+				),
+			);
 
 			const freshState = await getState();
 			if (freshState.kind === "recording") {
-				await setState({ ...freshState, totalBytes: newTotalBytes });
+				await setState({
+					...freshState,
+					nextPartNumber: Math.max(
+						freshState.nextPartNumber,
+						state.nextPartNumber + 1,
+					),
+					totalBytes: newTotalBytes,
+				});
 			}
 		}
 	} else {
@@ -240,15 +431,28 @@ export async function finalizeUpload(): Promise<void> {
 			nextPartNumber += 1;
 		} catch (err) {
 			console.error("[upload] Final part upload failed:", err);
-			await addToRetryQueue({
-				kind: "part",
-				payload: {
-					partNumber: nextPartNumber,
-					videoId,
-					uploadId,
-				},
-			});
+			await addToRetryQueue(
+				enqueuePartRetryPayload(remaining, nextPartNumber, videoId, uploadId),
+			);
 		}
+	}
+
+	const queuedPartsResult = await retryQueuedPartsForUpload(
+		videoId,
+		uploadId,
+		parts,
+		settings,
+	);
+	parts = queuedPartsResult.parts;
+
+	if (queuedPartsResult.failed) {
+		await setState({
+			kind: "error",
+			reason: "Upload part retry failed. Check network and try again.",
+			recoverable: true,
+			previousVideoId: videoId,
+		});
+		return;
 	}
 
 	if (parts.length === 0) {
@@ -339,7 +543,26 @@ export async function retryPendingUploads(): Promise<void> {
 
 		try {
 			if (item.kind === "part") {
-				await moveToDeadLetter(item);
+				const payload = getPartRetryPayload(item);
+				if (!payload) {
+					await moveToDeadLetter(item);
+					continue;
+				}
+
+				const partData = base64ToBytes(payload.partDataBase64);
+				const completedPart = await uploadPart(
+					partData,
+					payload.partNumber,
+					payload.videoId,
+					payload.uploadId,
+					settings,
+				);
+				await recordCompletedPart(
+					payload.videoId,
+					payload.uploadId,
+					completedPart,
+					partData.length,
+				);
 			} else if (item.kind === "complete") {
 				const { uploadId, videoId, parts } = item.payload as {
 					uploadId: string;
@@ -358,16 +581,11 @@ export async function retryPendingUploads(): Promise<void> {
 			}
 		} catch (err) {
 			console.error(`[upload] Retry failed for ${item.kind}:`, err);
-			const nextAttempts = item.attempts + 1;
-			if (nextAttempts >= MAX_ATTEMPTS) {
-				await moveToDeadLetter({ ...item, attempts: nextAttempts });
+			const rescheduled = scheduleRetry(item, now);
+			if (!rescheduled) {
+				await moveToDeadLetter({ ...item, attempts: item.attempts + 1 });
 			} else {
-				const delaySec = BACKOFF_SECONDS[nextAttempts - 1] ?? 256;
-				remaining.push({
-					...item,
-					attempts: nextAttempts,
-					nextRetryAt: now + delaySec * 1000,
-				});
+				remaining.push(rescheduled);
 			}
 		}
 	}
