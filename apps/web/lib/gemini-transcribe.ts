@@ -62,6 +62,10 @@ function plainTextToWebVTT(text: string, durationSec: number): string {
 	return vtt;
 }
 
+import { isTransientGeminiError, withGeminiRetry } from "@/lib/gemini-retry";
+
+const GEMINI_TRANSCRIBE_MODEL = "gemini-2.5-flash";
+
 async function pollUntilActive(
 	fileName: string,
 	apiKey: string,
@@ -156,23 +160,24 @@ export async function transcribeWithGemini(
 		await pollUntilActive(fileName, apiKey);
 	}
 
-	const genRes = await fetch(
-		`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`,
-		{
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				contents: [
-					{
-						parts: [
-							{
-								fileData: {
-									mimeType,
-									fileUri,
+	const { genRes, genData } = await withGeminiRetry(async () => {
+		const res = await fetch(
+			`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TRANSCRIBE_MODEL}:generateContent?key=${apiKey}`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					contents: [
+						{
+							parts: [
+								{
+									fileData: {
+										mimeType,
+										fileUri,
+									},
 								},
-							},
-							{
-								text: `You are a professional Uzbek meeting transcription editor.
+								{
+									text: `You are a professional Uzbek meeting transcription editor.
 
 Transcribe the attached online/offline meeting fully and accurately in Uzbek Latin.
 
@@ -226,28 +231,42 @@ Timestamp format:
 8. Output only the transcript. No intro, no explanation, no table, no numbering.
 
 IMPORTANT: Start your response with "WEBVTT" header and format each line as WebVTT cues with timestamps in HH:MM:SS.mmm --> HH:MM:SS.mmm format. The speaker labels, bold formatting, and content rules above still apply within each cue text.`,
-							},
-						],
+								},
+							],
+						},
+					],
+					generationConfig: {
+						temperature: 0.1,
+						maxOutputTokens: 8192,
 					},
-				],
-				generationConfig: {
-					temperature: 0.1,
-					maxOutputTokens: 8192,
-				},
-			}),
-		},
-	);
+				}),
+			},
+		);
 
-	const genData = (await genRes.json()) as {
-		candidates?: Array<{
-			content: { parts: Array<{ text?: string }> };
-		}>;
-		usageMetadata?: {
-			promptTokenCount?: number;
-			candidatesTokenCount?: number;
+		const data = (await res.json()) as {
+			candidates?: Array<{
+				content: { parts: Array<{ text?: string }> };
+			}>;
+			usageMetadata?: {
+				promptTokenCount?: number;
+				candidatesTokenCount?: number;
+			};
+			error?: { message: string };
 		};
-		error?: { message: string };
-	};
+
+		if (!res.ok) {
+			const errMsg = `Gemini generateContent failed (HTTP ${res.status}): ${data.error?.message ?? "unknown"}`;
+			if (isTransientGeminiError(res.status, data.error?.message ?? "")) {
+				throw new Error(errMsg);
+			}
+			// Non-transient: throw a special marker so withGeminiRetry skips retries
+			const e = new Error(errMsg);
+			(e as Error & { permanent?: boolean }).permanent = true;
+			throw e;
+		}
+
+		return { genRes: res, genData: data };
+	});
 
 	if (!genRes.ok) {
 		throw new Error(

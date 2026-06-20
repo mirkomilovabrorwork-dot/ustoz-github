@@ -314,7 +314,7 @@ async function transcribeAudio(
 		userId: context.userId,
 		videoId: context.videoId,
 		operation: "transcription",
-		model: "gemini-3-flash-preview",
+		model: "gemini-2.5-flash",
 		fn: async () => {
 			const res = await transcribeWithGemini(audioUrl, {
 				apiKey: resolvedApiKey,

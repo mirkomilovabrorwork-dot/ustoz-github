@@ -18,6 +18,7 @@ import { and, eq } from "drizzle-orm";
 import { Effect, Option } from "effect";
 import { FatalError } from "workflow";
 import { z } from "zod";
+import { withGeminiRetry } from "@/lib/gemini-retry";
 import { runPromise } from "@/lib/server";
 import { decodeStorageVideo } from "@/lib/video-storage";
 
@@ -465,7 +466,7 @@ function chunkTranscriptWithTimestamps(
 	return chunks;
 }
 
-const GEMINI_SUMMARY_MODEL = "gemini-3-flash-preview";
+const GEMINI_SUMMARY_MODEL = "gemini-2.5-flash";
 
 interface AiApiResult {
 	content: string;
@@ -481,37 +482,41 @@ async function callAiApi(prompt: string): Promise<AiApiResult> {
 		return { content: "{}", model: "unknown", inputTokens: 0, outputTokens: 0 };
 	}
 
-	const res = await fetch(
-		`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_SUMMARY_MODEL}:generateContent?key=${apiKey}`,
-		{
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				contents: [{ parts: [{ text: prompt }] }],
-				generationConfig: {
-					temperature: 0.2,
-					maxOutputTokens: 8192,
-				},
-			}),
-		},
-	);
-
-	const data = (await res.json()) as {
-		candidates?: Array<{
-			content: { parts: Array<{ text?: string }> };
-		}>;
-		usageMetadata?: {
-			promptTokenCount?: number;
-			candidatesTokenCount?: number;
-		};
-		error?: { message: string };
-	};
-
-	if (!res.ok) {
-		throw new Error(
-			`Gemini generateContent failed: ${data.error?.message ?? res.status}`,
+	const { res, data } = await withGeminiRetry(async () => {
+		const res = await fetch(
+			`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_SUMMARY_MODEL}:generateContent?key=${apiKey}`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					contents: [{ parts: [{ text: prompt }] }],
+					generationConfig: {
+						temperature: 0.2,
+						maxOutputTokens: 8192,
+					},
+				}),
+			},
 		);
-	}
+
+		const data = (await res.json()) as {
+			candidates?: Array<{
+				content: { parts: Array<{ text?: string }> };
+			}>;
+			usageMetadata?: {
+				promptTokenCount?: number;
+				candidatesTokenCount?: number;
+			};
+			error?: { message: string };
+		};
+
+		if (!res.ok) {
+			throw new Error(
+				`Gemini generateContent failed (HTTP ${res.status}): ${data.error?.message ?? "unknown"}`,
+			);
+		}
+
+		return { res, data };
+	});
 
 	const content =
 		data.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
