@@ -290,6 +290,15 @@ async function handleMessage(
 				return { ok: false, error: "already active" };
 			}
 			const settings = await getSettings();
+			if (!settings.apiKey) {
+				// Not signed in — open the popup so the user can sign in
+				chrome.action.openPopup().catch(() => {
+					// openPopup may fail if not triggered by a user gesture in MV3;
+					// open the options page as a reliable fallback
+					chrome.runtime.openOptionsPage();
+				});
+				return { ok: false, error: "not signed in" };
+			}
 			await setState({ kind: "arming", mode: "meeting", meetingId, tabId });
 			let nudgeStreamId: string;
 			try {
@@ -499,7 +508,14 @@ chrome.runtime.onMessageExternal.addListener(
 			setSettings({
 				apiKey: token ?? "",
 				...(apiBaseUrl ? { apiBaseUrl } : {}),
-			}).then(() => sendResponse({ ok: true }));
+			}).then(() => {
+				// Relay internally so an open popup/options page auto-updates
+				// instead of waiting for its 20s fallback timeout.
+				chrome.runtime
+					.sendMessage({ type: "CAP_EXTENSION_TOKEN", token, apiBaseUrl })
+					.catch(() => {});
+				sendResponse({ ok: true });
+			});
 			return true;
 		}
 		sendResponse({ ok: false });

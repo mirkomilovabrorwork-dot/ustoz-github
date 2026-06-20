@@ -1,3 +1,5 @@
+import { DEFAULT_API_BASE_URL } from "../shared/config";
+
 export interface CompletedPart {
 	ETag: string;
 	PartNumber: number;
@@ -83,7 +85,7 @@ const STATE_KEY = "capExtState";
 const SETTINGS_KEY = "capExtSettings";
 
 const DEFAULT_SETTINGS: ExtensionSettings = {
-	apiBaseUrl: "https://web-production-e6fe4.up.railway.app",
+	apiBaseUrl: DEFAULT_API_BASE_URL,
 	apiKey: "",
 	autoRecordOnMeet: false,
 	autoRecordCountdownSec: 5,

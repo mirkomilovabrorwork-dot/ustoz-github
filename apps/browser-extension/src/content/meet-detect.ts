@@ -116,15 +116,15 @@ function soundDroplet(ctx: AudioContext, t: number): void {
 	osc.frequency.setValueAtTime(1700, t);
 	osc.frequency.exponentialRampToValueAtTime(360, t + 0.11);
 	gain.gain.setValueAtTime(0, t);
-	gain.gain.linearRampToValueAtTime(0.3, t + 0.005);
+	gain.gain.linearRampToValueAtTime(0.12, t + 0.005);
 	gain.gain.exponentialRampToValueAtTime(0.001, t + 0.36);
 	osc.start(t);
-	osc.stop(t + 0.38);
+	osc.stop(t + 0.28);
 }
 
 function soundChime(ctx: AudioContext, t: number): void {
-	sineNode(ctx, 880, t, 0, 0.38, 0.22);
-	sineNode(ctx, 1318, t, 0.16, 0.5, 0.18);
+	sineNode(ctx, 880, t, 0, 0.38, 0.12);
+	sineNode(ctx, 1318, t, 0.16, 0.5, 0.10);
 }
 
 function playAudio(fn: (ctx: AudioContext, t: number) => void): void {
@@ -562,12 +562,28 @@ function renderDefaultNudge(): void {
 	nudgeState = "default";
 
 	btnRecord.addEventListener("click", () => {
-		sendToBackground({
-			type: "MEET_NUDGE_RECORD_NOW",
-			meetingId: meetingId ?? "",
-		});
-		clearNudge();
-		nudgeState = "hidden";
+		btnRecord.disabled = true;
+		btnRecord.textContent = "Starting...";
+		chrome.runtime.sendMessage(
+			{ type: "MEET_NUDGE_RECORD_NOW", meetingId: meetingId ?? "" },
+			(response: unknown) => {
+				const resp = response as Record<string, unknown> | undefined;
+				if (resp && resp.ok === false && resp.error === "not signed in") {
+					// Background has opened the popup/options — show inline feedback
+					const errEl = document.createElement("p");
+					errEl.style.cssText =
+						"font-size:12px;color:#e53e3e;margin:6px 0 0;";
+					errEl.textContent =
+						"Sign in to Cap first (the sign-in window just opened)";
+					card.appendChild(errEl);
+					btnRecord.disabled = false;
+					btnRecord.textContent = "Record now";
+				} else {
+					clearNudge();
+					nudgeState = "hidden";
+				}
+			},
+		);
 	});
 
 	btnLater.addEventListener("click", () => {

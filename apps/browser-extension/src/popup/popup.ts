@@ -1,4 +1,5 @@
 import type { ExtensionSettings, ExtensionState } from "../background/state";
+import { DEFAULT_API_BASE_URL } from "../shared/config";
 
 interface PopupData {
 	state: ExtensionState;
@@ -434,26 +435,76 @@ function renderNotSignedIn(
 		el("h1", {}, "Cap Recorder"),
 	);
 
+	// ── PRIMARY: OAuth button ──────────────────────────────────────────────
 	const signInBtn = el(
 		"button",
 		{ className: "btn btn-primary" },
-		"Sign in to Cap",
+		"Sign in with Cap",
 	);
+
+	const oauthMsg = el("p", { className: "inline-msg" });
+	let oauthTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+	// Listen for the token from the callback page.
+	// If it arrives we just reload — the render loop will switch to the signed-in view.
+	const tokenListener = (message: unknown): void => {
+		if (
+			typeof message === "object" &&
+			message !== null &&
+			(message as Record<string, unknown>).type === "CAP_EXTENSION_TOKEN"
+		) {
+			if (oauthTimeoutId !== null) clearTimeout(oauthTimeoutId);
+			chrome.runtime.onMessage.removeListener(tokenListener);
+			location.reload();
+		}
+	};
+
 	signInBtn.addEventListener("click", () => {
 		const url = `${settings.apiBaseUrl}/extension/callback?extensionId=${chrome.runtime.id}`;
 		chrome.tabs.create({ url });
+		oauthMsg.textContent = "Waiting for sign-in… (the page will auto-update)";
+		oauthMsg.style.color = "";
+
+		chrome.runtime.onMessage.addListener(tokenListener);
+
+		// After 20 s with no token, prompt user to paste the key manually
+		oauthTimeoutId = setTimeout(() => {
+			chrome.runtime.onMessage.removeListener(tokenListener);
+			oauthMsg.textContent =
+				"Couldn't sign in automatically — paste your key below instead";
+			oauthMsg.style.color = "#e53e3e";
+		}, 20000);
 	});
+
+	// ── SECONDARY: API-key paste (always visible) ─────────────────────────
+	const keyDivider = el(
+		"p",
+		{ className: "inline-msg" },
+		"— or paste your API key —",
+	);
+	keyDivider.style.textAlign = "center";
+	keyDivider.style.color = "#888";
+	keyDivider.style.margin = "6px 0 2px";
+
+	const keyHint = el(
+		"p",
+		{ className: "inline-msg" },
+		"Find your key at: Cap server → /extension/callback",
+	);
+	keyHint.style.fontSize = "11px";
+	keyHint.style.color = "#888";
+	keyHint.style.margin = "0 0 4px";
 
 	const apiKeyInput = el("input", {
 		className: "api-key-input",
 		type: "text",
-		placeholder: "Paste your Cap API key",
+		placeholder: "Paste your cak_... key here",
 	} as unknown as Partial<HTMLInputElement>);
 
 	const connectBtn = el(
 		"button",
 		{ className: "btn btn-secondary" },
-		"Connect",
+		"Connect with key",
 	);
 
 	const inlineMsg = el("p", { className: "inline-msg" });
@@ -462,6 +513,7 @@ function renderNotSignedIn(
 		const key = (apiKeyInput as HTMLInputElement).value.trim();
 		if (!key) {
 			inlineMsg.textContent = "Please paste a key";
+			inlineMsg.style.color = "#e53e3e";
 			return;
 		}
 		inlineMsg.textContent = "";
@@ -478,12 +530,36 @@ function renderNotSignedIn(
 						headers: { Authorization: `Bearer ${key}` },
 					});
 					if (res.ok) {
-						location.reload();
-					} else {
+						const data = (await res.json().catch(() => ({}))) as Record<
+							string,
+							unknown
+						>;
+						const name =
+							typeof data.name === "string"
+								? data.name
+								: typeof data.email === "string"
+									? data.email
+									: "";
+						if (name) {
+							inlineMsg.textContent = `Connected as ${name}`;
+							inlineMsg.style.color = "#38a169";
+						}
+						setTimeout(() => location.reload(), 800);
+					} else if (res.status === 401) {
 						inlineMsg.textContent =
-							"That key isn't valid — check it and try again";
+							"Key not accepted — sign in again or paste a new key";
+						inlineMsg.style.color = "#e53e3e";
 						connectBtn.disabled = false;
-						connectBtn.textContent = "Connect";
+						connectBtn.textContent = "Connect with key";
+						chrome.runtime.sendMessage({
+							type: "SAVE_SETTINGS",
+							settings: { apiKey: "", apiBaseUrl: settings.apiBaseUrl },
+						});
+					} else {
+						inlineMsg.textContent = `Server error (${res.status}) — try again`;
+						inlineMsg.style.color = "#e53e3e";
+						connectBtn.disabled = false;
+						connectBtn.textContent = "Connect with key";
 						chrome.runtime.sendMessage({
 							type: "SAVE_SETTINGS",
 							settings: { apiKey: "", apiBaseUrl: settings.apiBaseUrl },
@@ -491,9 +567,10 @@ function renderNotSignedIn(
 					}
 				} catch {
 					inlineMsg.textContent =
-						"That key isn't valid — check it and try again";
+						"Can't reach the server — check the address in Settings";
+					inlineMsg.style.color = "#e53e3e";
 					connectBtn.disabled = false;
-					connectBtn.textContent = "Connect";
+					connectBtn.textContent = "Connect with key";
 					chrome.runtime.sendMessage({
 						type: "SAVE_SETTINGS",
 						settings: { apiKey: "", apiBaseUrl: settings.apiBaseUrl },
@@ -505,6 +582,9 @@ function renderNotSignedIn(
 
 	root.appendChild(logoWrap);
 	root.appendChild(signInBtn);
+	root.appendChild(oauthMsg);
+	root.appendChild(keyDivider);
+	root.appendChild(keyHint);
 	root.appendChild(apiKeyInput);
 	root.appendChild(connectBtn);
 	root.appendChild(inlineMsg);
@@ -755,7 +835,7 @@ async function getSettingsFromSW(): Promise<ExtensionSettings> {
 					typeof response !== "object"
 				) {
 					resolve({
-						apiBaseUrl: "https://web-production-e6fe4.up.railway.app",
+						apiBaseUrl: DEFAULT_API_BASE_URL,
 						apiKey: "",
 						autoRecordOnMeet: false,
 						autoRecordCountdownSec: 5,

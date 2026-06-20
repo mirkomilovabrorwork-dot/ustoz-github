@@ -1,6 +1,6 @@
 import type { ExtensionSettings } from "../background/state";
 
-const DEFAULT_API_BASE_URL = "https://web-production-e6fe4.up.railway.app";
+import { DEFAULT_API_BASE_URL } from "../shared/config";
 
 function sendMessage(message: Record<string, unknown>): Promise<unknown> {
 	return new Promise((resolve, reject) => {
@@ -289,7 +289,7 @@ function buildAccountSection(
 			apiBaseUrl: baseUrl,
 		});
 		try {
-			const res = await fetch(`${baseUrl}/api/status`, {
+			const res = await fetch(`${baseUrl}/api/extension/me`, {
 				headers: { Authorization: `Bearer ${key}` },
 			});
 			if (res.ok) {
@@ -338,13 +338,26 @@ function buildAccountSection(
 		const key = apiKeyInput.value.trim();
 
 		try {
-			const res = await fetch(`${baseUrl}/api/status`, {
+			const res = await fetch(`${baseUrl}/api/extension/me`, {
 				headers: key ? { Authorization: `Bearer ${key}` } : {},
 			});
 			if (res.ok) {
 				connectionStatus.className =
 					"connection-status connection-status--success";
-				connectionStatus.textContent = "✓ Connected";
+				let label = "✓ Connected";
+				try {
+					const data = (await res.json()) as Record<string, unknown>;
+					const identity =
+						typeof data.name === "string" && data.name
+							? data.name
+							: typeof data.email === "string" && data.email
+								? data.email
+								: null;
+					if (identity) label = `✓ Connected as ${identity}`;
+				} catch {
+					// ignore JSON parse errors — label stays "✓ Connected"
+				}
+				connectionStatus.textContent = label;
 			} else {
 				connectionStatus.className =
 					"connection-status connection-status--error";
