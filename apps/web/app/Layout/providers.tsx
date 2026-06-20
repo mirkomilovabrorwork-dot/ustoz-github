@@ -55,6 +55,7 @@ type DevtoolsConfig = NonNullable<TanStackDevtoolsReactInit["config"]>;
 const devtoolsSettingsStorageKey = "tanstack_devtools_settings";
 
 const devtoolsConfig = {
+	defaultOpen: false,
 	hideUntilHover: false,
 	position: "top-left",
 	requireUrlFlag: false,
@@ -104,7 +105,7 @@ export function Devtools() {
 		setIsReady(true);
 	}, []);
 
-	if (!isReady) return null;
+	if (process.env.NODE_ENV !== "development" || !isReady) return null;
 
 	return (
 		<TanStackDevtools

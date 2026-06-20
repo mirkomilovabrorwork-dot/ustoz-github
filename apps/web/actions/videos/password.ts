@@ -11,7 +11,51 @@ import { collectPasswordHashes } from "@cap/web-backend";
 import type { Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { setVerifiedPasswordCookie } from "@/lib/password-cookie";
+
+const RATE_LIMIT_WINDOW_MS = 5 * 60_000;
+const RATE_LIMIT_MAX_ATTEMPTS = 10;
+const RATE_LIMIT_MAX_ENTRIES = 10_000;
+const passwordAttemptCounts = new Map<
+	string,
+	{ count: number; resetAt: number }
+>();
+let rateLimitRequestCounter = 0;
+
+async function getClientIp() {
+	const requestHeaders = await headers();
+	return (
+		requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+		requestHeaders.get("x-real-ip") ||
+		"unknown"
+	);
+}
+
+function isRateLimited(key: string) {
+	const now = Date.now();
+	rateLimitRequestCounter++;
+	if (rateLimitRequestCounter % 100 === 0) {
+		for (const [k, v] of passwordAttemptCounts) {
+			if (now > v.resetAt) passwordAttemptCounts.delete(k);
+		}
+		if (passwordAttemptCounts.size > RATE_LIMIT_MAX_ENTRIES) {
+			passwordAttemptCounts.clear();
+		}
+	}
+
+	const entry = passwordAttemptCounts.get(key);
+	if (!entry || now > entry.resetAt) {
+		passwordAttemptCounts.set(key, {
+			count: 1,
+			resetAt: now + RATE_LIMIT_WINDOW_MS,
+		});
+		return false;
+	}
+
+	entry.count++;
+	return entry.count > RATE_LIMIT_MAX_ATTEMPTS;
+}
 
 export async function setVideoPassword(
 	videoId: Video.VideoId,
@@ -90,6 +134,11 @@ export async function verifyVideoPassword(
 	try {
 		if (!videoId || typeof password !== "string")
 			return { success: false, error: "Failed to verify password" };
+
+		const ip = await getClientIp();
+		if (isRateLimited(`${videoId}:${ip}`)) {
+			return { success: false, error: "Too many attempts. Try again later." };
+		}
 
 		const [video] = await db()
 			.select()
