@@ -1521,6 +1521,21 @@ export const useWebRecorder = ({
 		phase === "converting" ||
 		phase === "uploading";
 	const isBusyState = isBusyPhase || isRestarting;
+	const shouldWarnBeforeUnload = isSettingUp || isBusyState;
+
+	useEffect(() => {
+		if (!shouldWarnBeforeUnload) return;
+
+		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+			event.preventDefault();
+			event.returnValue = "";
+		};
+
+		window.addEventListener("beforeunload", handleBeforeUnload);
+		return () => {
+			window.removeEventListener("beforeunload", handleBeforeUnload);
+		};
+	}, [shouldWarnBeforeUnload]);
 
 	return {
 		phase,
