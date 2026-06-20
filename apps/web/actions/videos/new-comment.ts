@@ -3,9 +3,10 @@
 import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { nanoId } from "@cap/database/helpers";
-import { comments } from "@cap/database/schema";
+import { comments, organizations, videos } from "@cap/database/schema";
 import type { ImageUpload } from "@cap/web-domain";
 import { Comment, User, type Video } from "@cap/web-domain";
+import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { createNotification } from "@/lib/Notification";
 
@@ -18,6 +19,7 @@ export async function newComment(data: {
 	timestamp: number;
 }) {
 	const user = await getCurrentUser();
+	if (!user) throw new Error("Unauthorized");
 
 	const content = data.content;
 	const videoId = data.videoId;
@@ -33,11 +35,26 @@ export async function newComment(data: {
 	if (!content || !videoId) {
 		throw new Error("Content and videoId are required");
 	}
+
+	const [video] = await db()
+		.select({
+			settings: videos.settings,
+			orgSettings: organizations.settings,
+		})
+		.from(videos)
+		.leftJoin(organizations, eq(videos.orgId, organizations.id))
+		.where(eq(videos.id, videoId))
+		.limit(1);
+
+	if (!video) throw new Error("Video not found");
+
+	const commentsDisabled =
+		video.settings?.disableComments ?? video.orgSettings?.disableComments ?? false;
+	if (commentsDisabled) throw new Error("Comments are disabled");
+
 	const id = Comment.CommentId.make(nanoId());
 
-	const authorId = user
-		? User.UserId.make(user.id)
-		: User.UserId.make("anonymous");
+	const authorId = User.UserId.make(user.id);
 
 	const newComment = {
 		id: id,
@@ -53,24 +70,22 @@ export async function newComment(data: {
 
 	await db().insert(comments).values(newComment);
 
-	if (user) {
-		try {
-			await createNotification({
-				type: conditionalType,
-				videoId,
-				authorId: user.id,
-				comment: { id, content },
-				parentCommentId,
-			});
-		} catch (error) {
-			console.error("Failed to create notification:", error);
-		}
+	try {
+		await createNotification({
+			type: conditionalType,
+			videoId,
+			authorId: user.id,
+			comment: { id, content },
+			parentCommentId,
+		});
+	} catch (error) {
+		console.error("Failed to create notification:", error);
 	}
 
 	const commentWithAuthor = {
 		...newComment,
-		authorName: user ? user.name : "Guest",
-		authorImage: user ? data.authorImage : null,
+		authorName: user.name,
+		authorImage: data.authorImage,
 		sending: false,
 	};
 

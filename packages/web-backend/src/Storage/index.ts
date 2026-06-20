@@ -831,7 +831,11 @@ export class Storage extends Effect.Service<Storage>()("Storage", {
 			}
 
 			const [s3, customBucket] = yield* mapStorageError(
-				s3Buckets.getBucketAccess(video.bucketId),
+				s3Buckets.getBucketAccessForOwnerOrOrganization(
+					video.bucketId,
+					video.ownerId,
+					video.orgId,
+				),
 			);
 			return [makeS3Access(s3), customBucket] as const;
 		});

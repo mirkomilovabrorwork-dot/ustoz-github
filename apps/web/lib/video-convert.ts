@@ -11,29 +11,49 @@ export interface VideoConversionResult {
 	cleanup: () => Promise<void>;
 }
 
+const FFMPEG_TIMEOUT_MS = 5 * 60 * 1000;
+
 function runFfmpeg(args: string[]): Promise<void> {
 	const ffmpeg = getFfmpegPath();
 
 	return new Promise((resolve, reject) => {
 		const proc = spawn(ffmpeg, args, { stdio: ["ignore", "ignore", "pipe"] });
+		let settled = false;
 
 		let stderr = "";
+		const timeout = setTimeout(() => {
+			if (settled) return;
+			settled = true;
+			proc.kill("SIGKILL");
+			reject(new Error("Video conversion timed out"));
+		}, FFMPEG_TIMEOUT_MS);
+
+		const finish = (callback: () => void) => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timeout);
+			callback();
+		};
 
 		proc.stderr?.on("data", (data: Buffer) => {
 			stderr += data.toString();
 		});
 
 		proc.on("error", (err: Error) => {
-			reject(new Error(`Video conversion failed: ${err.message}`));
+			finish(() =>
+				reject(new Error(`Video conversion failed: ${err.message}`)),
+			);
 		});
 
 		proc.on("close", (code: number | null) => {
 			if (code === 0) {
-				resolve();
+				finish(resolve);
 				return;
 			}
 
-			reject(new Error(`Video conversion failed with code ${code}: ${stderr}`));
+			finish(() =>
+				reject(new Error(`Video conversion failed with code ${code}: ${stderr}`)),
+			);
 		});
 	});
 }

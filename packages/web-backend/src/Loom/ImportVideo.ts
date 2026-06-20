@@ -5,6 +5,7 @@ import { Effect, Option, Schedule, Schema, Stream } from "effect";
 
 import { S3Buckets } from "../S3Buckets/index.ts";
 import { Videos } from "../Videos/index.ts";
+import { validateLoomDownloadUrl } from "./Url.ts";
 
 export const LoomImportVideoLive = Loom.ImportVideo.toLayer(
 	Effect.fn(function* (payload) {
@@ -14,11 +15,19 @@ export const LoomImportVideoLive = Loom.ImportVideo.toLayer(
 
 		yield* Effect.log("starting loom import workflow");
 
+		const downloadUrl = validateLoomDownloadUrl(payload.loom.video.downloadUrl);
+		if (!downloadUrl) {
+			return yield* Effect.fail(
+				new Loom.VideoInvalidError({ cause: "InvalidUrl" }),
+			);
+		}
+		const downloadUrlHost = downloadUrl.hostname;
+
 		yield* Activity.make({
 			name: "VerifyURLValid",
 			error: Schema.Union(Loom.VideoInvalidError, Loom.ExternalLoomError),
 			execute: http
-				.get(payload.loom.video.downloadUrl, {
+				.get(downloadUrl.toString(), {
 					headers: { range: "bytes=0-0" },
 				})
 				.pipe(
@@ -111,11 +120,16 @@ export const LoomImportVideoLive = Loom.ImportVideo.toLayer(
 				Loom.ExternalLoomError,
 			),
 			execute: Effect.gen(function* () {
-				const [s3Bucket] = yield* s3Buckets.getBucketAccess(customBucketId);
+				const [s3Bucket] =
+					yield* s3Buckets.getBucketAccessForOwnerOrOrganization(
+						customBucketId,
+						payload.cap.userId,
+						payload.cap.orgId,
+					);
 
-				yield* Effect.log(payload.loom.video.downloadUrl);
+				yield* Effect.log(`Downloading Loom video from ${downloadUrlHost}`);
 				const resp = yield* http
-					.get(payload.loom.video.downloadUrl)
+					.get(downloadUrl.toString())
 					.pipe(
 						Effect.catchAll((cause) => new Loom.ExternalLoomError({ cause })),
 					);

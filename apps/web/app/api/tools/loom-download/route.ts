@@ -1,10 +1,15 @@
 import { randomUUID } from "node:crypto";
+import { getCurrentUser } from "@cap/database/auth/session";
+import { validateLoomDownloadUrl } from "@cap/web-backend";
 import { type NextRequest, NextResponse } from "next/server";
 import {
 	fetchConvertedVideoViaMediaServer,
 	isMediaServerConfigured,
 } from "@/lib/media-client";
 import { convertRemoteVideoToMp4Buffer } from "@/lib/video-convert";
+
+const MAX_LOOM_DOWNLOAD_BYTES = 2 * 1024 * 1024 * 1024;
+const FFMPEG_TIMEOUT_MS = 5 * 60 * 1000;
 
 function isHlsUrl(url: string): boolean {
 	return (url.split("?")[0] ?? "").toLowerCase().endsWith(".m3u8");
@@ -34,6 +39,49 @@ function getInputExtension(url: string): string | undefined {
 	}
 
 	return undefined;
+}
+
+function getContentLength(headers: Headers) {
+	const raw = headers.get("content-length");
+	if (!raw) return null;
+
+	const value = Number(raw);
+	return Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+function getContentLengthGuardResponse(headers: Headers) {
+	const contentLength = getContentLength(headers);
+	if (contentLength === null) return null;
+	if (contentLength <= MAX_LOOM_DOWNLOAD_BYTES) return null;
+
+	return NextResponse.json(
+		{ error: "Video is too large to download." },
+		{ status: 413 },
+	);
+}
+
+function validateCdnUrl(url: string) {
+	return validateLoomDownloadUrl(url);
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+	return new Promise((resolve, reject) => {
+		const timeout = setTimeout(
+			() => reject(new Error("Video conversion timed out")),
+			timeoutMs,
+		);
+
+		promise.then(
+			(value) => {
+				clearTimeout(timeout);
+				resolve(value);
+			},
+			(error) => {
+				clearTimeout(timeout);
+				reject(error);
+			},
+		);
+	});
 }
 
 async function fetchLoomCdnUrl(
@@ -122,11 +170,19 @@ async function tryMp4CandidateDownload(
 
 	for (const mp4Url of mp4Candidates) {
 		try {
+			if (!validateCdnUrl(mp4Url)) continue;
+
 			const headRes = await fetch(mp4Url, { method: "HEAD" });
 			if (!headRes.ok) continue;
+			const guardResponse = getContentLengthGuardResponse(headRes.headers);
+			if (guardResponse) return guardResponse;
 
 			const mp4Response = await fetch(mp4Url);
 			if (!mp4Response.ok || !mp4Response.body) continue;
+			const getGuardResponse = getContentLengthGuardResponse(
+				mp4Response.headers,
+			);
+			if (getGuardResponse) return getGuardResponse;
 
 			const mp4Body = mp4Response.body;
 			const mp4Stream = new ReadableStream<Uint8Array>({
@@ -160,6 +216,11 @@ async function tryMp4CandidateDownload(
 }
 
 export async function GET(request: NextRequest) {
+	const user = await getCurrentUser();
+	if (!user) {
+		return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+	}
+
 	const videoId = request.nextUrl.searchParams.get("id");
 	const videoName = request.nextUrl.searchParams.get("name");
 
@@ -181,18 +242,29 @@ export async function GET(request: NextRequest) {
 			{ status: 404 },
 		);
 	}
+	const validCdnUrl = validateCdnUrl(cdnUrl);
+	if (!validCdnUrl) {
+		return NextResponse.json(
+			{ error: "Invalid Loom CDN URL" },
+			{ status: 400 },
+		);
+	}
+	const safeCdnUrl = validCdnUrl.toString();
 
 	const sanitizedName = videoName
 		? videoName.replace(/[^a-zA-Z0-9\s\-_.]/g, "").trim()
 		: "";
 
-	if (!isStreamingUrl(cdnUrl)) {
+	if (!isStreamingUrl(safeCdnUrl)) {
 		const mp4Filename = sanitizedName
 			? `${sanitizedName}.mp4`
 			: `loom-video-${videoId}.mp4`;
 
-		const directResponse = await fetch(cdnUrl);
+		const directResponse = await fetch(safeCdnUrl);
 		if (directResponse.ok && directResponse.body) {
+			const guardResponse = getContentLengthGuardResponse(directResponse.headers);
+			if (guardResponse) return guardResponse;
+
 			const body = directResponse.body;
 			const stream = new ReadableStream<Uint8Array>({
 				async start(controller) {
@@ -220,10 +292,10 @@ export async function GET(request: NextRequest) {
 			});
 		}
 
-		return NextResponse.redirect(cdnUrl);
+		return NextResponse.redirect(safeCdnUrl);
 	}
 
-	const parsedUrl = new URL(cdnUrl);
+	const parsedUrl = new URL(safeCdnUrl);
 	const queryParams = parsedUrl.search;
 	const pathUpToSlash = parsedUrl.pathname.substring(
 		0,
@@ -251,11 +323,16 @@ export async function GET(request: NextRequest) {
 	if (isMediaServerConfigured()) {
 		try {
 			const convertedResponse = await fetchConvertedVideoViaMediaServer(
-				cdnUrl,
-				getInputExtension(cdnUrl),
+				safeCdnUrl,
+				getInputExtension(safeCdnUrl),
 			);
 
 			if (convertedResponse.ok && convertedResponse.body) {
+				const guardResponse = getContentLengthGuardResponse(
+					convertedResponse.headers,
+				);
+				if (guardResponse) return guardResponse;
+
 				return new NextResponse(convertedResponse.body, {
 					headers: {
 						"Content-Type": "video/mp4",
@@ -294,7 +371,16 @@ export async function GET(request: NextRequest) {
 	}
 
 	try {
-		const mp4Buffer = await convertRemoteVideoToMp4Buffer(cdnUrl);
+		const mp4Buffer = await withTimeout(
+			convertRemoteVideoToMp4Buffer(safeCdnUrl),
+			FFMPEG_TIMEOUT_MS,
+		);
+		if (mp4Buffer.byteLength > MAX_LOOM_DOWNLOAD_BYTES) {
+			return NextResponse.json(
+				{ error: "Video is too large to download." },
+				{ status: 413 },
+			);
+		}
 
 		return new NextResponse(mp4Buffer, {
 			headers: {

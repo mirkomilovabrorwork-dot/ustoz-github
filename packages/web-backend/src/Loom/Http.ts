@@ -6,6 +6,11 @@ import { handleDomainError } from "../Http/Errors.ts";
 import { OrganisationsPolicy } from "../Organisations/OrganisationsPolicy.ts";
 import * as Workflows from "../Workflows.ts";
 
+function isInternalCapEmail(email: string) {
+	const parts = email.trim().toLowerCase().split("@");
+	return parts.length === 2 && parts[1] === "cap.so";
+}
+
 export const LoomHttpLive = HttpApiBuilder.group(
 	Http.ApiContract,
 	"loom",
@@ -21,8 +26,10 @@ export const LoomHttpLive = HttpApiBuilder.group(
 					);
 
 					const user = yield* CurrentUser;
-					if (!user.email.endsWith("@cap.so"))
-						return yield* Effect.die("Internal access only");
+					if (!isInternalCapEmail(user.email))
+						return yield* Effect.fail(
+							new Policy.PolicyDeniedError({ reason: "Internal access only" }),
+						);
 
 					const result = yield* workflows
 						.LoomImportVideo({

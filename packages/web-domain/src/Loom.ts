@@ -24,7 +24,7 @@ export class ExternalLoomError extends Schema.TaggedError<ExternalLoomError>()(
 
 export class VideoInvalidError extends Schema.TaggedError<VideoInvalidError>()(
 	"VideoInvalidError",
-	{ cause: Schema.Literal("NotFound", "InvalidContentLength") },
+	{ cause: Schema.Literal("NotFound", "InvalidContentLength", "InvalidUrl") },
 	HttpApiSchema.annotations({ status: 400 }),
 ) {}
 

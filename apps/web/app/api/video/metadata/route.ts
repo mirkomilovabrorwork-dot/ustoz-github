@@ -4,12 +4,32 @@ import { videos } from "@cap/database/schema";
 import { eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 
+const USER_EDITABLE_METADATA_FIELDS = [
+	"customCreatedAt",
+	"sourceName",
+	"titleManuallyEdited",
+] as const;
+
+function pickUserEditableMetadata(metadata: unknown) {
+	if (typeof metadata !== "object" || metadata === null || Array.isArray(metadata)) {
+		return null;
+	}
+
+	const source = metadata as Record<string, unknown>;
+	return Object.fromEntries(
+		USER_EDITABLE_METADATA_FIELDS.flatMap((field) =>
+			Object.hasOwn(source, field) ? [[field, source[field]]] : [],
+		),
+	);
+}
+
 export async function PUT(request: NextRequest) {
 	const user = await getCurrentUser();
 	const { videoId, metadata } = await request.json();
 	const userId = user?.id as string;
+	const editableMetadata = pickUserEditableMetadata(metadata);
 
-	if (!user || !videoId || !metadata) {
+	if (!user || !videoId || !editableMetadata) {
 		console.error("Missing required data in /api/video/metadata/route.ts");
 
 		return Response.json({ error: true }, { status: 401 });
@@ -33,7 +53,10 @@ export async function PUT(request: NextRequest) {
 	await db()
 		.update(videos)
 		.set({
-			metadata: metadata,
+			metadata: {
+				...((result.metadata as Record<string, unknown> | null) ?? {}),
+				...editableMetadata,
+			},
 		})
 		.where(eq(videos.id, videoId));
 

@@ -53,6 +53,41 @@ export class S3BucketsRepo extends Effect.Service<S3BucketsRepo>()(
 					}),
 			);
 
+			const getByIdForOwnerOrOrganization = Effect.fn(
+				"S3BucketsRepo.getByIdForOwnerOrOrganization",
+			)(
+				(
+					id: S3Bucket.S3BucketId,
+					ownerId: User.UserId,
+					organizationId: Organisation.OrganisationId,
+				) =>
+					Effect.gen(function* () {
+						const [res] = yield* db.use((db) =>
+							db
+								.select({ bucket: Db.s3Buckets })
+								.from(Db.s3Buckets)
+								.where(
+									Dz.and(
+										Dz.eq(Db.s3Buckets.id, id),
+										Dz.or(
+											Dz.and(
+												Dz.eq(Db.s3Buckets.ownerId, ownerId),
+												Dz.isNull(Db.s3Buckets.organizationId),
+											),
+											Dz.eq(Db.s3Buckets.organizationId, organizationId),
+										),
+									),
+								),
+						);
+
+						return Option.fromNullable(res).pipe(
+							Option.map((v) =>
+								S3Bucket.decodeSync({ ...v.bucket, name: v.bucket.bucketName }),
+							),
+						);
+					}),
+			);
+
 			const getForUser = Effect.fn("S3BucketsRepo.getForUser")(
 				(userId: User.UserId) =>
 					Effect.gen(function* () {
@@ -102,7 +137,13 @@ export class S3BucketsRepo extends Effect.Service<S3BucketsRepo>()(
 					}),
 			);
 
-			return { getForVideo, getById, getForUser, getForOrganization };
+			return {
+				getForVideo,
+				getById,
+				getByIdForOwnerOrOrganization,
+				getForUser,
+				getForOrganization,
+			};
 		}),
 		dependencies: [Database.Default],
 	},

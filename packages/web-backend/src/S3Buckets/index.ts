@@ -211,6 +211,23 @@ export class S3Buckets extends Effect.Service<S3Buckets>()("S3Buckets", {
 						getBucketAccess(Option.some(bucket)).pipe(Effect.map(Option.some)),
 				});
 			}),
+			getBucketAccessForOwnerOrOrganization: Effect.fn(
+				"S3Buckets.getBucketAccessForOwnerOrOrganization",
+			)(function* (
+				bucketId: Option.Option<S3Bucket.S3BucketId>,
+				ownerId: User.UserId,
+				organizationId: Organisation.OrganisationId,
+			) {
+				const customBucket = yield* bucketId.pipe(
+					Option.map((id) =>
+						repo.getByIdForOwnerOrOrganization(id, ownerId, organizationId),
+					),
+					Effect.transposeOption,
+					Effect.map(Option.flatten),
+				);
+
+				return yield* getBucketAccess(customBucket);
+			}),
 		};
 	}),
 	dependencies: [
@@ -230,5 +247,17 @@ export class S3Buckets extends Effect.Service<S3Buckets>()("S3Buckets", {
 	) =>
 		Effect.flatMap(S3Buckets, (b) =>
 			b.getBucketAccessForOrganization(organizationId),
+		);
+	static getBucketAccessForOwnerOrOrganization = (
+		bucketId: Option.Option<S3Bucket.S3BucketId>,
+		ownerId: User.UserId,
+		organizationId: Organisation.OrganisationId,
+	) =>
+		Effect.flatMap(S3Buckets, (b) =>
+			b.getBucketAccessForOwnerOrOrganization(
+				Option.fromNullable(bucketId).pipe(Option.flatten),
+				ownerId,
+				organizationId,
+			),
 		);
 }

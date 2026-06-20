@@ -2,7 +2,6 @@ import {
 	provideOptionalAuth,
 	Storage,
 	Videos,
-	VideosRepo,
 	verifyStorageObjectToken,
 } from "@cap/web-backend";
 import { Storage as StorageDomain, Video } from "@cap/web-domain";
@@ -78,14 +77,6 @@ const toProxyErrorResponse = (error: unknown) => {
 	return new Response("Internal server error", { status: 500 });
 };
 
-const getTokenVideo = (videoId: Video.VideoId) =>
-	Effect.gen(function* () {
-		const repo = yield* VideosRepo;
-		const maybeVideo = yield* repo.getById(videoId);
-		if (Option.isNone(maybeVideo)) return yield* Effect.fail("not-found");
-		return maybeVideo.value[0];
-	});
-
 const getPolicyVideo = (videoId: Video.VideoId) =>
 	Effect.gen(function* () {
 		const videos = yield* Videos;
@@ -112,7 +103,7 @@ export async function GET(request: NextRequest) {
 		const videoId = Video.VideoId.make(videoIdParam);
 		const video =
 			tokenPayload?.videoId === videoIdParam && tokenPayload.key === key
-				? yield* getTokenVideo(videoId)
+				? yield* getPolicyVideo(videoId)
 				: yield* getPolicyVideo(videoId);
 
 		if (!key.startsWith(`${video.ownerId}/${video.id}/`)) {
