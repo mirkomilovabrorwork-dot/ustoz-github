@@ -14,12 +14,11 @@
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",
 		"test:ui": "vitest --ui",
-		"seed:demo": "dotenv -e ../../.env -- ts-node --esm scripts/seed-demo-video.ts"
+		"seed:demo": "dotenv -e ../../.env -- ts-node --esm scripts/seed-demo-video.ts",
+		"test:e2e": "playwright test"
 	},
 	"dependencies": {
 		"@aws-sdk/client-cloudfront": "^3.565.0",
-		"@types/bcryptjs": "^3.0.0",
-		"bcryptjs": "^3.0.3",
 		"@aws-sdk/client-mediaconvert": "^3.565.0",
 		"@aws-sdk/client-s3": "^3.485.0",
 		"@aws-sdk/cloudfront-signer": "^3.821.0",
@@ -83,6 +82,7 @@
 		"@tanstack/react-store": "^0.7.7",
 		"@tanstack/store": "^0.7.7",
 		"@ts-rest/core": "^3.52.1",
+		"@types/bcryptjs": "^3.0.0",
 		"@uidotdev/usehooks": "^2.4.1",
 		"@vercel/firewall": "^1.1.2",
 		"@vercel/functions": "^3.1.0",
@@ -90,6 +90,7 @@
 		"@virtual-grid/react": "^2.0.3",
 		"@workos-inc/node": "^7.34.0",
 		"aws-sdk": "^2.1530.0",
+		"bcryptjs": "^3.0.3",
 		"canvas-confetti": "^1.9.3",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
@@ -153,6 +154,7 @@
 		"zod": "^3.25.76"
 	},
 	"devDependencies": {
+		"@playwright/test": "^1.61.0",
 		"@smithy/types": "^4.3.1",
 		"@types/canvas-confetti": "^1.9.0",
 		"@types/file-saver": "^2.0.7",
