@@ -166,6 +166,7 @@ interface ShareProps {
 	} | null;
 	aiGenerationAvailable: boolean;
 	transcriptionGenerationAvailable: boolean;
+	canGenerate?: boolean;
 }
 
 const useVideoStatus = (
@@ -280,6 +281,7 @@ export const Share = ({
 	defaultPlaybackSpeed,
 	aiGenerationAvailable,
 	transcriptionGenerationAvailable,
+	canGenerate = false,
 }: ShareProps) => {
 	const effectiveDate: Date = data.metadata?.customCreatedAt
 		? new Date(data.metadata.customCreatedAt)
@@ -550,6 +552,7 @@ export const Share = ({
 									isEditProcessing={isEditProcessing}
 									recordingStopped={recordingStopped}
 									defaultPlaybackSpeed={defaultPlaybackSpeed}
+									canGenerate={canGenerate}
 									ref={playerRef}
 								/>
 							</div>

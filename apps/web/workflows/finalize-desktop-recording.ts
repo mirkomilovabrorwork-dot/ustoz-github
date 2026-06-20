@@ -1,12 +1,10 @@
 // Media server removed — desktop segments are served directly via /api/playlist
 import { db } from "@cap/database";
-import { users, videos, videoUploads } from "@cap/database/schema";
+import { videos, videoUploads } from "@cap/database/schema";
 import { type User, Video } from "@cap/web-domain";
 import { and, eq } from "drizzle-orm";
 import { FatalError } from "workflow";
 import { invalidateGoogleDriveStorageQuotaCache } from "@/lib/google-drive-storage-quota";
-import { transcribeVideo } from "@/lib/transcribe";
-import { isAiGenerationEnabled } from "@/utils/flags";
 
 interface FinalizeDesktopRecordingWorkflowPayload {
 	videoId: string;
@@ -26,7 +24,6 @@ export async function finalizeDesktopRecordingWorkflow(
 		// Media server removed — complete without server-side muxing
 		await completeWithoutMediaServer(videoId);
 
-		await queueFinalizedRecordingTranscription(videoId, userId);
 		return { success: true };
 	} catch (error) {
 		const errorMessage =
@@ -100,38 +97,3 @@ async function markMuxError(
 		.where(eq(videoUploads.videoId, Video.VideoId.make(videoId)));
 }
 
-async function queueFinalizedRecordingTranscription(
-	videoId: string,
-	userId: User.UserId,
-): Promise<void> {
-	"use step";
-
-	const [owner] = await db()
-		.select({
-			email: users.email,
-			stripeSubscriptionStatus: users.stripeSubscriptionStatus,
-			thirdPartyStripeSubscriptionId: users.thirdPartyStripeSubscriptionId,
-		})
-		.from(users)
-		.where(eq(users.id, userId));
-
-	const aiGenerationEnabled = owner
-		? await isAiGenerationEnabled(owner)
-		: false;
-
-	const result = await transcribeVideo(
-		Video.VideoId.make(videoId),
-		userId,
-		aiGenerationEnabled,
-	);
-
-	if (!result.success) {
-		console.warn(
-			"[finalizeDesktopRecordingWorkflow] Failed to queue transcription",
-			{
-				videoId,
-				message: result.message,
-			},
-		);
-	}
-}

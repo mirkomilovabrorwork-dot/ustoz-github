@@ -57,7 +57,6 @@ import {
 	isSocialCrawlerUserAgent,
 	SOCIAL_REFERRER_DOMAINS,
 } from "@/lib/social-crawlers";
-import { transcribeVideo } from "@/lib/transcribe";
 import {
 	isEditSourceKey,
 	reconcileStaleEditUpload,
@@ -570,25 +569,6 @@ async function AuthorizedContent({
 		aiGenerationEnabled = await isAiGenerationEnabled(videoOwner);
 	}
 
-	if (
-		transcriptionGenerationAvailable &&
-		!hasActiveUpload &&
-		video.transcriptionStatus !== "COMPLETE" &&
-		video.transcriptionStatus !== "PROCESSING" &&
-		video.transcriptionStatus !== "SKIPPED" &&
-		video.transcriptionStatus !== "NO_AUDIO"
-	) {
-		console.log("[ShareVideoPage] Starting transcription for video:", videoId);
-		transcribeVideo(videoId, video.owner.id, aiGenerationEnabled).catch(
-			(error) => {
-				console.error(
-					`[ShareVideoPage] Error transcribing video ${videoId}:`,
-					error,
-				);
-			},
-		);
-	}
-
 	const currentMetadata = (video.metadata as VideoMetadata) || {};
 	const metadata = currentMetadata;
 	const aiGenerationStatus = metadata.aiGenerationStatus || null;
@@ -792,6 +772,42 @@ async function AuthorizedContent({
 		);
 	})();
 
+	// Viewer can trigger manual AI generation if they are the video owner or an org admin/owner
+	const canGenerate = await (async () => {
+		if (!userId) return false;
+		if (userId === video.owner.id) return true;
+		if (!video.orgId) return false;
+
+		const [orgAccess] = await db()
+			.select({
+				ownerId: organizations.ownerId,
+				memberRole: organizationMembers.role,
+			})
+			.from(organizations)
+			.leftJoin(
+				organizationMembers,
+				and(
+					eq(organizationMembers.organizationId, organizations.id),
+					eq(organizationMembers.userId, userId),
+				),
+			)
+			.where(
+				and(
+					eq(organizations.id, video.orgId),
+					isNull(organizations.tombstoneAt),
+				),
+			)
+			.limit(1);
+
+		if (!orgAccess) return false;
+		const role = getEffectiveOrganizationRole({
+			userId,
+			ownerId: orgAccess.ownerId,
+			memberRole: orgAccess.memberRole,
+		});
+		return role === "owner" || role === "admin";
+	})();
+
 	const videoWithOrganizationInfo = await Effect.gen(function* () {
 		const imageUploads = yield* ImageUploads;
 
@@ -874,6 +890,7 @@ async function AuthorizedContent({
 				initialAiData={initialAiData}
 				aiGenerationAvailable={aiGenerationEnabled && aiProviderAvailable}
 				transcriptionGenerationAvailable={transcriptionGenerationAvailable}
+				canGenerate={canGenerate}
 			/>
 		</div>
 	);

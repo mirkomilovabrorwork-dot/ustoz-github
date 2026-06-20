@@ -29,6 +29,7 @@ import {
 	useUploadProgress,
 } from "./ProgressCircle";
 import { RefinedTranscriptPanel } from "./panels/RefinedTranscriptPanel";
+import { GenerateAiPanel } from "./GenerateAiPanel";
 import { SummaryPanel } from "./panels/SummaryPanel";
 import { TasksPanel } from "./panels/TasksPanel";
 import { TranscriptPanel } from "./panels/TranscriptPanel";
@@ -69,6 +70,7 @@ export const ShareVideo = forwardRef<
 		isEditProcessing: boolean;
 		recordingStopped?: boolean;
 		defaultPlaybackSpeed?: number;
+		canGenerate?: boolean;
 	}
 >(
 	(
@@ -80,12 +82,14 @@ export const ShareVideo = forwardRef<
 			areChaptersDisabled,
 			areCommentStampsDisabled,
 			areReactionStampsDisabled,
+			aiGenerationStatus,
 			canRetryProcessing,
 			canFinalizeDesktopSegments = false,
 			showPlaybackStatusBadge = false,
 			isEditProcessing,
 			recordingStopped = false,
 			defaultPlaybackSpeed,
+			canGenerate = false,
 		},
 		ref,
 	) => {
@@ -95,6 +99,20 @@ export const ShareVideo = forwardRef<
 		const handleUploadComplete = useCallback(() => {
 			router.refresh();
 		}, [router]);
+
+		// When manual AI generation finishes, refresh the server data once so the
+		// Summary / Tasks / Refined panels (rendered from server metadata) populate
+		// without the viewer having to reload the page.
+		const prevAiStatusRef = useRef(aiGenerationStatus);
+		useEffect(() => {
+			if (
+				prevAiStatusRef.current !== "COMPLETE" &&
+				aiGenerationStatus === "COMPLETE"
+			) {
+				router.refresh();
+			}
+			prevAiStatusRef.current = aiGenerationStatus;
+		}, [aiGenerationStatus, router]);
 
 		const captionContext = useCaptionContext();
 
@@ -503,14 +521,23 @@ export const ShareVideo = forwardRef<
 				<div className="mt-4">
 					<BelowVideoTabs
 						summary={
-							<SummaryPanel
-								data={{
-									duration: data.duration ?? undefined,
-									aiSummary: data.metadata?.aiSummary ?? undefined,
-									speakerCount: undefined,
-								}}
-								onVideoJump={handleSeek}
-							/>
+							<>
+								<GenerateAiPanel
+									videoId={data.id}
+									canGenerate={canGenerate}
+									transcriptionStatus={data.transcriptionStatus as "PROCESSING" | "COMPLETE" | "ERROR" | "SKIPPED" | "NO_AUDIO" | null | undefined}
+									aiGenerationStatus={aiGenerationStatus}
+									duration={data.duration}
+								/>
+								<SummaryPanel
+									data={{
+										duration: data.duration ?? undefined,
+										aiSummary: data.metadata?.aiSummary ?? undefined,
+										speakerCount: undefined,
+									}}
+									onVideoJump={handleSeek}
+								/>
+							</>
 						}
 						tasks={
 							<TasksPanel
