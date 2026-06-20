@@ -52,8 +52,8 @@ export function buildCanView(
 			const res = yield* repo.getById(videoId);
 
 			if (Option.isNone(res)) {
-				yield* Effect.log("Video not found. Access granted.");
-				return true;
+				yield* Effect.log("Video not found. Access denied.");
+				return false;
 			}
 
 			const [video, password] = res.value;

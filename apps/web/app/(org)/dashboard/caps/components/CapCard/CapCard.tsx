@@ -519,7 +519,7 @@ export const CapCard = ({
 									<DropdownMenuItem
 										onClick={(e) => {
 											e.stopPropagation();
-											router.push(`/dashboard/analytics/s/${cap.id}`);
+											router.push(`/dashboard/analytics?capId=${cap.id}`);
 										}}
 										className="flex gap-2 items-center rounded-lg"
 									>

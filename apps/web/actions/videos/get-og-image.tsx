@@ -39,7 +39,7 @@ export async function generateVideoOgImage(videoId: Video.VideoId) {
 
 	const { video } = videoData;
 
-	if (!video || video.public === false) {
+	if (!video || video.public === false || video.password) {
 		return new ImageResponse(
 			<div
 				style={{

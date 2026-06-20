@@ -18,6 +18,7 @@ export const dynamic = "force-dynamic";
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_REQUESTS = 20;
 const RATE_LIMIT_MAX_ENTRIES = 10_000;
+const MAX_MESSAGES = 20;
 const requestCounts = new Map<string, { count: number; resetAt: number }>();
 let rateLimitRequestCounter = 0;
 
@@ -78,6 +79,7 @@ export async function POST(request: NextRequest) {
 		role: "user" | "assistant";
 		content: string;
 	}>;
+	const boundedMessages = typedMessages.slice(-MAX_MESSAGES);
 
 	const lastUserMessage = [...typedMessages]
 		.reverse()
@@ -233,7 +235,7 @@ export async function POST(request: NextRequest) {
 							},
 						],
 					},
-					...typedMessages.map((m) => ({
+					...boundedMessages.map((m) => ({
 						role: m.role === "user" ? "user" : "model",
 						parts: [{ text: m.content }],
 					})),

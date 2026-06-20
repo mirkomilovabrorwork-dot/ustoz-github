@@ -48,13 +48,19 @@ const formatDuration = (durationSecs: number) => {
 	}
 };
 
-function generateRandomGrayScaleColor() {
-	const minGrayScaleValue = 190;
-	const maxGrayScaleValue = 235;
-	const grayScaleValue = Math.floor(
-		Math.random() * (maxGrayScaleValue - minGrayScaleValue) + minGrayScaleValue,
-	);
-	return `rgb(${grayScaleValue}, ${grayScaleValue}, ${grayScaleValue})`;
+const PLACEHOLDER_GRADIENTS = [
+	"linear-gradient(to right, rgb(190, 190, 190), rgb(220, 220, 220))",
+	"linear-gradient(to right, rgb(205, 205, 205), rgb(235, 235, 235))",
+	"linear-gradient(to right, rgb(225, 225, 225), rgb(195, 195, 195))",
+	"linear-gradient(to right, rgb(215, 215, 215), rgb(230, 230, 230))",
+] as const;
+
+function getPlaceholderGradient(videoId: Video.VideoId) {
+	let hash = 0;
+	for (let i = 0; i < videoId.length; i++) {
+		hash = (hash + videoId.charCodeAt(i) * (i + 1)) % PLACEHOLDER_GRADIENTS.length;
+	}
+	return PLACEHOLDER_GRADIENTS[hash];
 }
 
 function getPreviewGifSrc(videoId: Video.VideoId) {
@@ -101,7 +107,7 @@ export const VideoThumbnail: React.FC<VideoThumbnailProps> = memo(
 		}));
 		latestVideoId.current = videoId;
 
-		const randomGradient = `linear-gradient(to right, ${generateRandomGrayScaleColor()}, ${generateRandomGrayScaleColor()})`;
+		const placeholderGradient = getPlaceholderGradient(videoId);
 
 		useEffect(() => {
 			if (imageRef.current?.complete && imageRef.current.naturalWidth !== 0) {
@@ -163,7 +169,7 @@ export const VideoThumbnail: React.FC<VideoThumbnailProps> = memo(
 					`overflow-hidden relative mx-auto w-full h-full rounded-t-xl border-b border-gray-3 aspect-video`,
 					containerClass,
 				)}
-				style={{ backgroundImage: randomGradient }}
+				style={{ backgroundImage: placeholderGradient }}
 			>
 				{showFallbackLayer && ownerId && (
 					<div className="absolute inset-0 z-0">

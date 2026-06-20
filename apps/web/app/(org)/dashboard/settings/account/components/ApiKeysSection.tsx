@@ -3,6 +3,7 @@
 import { Button, Card, CardDescription, CardTitle, Input } from "@cap/ui";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { ConfirmationDialog } from "@/app/(org)/dashboard/_components/ConfirmationDialog";
 import { deleteGeminiKey } from "@/actions/account/delete-gemini-key";
 import { getGeminiKeyStatus } from "@/actions/account/get-gemini-key-status";
 import { saveGeminiKey } from "@/actions/account/save-gemini-key";
@@ -20,6 +21,7 @@ export const ApiKeysSection = () => {
 	const [testing, setTesting] = useState(false);
 	const [saving, setSaving] = useState(false);
 	const [removing, setRemoving] = useState(false);
+	const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
 
 	useEffect(() => {
 		getGeminiKeyStatus().then((status) => {
@@ -69,10 +71,21 @@ export const ApiKeysSection = () => {
 			toast.error(result.error);
 		}
 		setRemoving(false);
+		setConfirmRemoveOpen(false);
 	};
 
 	return (
 		<Card className="flex flex-col gap-4">
+			<ConfirmationDialog
+				open={confirmRemoveOpen}
+				title="Remove Gemini API key"
+				description="Are you sure you want to remove your Gemini API key? You will need to paste it again to use it later."
+				confirmLabel={removing ? "Removing..." : "Remove"}
+				confirmVariant="destructive"
+				loading={removing}
+				onConfirm={handleRemove}
+				onCancel={() => setConfirmRemoveOpen(false)}
+			/>
 			<div className="space-y-1">
 				<CardTitle>Gemini API Key (Transcription)</CardTitle>
 				<CardDescription>
@@ -157,7 +170,7 @@ export const ApiKeysSection = () => {
 					variant="destructive"
 					disabled={!hasKey || removing}
 					spinner={removing}
-					onClick={handleRemove}
+					onClick={() => setConfirmRemoveOpen(true)}
 				>
 					{removing ? "Removing..." : "Remove"}
 				</Button>

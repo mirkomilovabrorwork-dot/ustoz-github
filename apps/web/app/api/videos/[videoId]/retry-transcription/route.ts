@@ -1,6 +1,6 @@
 import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
-import { videos } from "@cap/database/schema";
+import { transcriptChunks, videos } from "@cap/database/schema";
 import type { Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -35,6 +35,10 @@ export async function POST(
 		if (!video || video.ownerId !== user.id) {
 			return Response.json({ error: "Unauthorized" }, { status: 403 });
 		}
+
+		await db()
+			.delete(transcriptChunks)
+			.where(eq(transcriptChunks.videoId, videoId));
 
 		// Reset status to null - this will trigger automatic retry via get-status.ts
 		await db()

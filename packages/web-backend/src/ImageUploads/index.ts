@@ -9,7 +9,7 @@ const IMAGE_CONTENT_TYPES = {
 	"image/jpeg": "jpg",
 	"image/webp": "webp",
 	"image/gif": "gif",
-	"image/svg+xml": "svg",
+	"image/avif": "avif",
 } as const;
 
 function getImageExtension(contentType: string) {

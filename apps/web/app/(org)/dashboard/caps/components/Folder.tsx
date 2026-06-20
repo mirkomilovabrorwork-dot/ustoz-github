@@ -129,6 +129,7 @@ const FolderCard = ({
 						folderId: id,
 						spaceId: spaceId ?? activeOrganization?.organization.id,
 					});
+					router.refresh();
 					toast.success(`"${data.name}" moved to "${name}" folder`);
 				} catch (error) {
 					console.error("Error moving video to folder:", error);
@@ -203,6 +204,7 @@ const FolderCard = ({
 		isDragOver,
 		activeOrganization?.organization.id,
 		spaceId,
+		router,
 	]);
 
 	const handleDragOver = (e: React.DragEvent<HTMLFieldSetElement>) => {
@@ -279,6 +281,7 @@ const FolderCard = ({
 
 			setIsMovingVideo(true);
 			await moveVideoToFolder({ videoId: capData.id, folderId: id, spaceId });
+			router.refresh();
 			toast.success(`"${capData.name}" moved to "${name}" folder`);
 		} catch (error) {
 			console.error("Error moving video to folder:", error);
