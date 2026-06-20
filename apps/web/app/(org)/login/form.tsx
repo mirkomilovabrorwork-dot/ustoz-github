@@ -14,6 +14,10 @@ const MotionLink = motion(Link);
 const MotionButton = motion(Button);
 const MotionInput = motion(Input);
 
+function isSafeRelativePath(path: string) {
+	return path.startsWith("/") && !path.startsWith("//") && !path.includes("://");
+}
+
 export function LoginForm() {
 	const searchParams = useSearchParams();
 	const router = useRouter();
@@ -47,7 +51,7 @@ export function LoginForm() {
 
 			if (res?.ok && !res?.error) {
 				const dest = next && next.length > 0 ? next : "/dashboard";
-				window.location.href = dest;
+				window.location.href = isSafeRelativePath(dest) ? dest : "/dashboard";
 				return;
 			}
 

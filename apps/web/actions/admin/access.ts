@@ -193,7 +193,10 @@ export async function resetUserPassword(userId: string, newPassword: string) {
 
 	await db()
 		.update(users)
-		.set({ passwordHash })
+		.set({
+			passwordHash,
+			authSessionVersion: sql`${users.authSessionVersion} + 1`,
+		})
 		.where(eq(users.id, userId as User.UserId));
 
 	return { success: true as const };

@@ -12,7 +12,7 @@ export default async function OrganizationIntegrationsPage() {
 	const user = await getCurrentUser();
 
 	if (!user) {
-		redirect("/auth/signin");
+		redirect("/login");
 	}
 
 	if (!user.activeOrganizationId) {

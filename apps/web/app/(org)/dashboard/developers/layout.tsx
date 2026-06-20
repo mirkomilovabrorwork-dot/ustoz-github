@@ -19,7 +19,7 @@ export default async function DevelopersLayout({
 	children: React.ReactNode;
 }) {
 	const user = await getCurrentUser();
-	if (!user) redirect("/auth/signin");
+	if (!user) redirect("/login");
 
 	if (
 		!buildEnv.NEXT_PUBLIC_IS_CAP ||

@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 export default async function CreditsPage() {
 	const user = await getCurrentUser();
-	if (!user) redirect("/auth/signin");
+	if (!user) redirect("/login");
 
 	const apps = await getDeveloperApps(user);
 

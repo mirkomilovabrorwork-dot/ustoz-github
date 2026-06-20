@@ -7,6 +7,10 @@ import { LoginForm } from "./form";
 
 export const dynamic = "force-dynamic";
 
+function isSafeRelativePath(path: string) {
+	return path.startsWith("/") && !path.startsWith("//") && !path.includes("://");
+}
+
 export default async function LoginPage(props: {
 	searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
@@ -14,7 +18,7 @@ export default async function LoginPage(props: {
 	if (session) {
 		const sp = await props.searchParams;
 		const next = typeof sp.next === "string" ? sp.next : null;
-		redirect(next?.startsWith("/") ? next : "/dashboard");
+		redirect(next && isSafeRelativePath(next) ? next : "/dashboard");
 	}
 	return (
 		<div className="flex relative justify-center items-center w-full h-screen bg-gray-2">

@@ -19,7 +19,7 @@ export default async function VideosPage({
 	searchParams: Promise<{ userId?: string }>;
 }) {
 	const user = await getCurrentUser();
-	if (!user) redirect("/auth/signin");
+	if (!user) redirect("/login");
 
 	const { appId } = await params;
 	const { userId } = await searchParams;

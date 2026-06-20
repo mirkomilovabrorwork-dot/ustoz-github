@@ -42,7 +42,5 @@ export async function requestOtp(email: string): Promise<{ success: boolean }> {
 			expires: new Date(Date.now() + 10 * 60 * 1000),
 		});
 
-	console.log(`[OTP] code for ${normalized}: ${code}`);
-
 	return { success: true };
 }

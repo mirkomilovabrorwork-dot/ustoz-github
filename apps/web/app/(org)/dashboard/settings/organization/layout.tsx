@@ -13,7 +13,7 @@ export default async function OrganizationSettingsLayout({
 	const user = await getCurrentUser();
 
 	if (!user) {
-		redirect("/auth/signin");
+		redirect("/login");
 	}
 
 	if (!user.activeOrganizationId) {

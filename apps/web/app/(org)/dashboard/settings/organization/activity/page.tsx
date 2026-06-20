@@ -16,7 +16,7 @@ export default async function ActivityPage() {
 	const user = await getCurrentUser();
 
 	if (!user) {
-		redirect("/auth/signin");
+		redirect("/login");
 	}
 
 	if (!user.activeOrganizationId) {
