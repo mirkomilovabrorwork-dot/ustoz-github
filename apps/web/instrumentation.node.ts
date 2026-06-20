@@ -6,7 +6,6 @@ import {
 	BucketAlreadyOwnedByYou,
 	CreateBucketCommand,
 	PutBucketCorsCommand,
-	PutBucketPolicyCommand,
 	S3Client,
 } from "@aws-sdk/client-s3";
 import { migrateDb } from "@cap/database/migrate";
@@ -77,7 +76,7 @@ async function applyS3BucketCors(s3Client: S3Client) {
 
 async function createS3Bucket() {
 	// Cloudflare R2 buckets are pre-provisioned and don't support CreateBucket
-	// or PutBucketPolicy via the S3 API — skip this step when using R2.
+	// via the S3 API — skip this step when using R2.
 	if (process.env.CLOUDFLARE_R2_ACCOUNT_ID) {
 		console.log("Using Cloudflare R2 — skipping MinIO bucket creation");
 		return;
@@ -97,25 +96,7 @@ async function createS3Bucket() {
 		.send(new CreateBucketCommand({ Bucket: serverEnv().CAP_AWS_BUCKET }))
 		.then(() => {
 			console.log("Created S3 bucket");
-			return s3Client.send(
-				new PutBucketPolicyCommand({
-					Bucket: serverEnv().CAP_AWS_BUCKET,
-					Policy: JSON.stringify({
-						Version: "2012-10-17",
-						Statement: [
-							{
-								Effect: "Allow",
-								Principal: "*",
-								Action: ["s3:GetObject"],
-								Resource: [`arn:aws:s3:::${serverEnv().CAP_AWS_BUCKET}/*`],
-							},
-						],
-					}),
-				}),
-			);
-		})
-		.then(() => {
-			console.log("Configured S3 buckeet");
+			// Objects are served through app-controlled presigned URLs only.
 			return applyS3BucketCors(s3Client);
 		})
 		.catch(async (e) => {
