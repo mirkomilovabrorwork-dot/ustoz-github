@@ -35,6 +35,11 @@ const nextConfig = {
 		"next-mdx-remote",
 	],
 	typescript: {
+		// Kept TRUE on purpose: the codebase imports with explicit `.ts` extensions
+		// (e.g. `from "../helpers.ts"`), which `next build`'s type-check rejects
+		// (allowImportingTsExtensions). Type safety IS enforced separately by the
+		// root `tsc -b` gate (green). Flipping this to false only breaks the build
+		// for no added safety. To flip it, first drop `.ts` extensions repo-wide.
 		ignoreBuildErrors: true,
 	},
 	experimental: {
