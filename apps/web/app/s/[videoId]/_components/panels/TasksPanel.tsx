@@ -197,7 +197,7 @@ function Column({
 			</div>
 			<div className="flex flex-col gap-2">
 				{items.map(({ t, i }) => (
-					<TaskCard key={i} task={t} index={i} onToggle={onToggle} />
+					<TaskCard key={`task-${i}`} task={t} index={i} onToggle={onToggle} />
 				))}
 				{items.length === 0 && (
 					<div className="rounded-xl border border-dashed border-gray-200 p-3 text-center">
@@ -291,7 +291,7 @@ function ChecklistView({
 					{!collapsed[key] && (
 						<div className="flex flex-col divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white">
 							{items.map(({ t, i }) => (
-								<div key={i} className="flex items-center gap-3 px-3 py-2.5">
+								<div key={`cl-${i}`} className="flex items-center gap-3 px-3 py-2.5">
 									<input
 										type="checkbox"
 										checked={t.done}

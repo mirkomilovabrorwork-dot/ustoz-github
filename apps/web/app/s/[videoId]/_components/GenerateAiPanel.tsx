@@ -83,14 +83,14 @@ export function GenerateAiPanel({
     const step = step1Done ? 2 : 1;
 
     return (
-      <div className="flex flex-col gap-3 rounded-xl border border-purple-100 bg-purple-50 px-4 py-4">
+      <div className="flex flex-col gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-4">
         <div className="flex items-center gap-2">
           <SpinnerIcon />
-          <span className="text-sm font-semibold text-purple-700">
+          <span className="text-sm font-semibold text-blue-700">
             AI tahlil ishlamoqda… ({step}/2)
           </span>
           {etaSec && step === 1 && (
-            <span className="ml-auto text-xs text-purple-400">
+            <span className="ml-auto text-xs text-blue-400">
               taxminan {etaSec}s
             </span>
           )}
@@ -138,7 +138,7 @@ export function GenerateAiPanel({
   // Show button only to admin/owner when nothing generated yet
   if (canGenerate && !transcriptionStatus) {
     return (
-      <div className="flex flex-col gap-3 rounded-xl border border-purple-100 bg-purple-50 px-4 py-4">
+      <div className="flex flex-col gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-4">
         <p className="text-sm text-gray-700">
           Bu video uchun AI tahlil hali boshlanmagan.
         </p>
@@ -147,7 +147,7 @@ export function GenerateAiPanel({
           type="button"
           disabled={loading}
           onClick={handleStart}
-          className="self-start rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-700 disabled:opacity-60"
+          className="self-start rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
         >
           {loading ? "Boshlanmoqda…" : "AI tahlilni boshlash"}
         </button>
@@ -170,7 +170,7 @@ export function GenerateAiPanel({
 function SpinnerIcon() {
   return (
     <svg
-      className="size-4 animate-spin text-purple-600"
+      className="size-4 animate-spin text-blue-600"
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       viewBox="0 0 24 24"
@@ -207,7 +207,7 @@ function StepRow({
         done
           ? "text-green-600"
           : active
-            ? "text-purple-700 font-medium"
+            ? "text-blue-700 font-medium"
             : "text-gray-400"
       }`}
     >

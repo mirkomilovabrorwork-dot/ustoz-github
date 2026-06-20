@@ -110,7 +110,7 @@ const SidebarAnalytics = ({
 			{isOwner && (
 				<Link
 					href={`/dashboard/analytics?capId=${videoId}`}
-					className="text-xs text-purple-600 hover:underline"
+					className="text-xs text-blue-600 hover:underline"
 				>
 					View analytics
 				</Link>
@@ -235,13 +235,13 @@ export const Sidebar = forwardRef<{ scrollToBottom: () => void }, SidebarProps>(
 		return (
 			<div
 				className="flex flex-col gap-3"
-				style={{ width: "320px", position: "sticky", top: "1rem" }}
+				style={{ width: "100%", position: "sticky", top: "1rem" }}
 			>
 				<div
 					style={{
 						borderRadius: "14px",
-						background: "linear-gradient(135deg, #f5f3ff 0%, #f7f9fc 100%)",
-						border: "1px solid rgba(124, 58, 237, .15)",
+						background: "linear-gradient(135deg, #eef4ff 0%, #f7f9fc 100%)",
+						border: "1px solid rgba(37, 99, 235, .15)",
 						boxShadow:
 							"0 1px 2px rgba(15,23,42,.06), 0 2px 6px rgba(15,23,42,.07)",
 						backdropFilter: "blur(8px)",

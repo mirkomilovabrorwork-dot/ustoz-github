@@ -39,7 +39,7 @@ export function RefinedTranscriptPanel({
 						<button
 							type="button"
 							onClick={() => onVideoJump?.(chapter.startSec)}
-							className="rounded-md bg-purple-50 px-2 py-0.5 font-mono text-xs font-medium text-purple-700 transition-colors hover:bg-purple-100"
+							className="rounded-md bg-blue-50 px-2 py-0.5 font-mono text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100"
 						>
 							{formatTimeMinutes(chapter.startSec)}
 						</button>
@@ -50,15 +50,15 @@ export function RefinedTranscriptPanel({
 							type="button"
 							onClick={() => onVideoJump?.(chapter.startSec)}
 							aria-label={`Play from ${chapter.title}`}
-							className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-purple-600 transition-colors hover:bg-purple-100"
+							className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 transition-colors hover:bg-blue-100"
 						>
 							<Play className="size-3.5 fill-current" />
 						</button>
 					</div>
 					<div className="flex flex-col gap-2">
-						{chapter.paragraphs.map((paragraph) => (
+						{chapter.paragraphs.map((paragraph, pi) => (
 							<p
-								key={paragraph}
+								key={`${chapter.startSec}-p-${pi}`}
 								className="text-sm leading-relaxed text-gray-700"
 							>
 								{paragraph}

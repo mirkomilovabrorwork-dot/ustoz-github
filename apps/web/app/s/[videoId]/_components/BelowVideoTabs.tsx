@@ -132,13 +132,13 @@ export function BelowVideoTabs({
 							fontWeight: 600,
 							textAlign: "center",
 							cursor: "pointer",
-							color: activeTab === tab.id ? "#7c3aed" : "#475569",
+							color: activeTab === tab.id ? "#2563eb" : "#475569",
 							border: "none",
 							borderRadius: "9px",
-							background: activeTab === tab.id ? "#f5f3ff" : "none",
+							background: activeTab === tab.id ? "#eef4ff" : "none",
 							boxShadow:
 								activeTab === tab.id
-									? "inset 0 0 0 1px rgba(124, 58, 237, .14)"
+									? "inset 0 0 0 1px rgba(37, 99, 235, .14)"
 									: "none",
 							position: "relative",
 							transition:
