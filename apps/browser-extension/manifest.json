@@ -44,7 +44,8 @@
 		"matches": [
 			"https://web-production-e6fe4.up.railway.app/*",
 			"https://*.up.railway.app/*",
-			"http://localhost:3000/*"
+			"http://localhost:3000/*",
+			"http://localhost:3001/*"
 		]
 	}
 }

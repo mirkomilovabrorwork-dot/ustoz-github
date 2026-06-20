@@ -291,12 +291,21 @@ async function handleMessage(
 			}
 			const settings = await getSettings();
 			if (!settings.apiKey) {
-				// Not signed in — open the popup so the user can sign in
-				chrome.action.openPopup().catch(() => {
-					// openPopup may fail if not triggered by a user gesture in MV3;
-					// open the options page as a reliable fallback
+				// Not signed in — open the popup so the user can sign in.
+				// Fix #2: chrome.action.openPopup() is Chrome 127+ only; the build
+				// targets chrome120 where calling it throws synchronously before
+				// .catch() can run, skipping the fallback. Guard with typeof check.
+				try {
+					if (typeof chrome.action?.openPopup === "function") {
+						await (chrome.action.openPopup() as Promise<void>).catch(() => {
+							chrome.runtime.openOptionsPage();
+						});
+					} else {
+						chrome.runtime.openOptionsPage();
+					}
+				} catch {
 					chrome.runtime.openOptionsPage();
-				});
+				}
 				return { ok: false, error: "not signed in" };
 			}
 			await setState({ kind: "arming", mode: "meeting", meetingId, tabId });

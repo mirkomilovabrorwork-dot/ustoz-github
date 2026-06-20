@@ -6,7 +6,8 @@
  *
  * externally_connectable in manifest.json already covers:
  *   https://*.up.railway.app/*   ← any Railway subdomain (new deploy = just update apiBaseUrl)
- *   http://localhost:3000/*      ← local dev
+ *   http://localhost:3000/*      ← local dev (API)
+ *   http://localhost:3001/*      ← local dev (web app / OAuth callback)
  *
  * If a fully custom domain is ever used it must also be added to
  * externally_connectable in manifest.json (Chrome requirement).

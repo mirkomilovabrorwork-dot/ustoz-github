@@ -460,6 +460,14 @@ function renderNotSignedIn(
 	};
 
 	signInBtn.addEventListener("click", () => {
+		// Fix #1: idempotent re-arm — cancel any previous pending timeout/listener
+		// so an older timeout can't fire and remove a newer listener.
+		if (oauthTimeoutId !== null) {
+			clearTimeout(oauthTimeoutId);
+			oauthTimeoutId = null;
+		}
+		chrome.runtime.onMessage.removeListener(tokenListener);
+
 		const url = `${settings.apiBaseUrl}/extension/callback?extensionId=${chrome.runtime.id}`;
 		chrome.tabs.create({ url });
 		oauthMsg.textContent = "Waiting for sign-in… (the page will auto-update)";
@@ -525,6 +533,14 @@ function renderNotSignedIn(
 				settings: { apiKey: key, apiBaseUrl: settings.apiBaseUrl },
 			},
 			async () => {
+				// Fix #4: bail out if the save itself failed
+				if (chrome.runtime.lastError) {
+					inlineMsg.textContent = "Couldn't save key — try again";
+					inlineMsg.style.color = "#e53e3e";
+					connectBtn.disabled = false;
+					connectBtn.textContent = "Connect with key";
+					return;
+				}
 				try {
 					const res = await fetch(`${settings.apiBaseUrl}/api/extension/me`, {
 						headers: { Authorization: `Bearer ${key}` },

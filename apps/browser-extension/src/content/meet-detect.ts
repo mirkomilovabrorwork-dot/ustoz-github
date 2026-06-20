@@ -568,7 +568,21 @@ function renderDefaultNudge(): void {
 			{ type: "MEET_NUDGE_RECORD_NOW", meetingId: meetingId ?? "" },
 			(response: unknown) => {
 				const resp = response as Record<string, unknown> | undefined;
-				if (resp && resp.ok === false && resp.error === "not signed in") {
+				if (chrome.runtime.lastError || !resp) {
+					// SW error or no response — do not clear the nudge
+					btnRecord.disabled = false;
+					btnRecord.textContent = "Record now";
+					const errEl = document.createElement("p");
+					errEl.style.cssText =
+						"font-size:12px;color:#e53e3e;margin:6px 0 0;";
+					errEl.textContent = "Couldn't start — try again";
+					// avoid duplicate error elements
+					const existing = card.querySelector(".cap-nudge-send-err");
+					if (!existing) {
+						errEl.className = "cap-nudge-send-err";
+						card.appendChild(errEl);
+					}
+				} else if (resp.ok === false && resp.error === "not signed in") {
 					// Background has opened the popup/options — show inline feedback
 					const errEl = document.createElement("p");
 					errEl.style.cssText =

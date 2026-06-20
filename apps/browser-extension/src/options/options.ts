@@ -284,21 +284,26 @@ function buildAccountSection(
 		}
 		saveConnectBtn.disabled = true;
 		const baseUrl = apiBaseUrlInput.value.trim() || DEFAULT_API_BASE_URL;
-		await saveSettings({
-			apiKey: key,
-			apiBaseUrl: baseUrl,
-		});
+		// Fix #5: validate FIRST — only persist the apiKey on success
 		try {
 			const res = await fetch(`${baseUrl}/api/extension/me`, {
 				headers: { Authorization: `Bearer ${key}` },
 			});
 			if (res.ok) {
+				await saveSettings({ apiKey: key, apiBaseUrl: baseUrl });
 				showToast("Connected ✓");
 			} else {
-				showToast("Key saved, but couldn't verify — check the key");
+				// Persist the base URL alone (user may have changed it) but NOT the bad key
+				await saveSettings({ apiBaseUrl: baseUrl });
+				showToast(
+					res.status === 401
+						? "Key not accepted — check the key"
+						: `Server error (${res.status}) — check the key`,
+				);
 			}
 		} catch {
-			showToast("Key saved, but couldn't verify — check the key");
+			await saveSettings({ apiBaseUrl: baseUrl });
+			showToast("Can't reach the server — check the URL");
 		} finally {
 			saveConnectBtn.disabled = false;
 		}
