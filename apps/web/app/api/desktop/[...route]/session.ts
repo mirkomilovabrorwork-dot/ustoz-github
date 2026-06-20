@@ -3,12 +3,20 @@ import { decodeSessionToken } from "@cap/database/auth/auth-options";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { authApiKeys } from "@cap/database/schema";
 import { serverEnv } from "@cap/env";
+import { hashAuthApiKey } from "@cap/web-backend";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { getCookie } from "hono/cookie";
 import { z } from "zod";
 
 export const app = new Hono();
+
+function createAuthApiKeyToken() {
+	const bytes = crypto.getRandomValues(new Uint8Array(32));
+	return `cak_${Array.from(bytes)
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("")}`;
+}
 
 function createDesktopRedirectPage(primaryUrl: string, fallbackUrl: string) {
 	const state = JSON.stringify({ primaryUrl, fallbackUrl });
@@ -185,10 +193,11 @@ app.get(
 				expires: String(decodedToken.exp),
 			};
 		} else {
-			const id = crypto.randomUUID();
+			const apiKey = createAuthApiKeyToken();
+			const id = await hashAuthApiKey(apiKey);
 			await db().insert(authApiKeys).values({ id, userId: user.id });
 
-			data = { type: "api_key", api_key: id };
+			data = { type: "api_key", api_key: apiKey };
 		}
 
 		const params = new URLSearchParams({ ...data, user_id: user.id });

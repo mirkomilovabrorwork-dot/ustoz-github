@@ -3,7 +3,15 @@
 import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { authApiKeys } from "@cap/database/schema";
+import { hashAuthApiKey } from "@cap/web-backend";
 import { eq, sql } from "drizzle-orm";
+
+function createAuthApiKeyToken() {
+	const bytes = crypto.getRandomValues(new Uint8Array(32));
+	return `cak_${Array.from(bytes)
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("")}`;
+}
 
 export async function mintExtensionToken() {
 	const user = await getCurrentUser();
@@ -20,8 +28,9 @@ export async function mintExtensionToken() {
 		);
 	}
 
-	const id = crypto.randomUUID();
+	const token = createAuthApiKeyToken();
+	const id = await hashAuthApiKey(token);
 	await db().insert(authApiKeys).values({ id, userId: user.id });
 
-	return { token: id, email: user.email };
+	return { token, email: user.email };
 }

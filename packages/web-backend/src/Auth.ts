@@ -11,6 +11,7 @@ import * as Dz from "drizzle-orm";
 import { type Cause, Effect, Layer, Option, Schema } from "effect";
 
 import { Database } from "./Database.ts";
+import { hashAuthApiKey } from "./authApiKeyHash.ts";
 
 export const getCurrentUser = Effect.gen(function* () {
 	const db = yield* Database;
@@ -68,8 +69,25 @@ export const HttpAuthMiddlewareLive = Layer.effect(
 
 				let user: Option.Option<typeof Db.users.$inferSelect>;
 
-				if (authHeader?.length === 36) {
-					// TODO(security): migrate API keys to hashed storage (breaking — requires re-issuing keys)
+				if (authHeader?.startsWith("cak_")) {
+					const id = yield* Effect.tryPromise(() => hashAuthApiKey(authHeader));
+					user = yield* database
+						.use((db) =>
+							db
+								.select()
+								.from(Db.users)
+								.leftJoin(
+									Db.authApiKeys,
+									Dz.eq(Db.users.id, Db.authApiKeys.userId),
+								)
+								.where(Dz.eq(Db.authApiKeys.id, id)),
+						)
+						.pipe(Effect.map(([entry]) => Option.fromNullable(entry?.users)));
+
+					if (Option.isNone(user)) {
+						return yield* Effect.fail(new HttpApiError.Unauthorized());
+					}
+				} else if (authHeader?.length === 36) {
 					user = yield* database
 						.use((db) =>
 							db

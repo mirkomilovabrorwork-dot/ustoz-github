@@ -775,7 +775,7 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
 }));
 
 export const authApiKeys = mysqlTable("auth_api_keys", {
-	id: varchar("id", { length: 36 }).notNull().primaryKey(),
+	id: varchar("id", { length: 64 }).notNull().primaryKey(),
 	userId: nanoId("userId").notNull().$type<User.UserId>(),
 	createdAt: timestamp("createdAt").defaultNow().notNull(),
 });

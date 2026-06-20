@@ -11,7 +11,7 @@ import {
 import { serverEnv } from "@cap/env";
 import { stripe, userIsPro } from "@cap/utils";
 import { OrganizationBrandingPatchBody } from "@cap/web-api-contract";
-import { ImageUploads } from "@cap/web-backend";
+import { hashAuthApiKey, ImageUploads } from "@cap/web-backend";
 import { type ImageUpload, Organisation } from "@cap/web-domain";
 import { zValidator } from "@hono/zod-validator";
 import { and, eq, isNull } from "drizzle-orm";
@@ -84,7 +84,10 @@ type DesktopProfileUser = {
 async function getDesktopProfileUser(c: Context) {
 	const authHeader = c.req.header("authorization")?.split(" ")[1];
 
-	if (authHeader?.length === 36) {
+	if (authHeader?.startsWith("cak_") || authHeader?.length === 36) {
+		const id = authHeader.startsWith("cak_")
+			? await hashAuthApiKey(authHeader)
+			: authHeader;
 		const [user] = await db()
 			.select({
 				name: users.name,
@@ -94,7 +97,7 @@ async function getDesktopProfileUser(c: Context) {
 			})
 			.from(users)
 			.innerJoin(authApiKeys, eq(users.id, authApiKeys.userId))
-			.where(eq(authApiKeys.id, authHeader))
+			.where(eq(authApiKeys.id, id))
 			.limit(1);
 
 		return user ?? null;
