@@ -69,6 +69,7 @@ export const HttpAuthMiddlewareLive = Layer.effect(
 				let user: Option.Option<typeof Db.users.$inferSelect>;
 
 				if (authHeader?.length === 36) {
+					// TODO(security): migrate API keys to hashed storage (breaking — requires re-issuing keys)
 					user = yield* database
 						.use((db) =>
 							db
@@ -81,6 +82,10 @@ export const HttpAuthMiddlewareLive = Layer.effect(
 								.where(Dz.eq(Db.authApiKeys.id, authHeader)),
 						)
 						.pipe(Effect.map(([entry]) => Option.fromNullable(entry?.users)));
+
+					if (Option.isNone(user)) {
+						return yield* Effect.fail(new HttpApiError.Unauthorized());
+					}
 				} else {
 					user = yield* getCurrentUser;
 				}
