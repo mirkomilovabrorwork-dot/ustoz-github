@@ -8,10 +8,13 @@ import ffmpegStaticPath from "ffmpeg-static";
 let cachedFfmpegPath: string | null = null;
 
 function getPathCandidates(): string[] {
+	const binaryNames =
+		process.platform === "win32" ? ["ffmpeg.exe", "ffmpeg"] : ["ffmpeg"];
+
 	return (process.env.PATH ?? "")
 		.split(delimiter)
 		.filter(Boolean)
-		.map((segment) => join(segment, "ffmpeg"));
+		.flatMap((segment) => binaryNames.map((binary) => join(segment, binary)));
 }
 
 export function getFfmpegPath(): string {
