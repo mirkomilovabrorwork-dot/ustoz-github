@@ -151,7 +151,7 @@ export class VideosPolicy extends Effect.Service<VideosPolicy>()(
 					repo.getById(videoId).pipe(
 						Effect.map(
 							Option.match({
-								onNone: () => true,
+								onNone: () => false,
 								onSome: ([video]) => video.ownerId === user.id,
 							}),
 						),

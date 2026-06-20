@@ -32,6 +32,13 @@ export async function GET(request: NextRequest) {
 		);
 	}
 
+	if (video[0].ownerId !== user.id) {
+		return Response.json(
+			{ error: true, message: "Forbidden" },
+			{ status: 403 },
+		);
+	}
+
 	return Response.json(
 		{ transcriptionStatus: video[0].transcriptionStatus },
 		{ status: 200 },

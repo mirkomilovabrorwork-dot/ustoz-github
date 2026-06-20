@@ -39,6 +39,13 @@ export async function GET(request: NextRequest) {
 		}
 
 		const video = result[0];
+		if (video.ownerId !== user.id) {
+			return Response.json(
+				{ error: true, message: "Forbidden" },
+				{ status: 403 },
+			);
+		}
+
 		const metadata: VideoMetadata = (video.metadata as VideoMetadata) || {};
 
 		if (metadata.summary || metadata.chapters) {

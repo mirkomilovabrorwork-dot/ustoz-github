@@ -185,7 +185,7 @@ function UsersSection() {
 											)}
 										</td>
 										<td className="px-5 py-3">
-											{u.passwordHash === null ? (
+											{u.accessDisabled ? (
 												<span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
 													Disabled
 												</span>

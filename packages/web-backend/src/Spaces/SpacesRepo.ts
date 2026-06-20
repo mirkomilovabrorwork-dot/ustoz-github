@@ -1,9 +1,12 @@
 import * as Db from "@cap/database/schema";
-import type { Space, User, Video } from "@cap/web-domain";
+import type { Space, User } from "@cap/web-domain";
+import { Video } from "@cap/web-domain";
 import * as Dz from "drizzle-orm";
-import { Array, Effect } from "effect";
+import { Array, Effect, Option } from "effect";
 
 import { Database } from "../Database.ts";
+
+const SPACE_PASSWORD_REQUIRED = "__cap_space_password_required__";
 
 export class SpacesRepo extends Effect.Service<SpacesRepo>()("SpacesRepo", {
 	effect: Effect.gen(function* () {
@@ -30,17 +33,43 @@ export class SpacesRepo extends Effect.Service<SpacesRepo>()("SpacesRepo", {
 					.pipe(Effect.map(Array.get(0))),
 
 			passwordsForVideo: (videoId: Video.VideoId) =>
-				db.use((db) =>
-					db
-						.select({
-							id: Db.spaces.id,
-							name: Db.spaces.name,
-							password: Db.spaces.password,
-						})
-						.from(Db.spaceVideos)
-						.innerJoin(Db.spaces, Dz.eq(Db.spaceVideos.spaceId, Db.spaces.id))
-						.where(Dz.eq(Db.spaceVideos.videoId, videoId)),
-				),
+				Effect.gen(function* () {
+					const passwordAttachment = yield* Effect.serviceOption(
+						Video.VideoPasswordAttachment,
+					);
+					const verified = Option.isSome(passwordAttachment)
+						? passwordAttachment.value.passwords
+						: [];
+					const passwordMatches =
+						verified.length > 0
+							? Dz.inArray(Db.spaces.password, [...verified])
+							: Dz.sql<boolean>`false`;
+
+					const spaces = yield* db.use((db) =>
+						db
+							.select({
+								hasPassword:
+									Dz.sql<boolean>`${Db.spaces.password} IS NOT NULL`.mapWith(
+										Boolean,
+									),
+								passwordMatches: passwordMatches.mapWith(Boolean),
+							})
+							.from(Db.spaceVideos)
+							.innerJoin(
+								Db.spaces,
+								Dz.eq(Db.spaceVideos.spaceId, Db.spaces.id),
+							)
+							.where(Dz.eq(Db.spaceVideos.videoId, videoId)),
+					);
+
+					return spaces.map((space) => ({
+						password: space.passwordMatches
+							? (verified[0] ?? null)
+							: space.hasPassword
+								? SPACE_PASSWORD_REQUIRED
+								: null,
+					}));
+				}),
 
 			membership: (
 				userId: User.UserId,

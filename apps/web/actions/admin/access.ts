@@ -32,7 +32,9 @@ export async function getUsers() {
 			email: users.email,
 			isAdmin: users.isAdmin,
 			createdAt: users.created_at,
-			passwordHash: users.passwordHash,
+			accessDisabled: sql<boolean>`${users.passwordHash} IS NULL`.mapWith(
+				Boolean,
+			),
 		})
 		.from(users)
 		.orderBy(desc(users.created_at));

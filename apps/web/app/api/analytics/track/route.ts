@@ -26,6 +26,7 @@ interface TrackPayload {
 }
 
 const VIEW_TRACKING_DELAY_MS = 2 * 60 * 1000;
+const OCCURRED_AT_SKEW_MS = 5 * 60 * 1000;
 
 const sanitizeString = (value?: string | null) => {
 	const trimmed = value?.trim();
@@ -68,7 +69,16 @@ export async function POST(request: NextRequest) {
 	const osName = parser.getOS().name ?? "unknown";
 	const deviceType = parser.getDevice().type ?? "desktop";
 
-	const timestamp = body.occurredAt ? new Date(body.occurredAt) : new Date();
+	const now = new Date();
+	const requestedTimestamp = body.occurredAt
+		? new Date(body.occurredAt)
+		: now;
+	const timestamp =
+		Number.isFinite(requestedTimestamp.getTime()) &&
+		Math.abs(requestedTimestamp.getTime() - now.getTime()) <=
+			OCCURRED_AT_SKEW_MS
+			? requestedTimestamp
+			: now;
 
 	const country =
 		sanitizeString(request.headers.get("x-vercel-ip-country")) || "";
@@ -78,11 +88,6 @@ export async function POST(request: NextRequest) {
 		sanitizeString(
 			decodeUrlEncodedHeaderValue(request.headers.get("x-vercel-ip-city")),
 		) || "";
-
-	const hostname =
-		sanitizeString(body.hostname) ||
-		sanitizeString(request.nextUrl.hostname) ||
-		"";
 
 	const pathname = body.pathname ?? `/s/${body.videoId}`;
 
@@ -121,34 +126,33 @@ export async function POST(request: NextRequest) {
 			).pipe(
 				Effect.orElseSucceed(
 					() =>
-						[] as {
-							ownerId: string;
-							firstViewEmailSentAt: Date | null;
-							videoName: string;
-							createdAt: Date;
+							[] as {
+								ownerId: string;
+								firstViewEmailSentAt: Date | null;
+								videoName: string;
+								createdAt: Date;
 							updatedAt: Date;
 							activeUploadVideoId: string | null;
 						}[],
 				),
 			);
 
-			if (videoRecord && userId === videoRecord.ownerId) {
+			if (!videoRecord) {
+				return;
+			}
+
+			if (userId === videoRecord.ownerId) {
 				return;
 			}
 
 			if (
-				videoRecord &&
 				(videoRecord.activeUploadVideoId ||
 					Date.now() - videoRecord.updatedAt.getTime() < VIEW_TRACKING_DELAY_MS)
 			) {
 				return;
 			}
 
-			const tenantId =
-				body.orgId ||
-				videoRecord?.ownerId ||
-				body.ownerId ||
-				(hostname ? `domain:${hostname}` : "public");
+			const tenantId = videoRecord.ownerId;
 
 			const tinybird = yield* Tinybird;
 			yield* tinybird.appendEvents([

@@ -1,8 +1,10 @@
 import { db } from "@cap/database";
+import { getCurrentUser } from "@cap/database/auth/session";
 import { videos } from "@cap/database/schema";
-import { Storage } from "@cap/web-backend";
-import { Video } from "@cap/web-domain";
+import { makeCurrentUserLayer, Storage, VideosPolicy } from "@cap/web-backend";
+import { Policy, Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
+import { Effect } from "effect";
 import type { NextRequest } from "next/server";
 import { runPromise } from "@/lib/server";
 import { decodeStorageVideo } from "@/lib/video-storage";
@@ -24,6 +26,26 @@ export async function GET(request: NextRequest) {
 				headers: getHeaders(origin),
 			},
 		);
+
+	const user = await getCurrentUser();
+	const viewPolicy = Effect.gen(function* () {
+		const videosPolicy = yield* VideosPolicy;
+		return yield* Effect.succeed(true).pipe(
+			Policy.withPublicPolicy(
+				videosPolicy.canView(Video.VideoId.make(videoId)),
+			),
+		);
+	});
+	const canView = await (user
+		? viewPolicy.pipe(Effect.provide(makeCurrentUserLayer(user)))
+		: viewPolicy
+	).pipe(Effect.catchAll(() => Effect.succeed(false)), runPromise);
+
+	if (!canView)
+		return new Response(JSON.stringify({ error: true, message: "Forbidden" }), {
+			status: 403,
+			headers: getHeaders(origin),
+		});
 
 	const [query] = await db()
 		.select()
@@ -77,13 +99,12 @@ export async function GET(request: NextRequest) {
 		});
 	} catch (error) {
 		return new Response(
-			JSON.stringify({
-				error: true,
-				message: "Error generating thumbnail URL",
-				details: error instanceof Error ? error.message : "Unknown error",
-			}),
-			{
-				status: 500,
+				JSON.stringify({
+					error: true,
+					message: "Error generating thumbnail URL",
+				}),
+				{
+					status: 500,
 				headers: getHeaders(origin),
 			},
 		);
