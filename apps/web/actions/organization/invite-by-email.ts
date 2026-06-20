@@ -2,7 +2,7 @@
 
 import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
-import { nanoId } from "@cap/database/helpers";
+import { nanoId, nanoIdToken } from "@cap/database/helpers";
 import {
 	organizationInvites,
 	organizationMembers,
@@ -64,6 +64,7 @@ export async function inviteByEmail({ email, role }: InviteInput) {
 	if (!existing) {
 		await db().insert(organizationInvites).values({
 			id: nanoId(),
+			token: nanoIdToken(),
 			organizationId: orgId,
 			invitedEmail: normalized,
 			invitedByUserId: me.id,

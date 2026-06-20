@@ -4,6 +4,7 @@ import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { sendEmail } from "@cap/database/emails/config";
 import { OrganizationInvite } from "@cap/database/emails/organization-invite";
+import { nanoIdToken } from "@cap/database/helpers";
 import { organizationInvites, organizations } from "@cap/database/schema";
 import { serverEnv } from "@cap/env";
 import { and, eq } from "drizzle-orm";
@@ -35,10 +36,11 @@ export async function resendOrganizationInvite(inviteId: string) {
 	if (!organization) throw new Error("Organization not found");
 
 	const newExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+	const token = invite.token ?? nanoIdToken();
 
 	await db()
 		.update(organizationInvites)
-		.set({ expiresAt: newExpiresAt })
+		.set({ expiresAt: newExpiresAt, token })
 		.where(
 			and(
 				eq(organizationInvites.id, inviteId),
@@ -46,7 +48,7 @@ export async function resendOrganizationInvite(inviteId: string) {
 			),
 		);
 
-	const inviteUrl = `${serverEnv().WEB_URL}/invite/${invite.token ?? invite.id}`;
+	const inviteUrl = `${serverEnv().WEB_URL}/invite/${token}`;
 
 	await sendEmail({
 		email: invite.invitedEmail,

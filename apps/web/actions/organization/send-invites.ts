@@ -4,7 +4,7 @@ import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { sendEmail } from "@cap/database/emails/config";
 import { OrganizationInvite } from "@cap/database/emails/organization-invite";
-import { nanoId } from "@cap/database/helpers";
+import { nanoId, nanoIdToken } from "@cap/database/helpers";
 import {
 	organizationInvites,
 	organizationMembers,
@@ -128,6 +128,7 @@ export async function sendOrganizationInvites(
 
 		const records = invitesToSend.map((invite) => ({
 			id: nanoId(),
+			token: nanoIdToken(),
 			email: invite.email,
 			role: invite.role,
 		}));
@@ -136,9 +137,11 @@ export async function sendOrganizationInvites(
 			await tx.insert(organizationInvites).values(
 				records.map((r) => ({
 					id: r.id,
+					token: r.token,
 					organizationId: organizationId,
 					invitedEmail: r.email,
 					invitedByUserId: user.id,
+					status: "pending",
 					role: r.role,
 				})),
 			);
@@ -149,7 +152,7 @@ export async function sendOrganizationInvites(
 
 	const emailResults = await Promise.allSettled(
 		inviteRecords.map((record) => {
-			const inviteUrl = `${serverEnv().WEB_URL}/invite/${record.id}`;
+			const inviteUrl = `${serverEnv().WEB_URL}/invite/${record.token}`;
 			return sendEmail({
 				email: record.email,
 				subject: `Invitation to join ${organization.name} on Cap`,
