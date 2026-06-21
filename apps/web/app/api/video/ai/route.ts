@@ -89,8 +89,13 @@ export async function GET(request: NextRequest) {
 			return Response.json(
 				{
 					processing: false,
+					// AI generation is MANUAL: an admin / video owner starts the full
+					// pipeline from the Generate button (see app/api/videos/[videoId]/generate
+					// and _components/GenerateAiPanel.tsx). It is NOT auto-triggered on
+					// transcription completion. This GET endpoint only retries a generation
+					// that previously failed (aiGenerationStatus ERROR or SKIPPED).
 					message:
-						"AI generation is not available for retry. Generation is triggered automatically when transcription completes.",
+						"AI generation is started manually by an admin or the video owner from the Generate button; this endpoint only retries a previously failed (ERROR/SKIPPED) generation.",
 					aiGenerationStatus: metadata.aiGenerationStatus ?? null,
 				},
 				{ status: 200 },
