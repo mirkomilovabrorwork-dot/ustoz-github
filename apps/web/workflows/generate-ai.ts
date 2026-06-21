@@ -348,25 +348,35 @@ async function saveResults(
 		: metadata;
 	const currentTitle = currentVideo?.name ?? video.name;
 
-	const mergedSummary = result.summary || currentMetadata.summary;
-	const mergedAiSummary = result.aiSummary ?? currentMetadata.aiSummary;
-	const summaryText = mergedSummary?.trim() ?? "";
-	// An empty Gemini response ("{}") parses to no summary and no aiSummary —
-	// don't save that as COMPLETE (UI would show empty content with no retry).
-	// Mark ERROR so the user gets a retryable state instead.
-	const hasUsableContent =
-		(summaryText.length > 0 &&
-			summaryText !== AI_SUMMARY_FAILURE_PLACEHOLDER) ||
-		Boolean(mergedAiSummary);
+	// Judge usability from THIS run's result only (not merged with old
+	// metadata) — otherwise an empty "{}" retry could overwrite `summary` with
+	// the failure placeholder yet still be marked COMPLETE because stale
+	// content existed.
+	const resultSummaryText = result.summary?.trim() ?? "";
+	const resultHasContent =
+		(resultSummaryText.length > 0 &&
+			resultSummaryText !== AI_SUMMARY_FAILURE_PLACEHOLDER) ||
+		Boolean(result.aiSummary);
 
-	const updatedMetadata: VideoMetadata = {
-		...currentMetadata,
-		aiTitle: generatedTitle || currentMetadata.aiTitle,
-		summary: mergedSummary,
-		chapters: result.chapters || currentMetadata.chapters,
-		aiSummary: mergedAiSummary,
-		aiGenerationStatus: hasUsableContent ? "COMPLETE" : "ERROR",
-	};
+	const updatedMetadata: VideoMetadata = resultHasContent
+		? {
+				...currentMetadata,
+				aiTitle: generatedTitle || currentMetadata.aiTitle,
+				summary: result.summary || currentMetadata.summary,
+				chapters: result.chapters || currentMetadata.chapters,
+				aiSummary: result.aiSummary ?? currentMetadata.aiSummary,
+				aiGenerationStatus: "COMPLETE",
+			}
+		: {
+				// This run produced nothing usable: preserve any existing
+				// content (don't clobber it with the failure placeholder) and
+				// surface a retryable ERROR only when there's nothing to show.
+				...currentMetadata,
+				aiGenerationStatus:
+					currentMetadata.summary || currentMetadata.aiSummary
+						? "COMPLETE"
+						: "ERROR",
+			};
 
 	await db()
 		.update(videos)

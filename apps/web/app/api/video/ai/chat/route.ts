@@ -271,7 +271,12 @@ export async function POST(request: NextRequest) {
 						const errText = await res
 							.text()
 							.catch(() => String(res.status));
-						throw new Error(`Gemini error: ${errText}`);
+						// Include the HTTP status so withGeminiRetry's transient
+						// detection (429/500/503) matches even when the body text
+						// doesn't name the code.
+						throw new Error(
+							`Gemini error (HTTP ${res.status}): ${errText}`,
+						);
 					}
 
 					return res;
