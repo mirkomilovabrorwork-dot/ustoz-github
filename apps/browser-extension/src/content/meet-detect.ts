@@ -616,19 +616,28 @@ function renderDefaultNudge(): void {
 			(response: unknown) => {
 				const resp = response as Record<string, unknown> | undefined;
 				if (chrome.runtime.lastError || !resp) {
-					// SW error or no response — do not clear the nudge
+					// SW error or no response — do not clear the nudge.
 					btnRecord.disabled = false;
 					btnRecord.textContent = "Record now";
-					const errEl = document.createElement("p");
-					errEl.style.cssText =
-						"font-size:12px;color:#e53e3e;margin:6px 0 0;";
-					errEl.textContent = "Couldn't start — try again";
-					// avoid duplicate error elements
-					const existing = card.querySelector(".cap-nudge-send-err");
-					if (!existing) {
-						errEl.className = "cap-nudge-send-err";
-						card.appendChild(errEl);
-					}
+					// "The message port closed before a response was received" is
+					// NOT a failure here: it fires because the SW opened the recorder
+					// popup to finish starting the capture. The STATE_CHANGED broadcast
+					// will switch this nudge to the recording view a moment later — so
+					// show a neutral status, not an alarming red error.
+					const portMsg = chrome.runtime.lastError?.message ?? "";
+					const benign = portMsg.includes("message port closed");
+					const existing = card.querySelector(
+						".cap-nudge-send-err",
+					) as HTMLElement | null;
+					const note = existing ?? document.createElement("p");
+					note.className = "cap-nudge-send-err";
+					note.style.cssText = benign
+						? "font-size:12px;color:#6b7280;margin:6px 0 0;"
+						: "font-size:12px;color:#e53e3e;margin:6px 0 0;";
+					note.textContent = benign
+						? "Opening recorder…"
+						: "Couldn't start — try again";
+					if (!existing) card.appendChild(note);
 				} else if (resp.ok === false && resp.error === "not signed in") {
 					// Background has opened the popup/options — show inline feedback
 					const errEl = document.createElement("p");
