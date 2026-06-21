@@ -55,14 +55,14 @@ const MobileTab = () => {
 		}
 	});
 	return (
-		<div className="flex sticky bottom-0 z-50 flex-1 gap-10 justify-between items-center px-5 w-full h-16 border-t lg:hidden border-gray-5 bg-gray-1">
+		<div className="flex sticky bottom-0 z-50 flex-1 gap-4 justify-between items-center px-5 w-full h-16 border-t lg:hidden border-gray-5 bg-gray-1">
 			<div className="relative flex-auto w-fit">
 				<AnimatePresence>
 					{open && <OrgsMenu setOpen={setOpen} menuRef={menuRef} />}
 				</AnimatePresence>
 				<Orgs open={open} setOpen={setOpen} containerRef={containerRef} />
 			</div>
-			<div className="flex gap-6 justify-between items-center h-full text-gray-11">
+			<div className="flex gap-3 justify-between items-center h-full text-gray-11">
 				{Tabs.filter((i) => !i.adminOnly || canViewSettings).map((tab) => (
 					<Link
 						href={tab.href}
