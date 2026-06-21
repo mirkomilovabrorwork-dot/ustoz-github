@@ -109,45 +109,50 @@ export async function transcribeWithGemini(
 	const mimeType = detectMimeType(audioUrl);
 	const displayName = `cap-audio-${Date.now()}`;
 
-	const initRes = await fetch(
-		`https://generativelanguage.googleapis.com/upload/v1beta/files?key=${apiKey}`,
-		{
-			method: "POST",
-			headers: {
-				"X-Goog-Upload-Protocol": "resumable",
-				"X-Goog-Upload-Command": "start",
-				"X-Goog-Upload-Header-Content-Length": String(audioBytes.byteLength),
-				"X-Goog-Upload-Header-Content-Type": mimeType,
-				"Content-Type": "application/json",
+	const uploadUrl = await withGeminiRetry(async () => {
+		const initRes = await fetch(
+			`https://generativelanguage.googleapis.com/upload/v1beta/files?key=${apiKey}`,
+			{
+				method: "POST",
+				headers: {
+					"X-Goog-Upload-Protocol": "resumable",
+					"X-Goog-Upload-Command": "start",
+					"X-Goog-Upload-Header-Content-Length": String(audioBytes.byteLength),
+					"X-Goog-Upload-Header-Content-Type": mimeType,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ file: { display_name: displayName } }),
 			},
-			body: JSON.stringify({ file: { display_name: displayName } }),
-		},
-	);
+		);
 
-	if (!initRes.ok) {
-		throw new Error(`Gemini upload init failed: ${initRes.status}`);
-	}
+		if (!initRes.ok) {
+			throw new Error(`Gemini upload init failed (HTTP ${initRes.status})`);
+		}
 
-	const uploadUrl = initRes.headers.get("x-goog-upload-url");
-	if (!uploadUrl) {
-		throw new Error("No upload URL from Gemini Files API");
-	}
-
-	const uploadRes = await fetch(uploadUrl, {
-		method: "PUT",
-		headers: {
-			"X-Goog-Upload-Offset": "0",
-			"X-Goog-Upload-Command": "upload, finalize",
-			"Content-Length": String(audioBytes.byteLength),
-		},
-		body: audioBytes,
+		const url = initRes.headers.get("x-goog-upload-url");
+		if (!url) {
+			throw new Error("No upload URL from Gemini Files API");
+		}
+		return url;
 	});
 
-	if (!uploadRes.ok) {
-		throw new Error(`Gemini audio upload failed: ${uploadRes.status}`);
-	}
+	const fileData = await withGeminiRetry(async () => {
+		const uploadRes = await fetch(uploadUrl, {
+			method: "PUT",
+			headers: {
+				"X-Goog-Upload-Offset": "0",
+				"X-Goog-Upload-Command": "upload, finalize",
+				"Content-Length": String(audioBytes.byteLength),
+			},
+			body: audioBytes,
+		});
 
-	const fileData = (await uploadRes.json()) as GeminiFileResponse;
+		if (!uploadRes.ok) {
+			throw new Error(`Gemini audio upload failed (HTTP ${uploadRes.status})`);
+		}
+
+		return (await uploadRes.json()) as GeminiFileResponse;
+	});
 	const { name: fileName, uri: fileUri, state } = fileData.file;
 
 	if (!fileUri || !fileName) {
@@ -157,7 +162,7 @@ export async function transcribeWithGemini(
 	}
 
 	if (state !== "ACTIVE") {
-		await pollUntilActive(fileName, apiKey);
+		await withGeminiRetry(() => pollUntilActive(fileName, apiKey));
 	}
 
 	const { genRes, genData } = await withGeminiRetry(async () => {
@@ -238,6 +243,7 @@ IMPORTANT: Start your response with "WEBVTT" header and format each line as WebV
 					generationConfig: {
 						temperature: 0.1,
 						maxOutputTokens: 8192,
+						thinkingConfig: { thinkingBudget: 0 },
 					},
 				}),
 			},

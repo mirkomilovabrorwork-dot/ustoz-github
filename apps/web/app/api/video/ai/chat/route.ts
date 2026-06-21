@@ -246,7 +246,7 @@ export async function POST(request: NextRequest) {
 				// (429/500/503/overloaded), matching summary/transcription.
 				const geminiRes = await withGeminiRetry(async () => {
 					const res = await fetch(
-						`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:streamGenerateContent?alt=sse&key=${resolvedApiKey}`,
+						`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=${resolvedApiKey}`,
 						{
 							method: "POST",
 							headers: { "Content-Type": "application/json" },
@@ -262,6 +262,7 @@ export async function POST(request: NextRequest) {
 								generationConfig: {
 									temperature: 0.2,
 									maxOutputTokens: 1024,
+									thinkingConfig: { thinkingBudget: 0 },
 								},
 							}),
 						},
@@ -337,7 +338,7 @@ export async function POST(request: NextRequest) {
 				}
 
 				const chatCost = priceForMicros(
-					"gemini-3-flash-preview",
+					"gemini-2.5-flash",
 					chatInputTokens,
 					chatOutputTokens,
 				);
@@ -349,7 +350,7 @@ export async function POST(request: NextRequest) {
 						userId: video.ownerId as User.UserId,
 						videoId: videoId as Video.VideoId,
 						operation: "chat",
-						model: "gemini-3-flash-preview",
+						model: "gemini-2.5-flash",
 						inputTokens: chatInputTokens,
 						outputTokens: chatOutputTokens,
 						costUsdMicros: chatCost,

@@ -135,8 +135,8 @@ export function GenerateAiPanel({
     );
   }
 
-  // Show button only to admin/owner when nothing generated yet
-  if (canGenerate && !transcriptionStatus) {
+  // Show start button to admin/owner when: nothing generated yet, OR transcript done but AI missing/errored
+  if (canGenerate && (!transcriptionStatus || (transcriptionStatus === "COMPLETE" && aiGenerationStatus !== "COMPLETE"))) {
     return (
       <div className="flex flex-col gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-4">
         <p className="text-sm text-gray-700">

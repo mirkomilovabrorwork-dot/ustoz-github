@@ -27,6 +27,7 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { recordAudit } from "@/lib/audit";
 import { runPromise } from "@/lib/server";
+import { assertSafeExternalUrl } from "@/lib/validate-external-url";
 import { requireOrganizationSettingsManager } from "./authorization";
 
 const googleDriveProvider = "googleDrive";
@@ -385,6 +386,9 @@ export async function saveOrganizationS3Config(input: S3ConfigInput) {
 	const { user } = await requireOrganizationStorageManagerPro(
 		input.organizationId,
 	);
+	if (input.endpoint) {
+		await assertSafeExternalUrl(input.endpoint);
+	}
 	const credentials = await getS3InputCredentials(input);
 	const encryptedConfig = {
 		provider: input.provider,
@@ -446,6 +450,9 @@ export async function removeOrganizationS3Config(
 
 export async function testOrganizationS3Config(input: S3ConfigInput) {
 	await requireOrganizationStorageManagerPro(input.organizationId);
+	if (input.endpoint) {
+		await assertSafeExternalUrl(input.endpoint);
+	}
 	const credentials = await getS3InputCredentials(input);
 	const controller = new AbortController();
 	const timeoutId = setTimeout(() => controller.abort(), 5000);

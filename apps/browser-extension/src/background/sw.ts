@@ -1,6 +1,7 @@
 import { isKeepAliveAlarm, startKeepAlive, stopKeepAlive } from "./keepalive";
 import type { ExtensionSettings, ExtensionState } from "./state";
 import { getSettings, getState, setSettings, setState } from "./state";
+import { DEFAULT_API_BASE_URL } from "../shared/config";
 import {
 	finalizeUpload,
 	handleChunk,
@@ -123,6 +124,46 @@ function getString(
 ): string | undefined {
 	const v = obj[key];
 	return typeof v === "string" ? v : undefined;
+}
+
+/**
+ * Security: only trust a CAP_EXTENSION_TOKEN write from a page whose origin
+ * matches the server the extension is actually configured to talk to. Without
+ * this check, ANY page matched by externally_connectable (e.g. any
+ * *.up.railway.app subdomain) could overwrite apiKey + apiBaseUrl and hijack
+ * uploads to an attacker-controlled backend.
+ *
+ * Allowed origins:
+ *   - the configured apiBaseUrl origin (user's own Cap server)
+ *   - the well-known Cap cloud default origin
+ *   - localhost dev origins (OAuth callback runs on the web app port)
+ */
+function originOf(url: string | undefined): string | null {
+	if (!url) return null;
+	try {
+		return new URL(url).origin;
+	} catch {
+		return null;
+	}
+}
+
+function isTrustedTokenSender(
+	senderUrl: string | undefined,
+	configuredApiBaseUrl: string,
+): boolean {
+	const sender = originOf(senderUrl);
+	if (!sender) return false;
+
+	const allowed = new Set<string>();
+	const configured = originOf(configuredApiBaseUrl);
+	if (configured) allowed.add(configured);
+	const defaultOrigin = originOf(DEFAULT_API_BASE_URL);
+	if (defaultOrigin) allowed.add(defaultOrigin);
+	// Local dev: API (3000) and web app / OAuth callback (3001).
+	allowed.add("http://localhost:3000");
+	allowed.add("http://localhost:3001");
+
+	return allowed.has(sender);
 }
 
 function getNumber(
@@ -515,17 +556,35 @@ chrome.runtime.onMessageExternal.addListener(
 		if (msg.type === "CAP_EXTENSION_TOKEN") {
 			const token = getString(msg, "token");
 			const apiBaseUrl = getString(msg, "apiBaseUrl");
-			setSettings({
-				apiKey: token ?? "",
-				...(apiBaseUrl ? { apiBaseUrl } : {}),
-			}).then(() => {
-				// Relay internally so an open popup/options page auto-updates
-				// instead of waiting for its 20s fallback timeout.
-				chrome.runtime
-					.sendMessage({ type: "CAP_EXTENSION_TOKEN", token, apiBaseUrl })
-					.catch(() => {});
-				sendResponse({ ok: true });
-			});
+			// Security: only accept a token write from a page whose origin matches
+			// the configured Cap server (or the well-known cloud / localhost dev
+			// origins). externally_connectable wildcards *.up.railway.app, so an
+			// untrusted subdomain page could otherwise hijack apiKey + apiBaseUrl.
+			getSettings()
+				.then((settings) => {
+					if (!isTrustedTokenSender(_sender.url, settings.apiBaseUrl)) {
+						console.warn(
+							"Rejected CAP_EXTENSION_TOKEN from untrusted origin:",
+							_sender.url,
+						);
+						sendResponse({ ok: false, error: "untrusted origin" });
+						return;
+					}
+					setSettings({
+						apiKey: token ?? "",
+						...(apiBaseUrl ? { apiBaseUrl } : {}),
+					}).then(() => {
+						// Relay internally so an open popup/options page auto-updates
+						// instead of waiting for its 20s fallback timeout.
+						chrome.runtime
+							.sendMessage({ type: "CAP_EXTENSION_TOKEN", token, apiBaseUrl })
+							.catch(() => {});
+						sendResponse({ ok: true });
+					});
+				})
+				.catch(() => {
+					sendResponse({ ok: false, error: "settings read failed" });
+				});
 			return true;
 		}
 		sendResponse({ ok: false });

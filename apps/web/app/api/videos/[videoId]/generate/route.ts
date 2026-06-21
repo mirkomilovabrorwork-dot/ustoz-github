@@ -5,7 +5,9 @@ import { Video } from "@cap/web-domain";
 import { and, eq, isNull } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { getEffectiveOrganizationRole } from "@/lib/permissions/roles";
+import { startAiGeneration } from "@/lib/generate-ai";
 import { transcribeVideo } from "@/lib/transcribe";
+import type { VideoMetadata } from "@cap/database/types";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +25,7 @@ export async function POST(
     }
 
     const [video] = await db()
-      .select({ id: videos.id, ownerId: videos.ownerId, orgId: videos.orgId, transcriptionStatus: videos.transcriptionStatus })
+      .select({ id: videos.id, ownerId: videos.ownerId, orgId: videos.orgId, transcriptionStatus: videos.transcriptionStatus, metadata: videos.metadata })
       .from(videos)
       .where(eq(videos.id, videoId))
       .limit(1);
@@ -72,15 +74,35 @@ export async function POST(
       return Response.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Already running — safe to return early (transcribeVideo also guards this internally)
-    if (
-      video.transcriptionStatus === "PROCESSING" ||
-      video.transcriptionStatus === "COMPLETE"
-    ) {
+    // If transcription is still running, nothing to do yet
+    if (video.transcriptionStatus === "PROCESSING") {
       return Response.json({ alreadyRunning: true });
     }
 
-    // Use the video owner's id as userId (per spec), with aiGenerationEnabled = true
+    // If transcription is COMPLETE, check whether AI generation still needs to run
+    if (video.transcriptionStatus === "COMPLETE") {
+      const metadata = (video.metadata as VideoMetadata) || {};
+      const aiStatus = metadata.aiGenerationStatus;
+
+      // AI already done
+      if (aiStatus === "COMPLETE") {
+        return Response.json({ alreadyRunning: true });
+      }
+
+      // AI in-flight
+      if (aiStatus === "PROCESSING" || aiStatus === "QUEUED") {
+        return Response.json({ alreadyRunning: true });
+      }
+
+      // Transcript done but AI missing or ERROR — start/retry AI generation
+      const result = await startAiGeneration(videoId, video.ownerId);
+      if (!result.success) {
+        return Response.json({ error: result.message }, { status: 500 });
+      }
+      return Response.json({ started: true });
+    }
+
+    // Transcription not yet started — kick off the full pipeline
     const result = await transcribeVideo(videoId, video.ownerId, true);
 
     if (!result.success) {

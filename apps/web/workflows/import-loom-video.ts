@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "@cap/database";
 import { videos, videoUploads } from "@cap/database/schema";
 import { serverEnv } from "@cap/env";
-import { Storage } from "@cap/web-backend";
+import { Storage, validateLoomDownloadUrl } from "@cap/web-backend";
 import { Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
@@ -95,10 +95,24 @@ async function fetchFreshLoomDownloadUrl(loomVideoId: string): Promise<string> {
 }
 
 async function downloadVideoContent(downloadUrl: string): Promise<Buffer> {
+	if (!validateLoomDownloadUrl(downloadUrl)) {
+		throw new FatalError(
+			"Refused to download from an invalid or untrusted Loom URL.",
+		);
+	}
+
 	const loomResponse = await fetch(downloadUrl);
 	if (!loomResponse.ok) {
 		throw new FatalError(
 			`Failed to download from Loom: ${loomResponse.status} ${loomResponse.statusText}`,
+		);
+	}
+
+	// `fetch` follows redirects by default; re-validate the final URL so a
+	// redirect cannot send us to an internal/untrusted host (SSRF).
+	if (loomResponse.url && !validateLoomDownloadUrl(loomResponse.url)) {
+		throw new FatalError(
+			"Loom download was redirected to an untrusted host. The import was blocked for security reasons.",
 		);
 	}
 
@@ -168,7 +182,15 @@ async function downloadLoomToS3(
 
 	const freshDownloadUrl = await fetchFreshLoomDownloadUrl(loomVideoId);
 
-	if (isStreamingUrl(freshDownloadUrl)) {
+	const validatedDownloadUrl = validateLoomDownloadUrl(freshDownloadUrl);
+	if (!validatedDownloadUrl) {
+		throw new FatalError(
+			"Loom returned an invalid or untrusted download URL. The import was blocked for security reasons.",
+		);
+	}
+	const safeDownloadUrl = validatedDownloadUrl.toString();
+
+	if (isStreamingUrl(safeDownloadUrl)) {
 		// Streaming URLs (HLS/DASH) cannot be downloaded as a single file
 		throw new FatalError(
 			"This Loom video uses streaming format (HLS/DASH) and cannot be imported directly.",
@@ -203,7 +225,7 @@ async function downloadLoomToS3(
 		);
 	}).pipe(runPromise);
 
-	const videoBuffer = await downloadVideoContent(freshDownloadUrl);
+	const videoBuffer = await downloadVideoContent(safeDownloadUrl);
 
 	if (videoBuffer.length < MINIMUM_VIDEO_SIZE) {
 		throw new FatalError(

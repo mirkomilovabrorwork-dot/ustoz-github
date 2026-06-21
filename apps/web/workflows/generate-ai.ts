@@ -489,7 +489,7 @@ function chunkTranscriptWithTimestamps(
 	return chunks;
 }
 
-const GEMINI_SUMMARY_MODEL = "gemini-3-flash-preview";
+const GEMINI_SUMMARY_MODEL = "gemini-2.5-flash";
 
 interface AiApiResult {
 	content: string;
@@ -516,6 +516,8 @@ async function callAiApi(prompt: string): Promise<AiApiResult> {
 					generationConfig: {
 						temperature: 0.2,
 						maxOutputTokens: 8192,
+						responseMimeType: "application/json",
+						thinkingConfig: { thinkingBudget: 0 },
 					},
 				}),
 			},
