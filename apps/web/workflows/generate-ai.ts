@@ -498,7 +498,11 @@ interface AiApiResult {
 	outputTokens: number;
 }
 
-async function callAiApi(prompt: string): Promise<AiApiResult> {
+async function callAiApi(
+	prompt: string,
+	options: { json?: boolean } = {},
+): Promise<AiApiResult> {
+	const { json = true } = options;
 	const apiKey = serverEnv().GEMINI_API_KEY;
 	if (!apiKey) {
 		console.warn("[generate-ai] GEMINI_API_KEY not set, skipping AI call");
@@ -516,7 +520,7 @@ async function callAiApi(prompt: string): Promise<AiApiResult> {
 					generationConfig: {
 						temperature: 0.2,
 						maxOutputTokens: 8192,
-						responseMimeType: "application/json",
+						...(json ? { responseMimeType: "application/json" } : {}),
 						thinkingConfig: { thinkingBudget: 0 },
 					},
 				}),
@@ -674,13 +678,19 @@ ${chunk.text}`;
 		} catch {}
 	}
 
-	// Per-chunk refined cleaning: clean raw transcript text, do NOT summarize
+	// Per-chunk refined cleaning: clean raw transcript text, do NOT summarize.
+	// Iterates the ORIGINAL chunks array so every chunk is cleaned regardless of
+	// whether its summary JSON parsed successfully.
 	const refinedChapters: { startSec: number; title: string; paragraphs: string[] }[] = [];
-	for (let i = 0; i < chunkSummaries.length; i++) {
-		const cs = chunkSummaries[i];
-		if (!cs) continue;
-		const timeLabel = `${Math.floor(cs.startTime / 60)}:${String(cs.startTime % 60).padStart(2, "0")}`;
-		const chapterTitle = cs.chapters[0]?.title ?? `Part ${i + 1}`;
+	for (let i = 0; i < chunks.length; i++) {
+		const chunk = chunks[i];
+		if (!chunk) continue;
+		const timeLabel = `${Math.floor(chunk.startTime / 60)}:${String(chunk.startTime % 60).padStart(2, "0")}`;
+		// Use chapter title from the matching summary if available, else "Part N"
+		const matchedSummary = chunkSummaries.find(
+			(cs) => cs.startTime === chunk.startTime,
+		);
+		const chapterTitle = matchedSummary?.chapters[0]?.title ?? `Part ${i + 1}`;
 		const refinedPrompt = `You are a transcript editor. Your ONLY job is to produce a clean, complete, full version of the spoken text below — NOT a summary.
 
 RULES (strict):
@@ -694,8 +704,8 @@ RULES (strict):
 Return ONLY the cleaned text. No JSON. No explanations.
 
 Transcript (${timeLabel}):
-${cs.rawText}`;
-		const refinedResult = await callAiApi(refinedPrompt);
+${chunk.text}`;
+		const refinedResult = await callAiApi(refinedPrompt, { json: false });
 		totalInputTokens += refinedResult.inputTokens;
 		totalOutputTokens += refinedResult.outputTokens;
 		const cleanedText = refinedResult.content.trim();
@@ -704,7 +714,7 @@ ${cs.rawText}`;
 			.map((p) => p.trim())
 			.filter((p) => p.length > 0);
 		refinedChapters.push({
-			startSec: cs.startTime,
+			startSec: chunk.startTime,
 			title: chapterTitle,
 			paragraphs: paragraphs.length > 0 ? paragraphs : [cleanedText],
 		});
@@ -823,7 +833,7 @@ Rules:
 				nextSteps: [],
 				tasks: [],
 				chapters: aiSummaryChaptersFromChunks,
-				refinedTranscript: { chapters: [] },
+				refinedTranscript: { chapters: refinedChapters },
 			}),
 			_usage: {
 				model: usedModel,
