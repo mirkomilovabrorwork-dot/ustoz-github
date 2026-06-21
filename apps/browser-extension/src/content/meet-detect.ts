@@ -592,6 +592,25 @@ function renderDefaultNudge(): void {
 					card.appendChild(errEl);
 					btnRecord.disabled = false;
 					btnRecord.textContent = "Record now";
+				} else if (resp.ok === false) {
+					// Any other server-side error — show the message, keep nudge
+					const errMsg =
+						typeof resp.error === "string"
+							? resp.error
+							: "Couldn't start — try again";
+					const existing = card.querySelector(".cap-nudge-send-err");
+					if (existing) {
+						existing.textContent = errMsg;
+					} else {
+						const errEl = document.createElement("p");
+						errEl.style.cssText =
+							"font-size:12px;color:#e53e3e;margin:6px 0 0;";
+						errEl.className = "cap-nudge-send-err";
+						errEl.textContent = errMsg;
+						card.appendChild(errEl);
+					}
+					btnRecord.disabled = false;
+					btnRecord.textContent = "Record now";
 				} else {
 					clearNudge();
 					nudgeState = "hidden";

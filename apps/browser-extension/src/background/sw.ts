@@ -46,7 +46,7 @@ function getTabMediaStreamId(targetTabId: number): Promise<string> {
 // that owns the whole capture and streams chunks back here using the same
 // RECORDER_* protocol as the offscreen recorder.
 
-async function openInstructionRecorder(): Promise<void> {
+async function openInstructionRecorder(): Promise<number> {
 	const url = chrome.runtime.getURL("recorder.html");
 	// Reuse an existing recorder tab if one is already open.
 	const existing = await chrome.tabs.query({ url });
@@ -55,9 +55,10 @@ async function openInstructionRecorder(): Promise<void> {
 		if (existing[0].windowId != null) {
 			await chrome.windows.update(existing[0].windowId, { focused: true });
 		}
-		return;
+		return existing[0].id;
 	}
-	await chrome.tabs.create({ url, active: true });
+	const tab = await chrome.tabs.create({ url, active: true });
+	return tab.id!;
 }
 
 // ── Offscreen document ─────────────────────────────────────────────────────
@@ -201,6 +202,30 @@ function _getBoolean(
 	return typeof v === "boolean" ? v : undefined;
 }
 
+/** Shared finalization logic called from RECORDER_STOPPED and the tabs.onRemoved handler. */
+async function finalizeRecording(): Promise<void> {
+	const state = await getState();
+	const videoId = state.kind === "recording" ? state.videoId : "stub";
+	const uploadId = state.kind === "recording" ? state.uploadId : "stub";
+	const parts = state.kind === "recording" ? state.parts : [];
+	const totalBytes = state.kind === "recording" ? state.totalBytes : 0;
+	const uploadedBytes = state.kind === "recording" ? state.uploadedBytes : 0;
+
+	const nextState: ExtensionState = {
+		kind: "uploading",
+		videoId,
+		uploadId,
+		parts,
+		totalBytes,
+		uploadedBytes,
+	};
+	await setState(nextState);
+	stopKeepAlive();
+	updateBadge(nextState);
+	await closeOffscreenDocument().catch(() => {});
+	await finalizeUpload();
+}
+
 async function handleMessage(
 	message: unknown,
 	_sender: chrome.runtime.MessageSender,
@@ -229,8 +254,9 @@ async function handleMessage(
 				return { ok: false, error: "not signed in" };
 			}
 			await setState({ kind: "arming", mode: "instruction" });
+			let recorderTabId: number;
 			try {
-				await openInstructionRecorder();
+				recorderTabId = await openInstructionRecorder();
 			} catch (err) {
 				await setState({ kind: "idle" });
 				updateBadge({ kind: "idle" });
@@ -239,6 +265,7 @@ async function handleMessage(
 					error: `Couldn't open the recorder: ${err instanceof Error ? err.message : String(err)}`,
 				};
 			}
+			await setState({ kind: "arming", mode: "instruction", recorderTabId });
 			return { ok: true };
 		}
 
@@ -285,19 +312,56 @@ async function handleMessage(
 
 		// ── Popup: stop ───────────────────────────────────────────────────
 		case "STOP": {
-			await sendToOffscreen({ type: "STOP_CAPTURE" });
+			const stopState = await getState();
+			const stopTabId =
+				stopState.kind === "recording" && stopState.mode === "instruction"
+					? stopState.recorderTabId
+					: stopState.kind === "arming" && stopState.mode === "instruction"
+					  ? stopState.recorderTabId
+					  : undefined;
+			if (stopTabId !== undefined) {
+				// Instruction recording: tell the recorder tab to stop.
+				// SW state advances only when the tab sends RECORDER_STOPPED.
+				chrome.tabs
+					.sendMessage(stopTabId, { type: "STOP_CAPTURE" })
+					.catch(() => {});
+			} else {
+				await sendToOffscreen({ type: "STOP_CAPTURE" });
+			}
 			return { ok: true };
 		}
 
 		// ── Popup: pause ──────────────────────────────────────────────────
 		case "PAUSE": {
-			await sendToOffscreen({ type: "PAUSE_CAPTURE" });
+			const pauseState = await getState();
+			const pauseTabId =
+				pauseState.kind === "recording" && pauseState.mode === "instruction"
+					? pauseState.recorderTabId
+					: undefined;
+			if (pauseTabId !== undefined) {
+				chrome.tabs
+					.sendMessage(pauseTabId, { type: "PAUSE_CAPTURE" })
+					.catch(() => {});
+			} else {
+				await sendToOffscreen({ type: "PAUSE_CAPTURE" });
+			}
 			return { ok: true };
 		}
 
 		// ── Popup: resume ─────────────────────────────────────────────────
 		case "RESUME": {
-			await sendToOffscreen({ type: "RESUME_CAPTURE" });
+			const resumeState = await getState();
+			const resumeTabId =
+				resumeState.kind === "recording" && resumeState.mode === "instruction"
+					? resumeState.recorderTabId
+					: undefined;
+			if (resumeTabId !== undefined) {
+				chrome.tabs
+					.sendMessage(resumeTabId, { type: "RESUME_CAPTURE" })
+					.catch(() => {});
+			} else {
+				await sendToOffscreen({ type: "RESUME_CAPTURE" });
+			}
 			return { ok: true };
 		}
 
@@ -317,7 +381,22 @@ async function handleMessage(
 
 		// ── Popup: cancel ─────────────────────────────────────────────────
 		case "CANCEL": {
-			await sendToOffscreen({ type: "STOP_CAPTURE" }).catch(() => {});
+			const cancelState = await getState();
+			const cancelTabId =
+				cancelState.kind === "recording" && cancelState.mode === "instruction"
+					? cancelState.recorderTabId
+					: cancelState.kind === "arming" && cancelState.mode === "instruction"
+					  ? cancelState.recorderTabId
+					  : undefined;
+			if (cancelTabId !== undefined) {
+				// Tell the instruction recorder tab to stop so it sends RECORDER_STOPPED
+				// and cleanup runs. Then also reset SW to idle immediately.
+				chrome.tabs
+					.sendMessage(cancelTabId, { type: "STOP_CAPTURE" })
+					.catch(() => {});
+			} else {
+				await sendToOffscreen({ type: "STOP_CAPTURE" }).catch(() => {});
+			}
 			await closeOffscreenDocument();
 			await setState({ kind: "idle" });
 			updateBadge({ kind: "idle" });
@@ -431,6 +510,8 @@ async function handleMessage(
 			const mode = state.kind === "arming" ? state.mode : "instruction";
 			const meetingId = state.kind === "arming" ? state.meetingId : undefined;
 			const tabId = state.kind === "arming" ? state.tabId : undefined;
+			const recorderTabId =
+				state.kind === "arming" ? state.recorderTabId : undefined;
 
 			let videoId: string;
 			let uploadId: string;
@@ -465,6 +546,7 @@ async function handleMessage(
 				tabId,
 				mime,
 				paused: false,
+				recorderTabId,
 			};
 			await setState(nextState);
 			startKeepAlive();
@@ -485,27 +567,7 @@ async function handleMessage(
 
 		// ── Offscreen: recorder stopped ───────────────────────────────────
 		case "RECORDER_STOPPED": {
-			const state = await getState();
-			const videoId = state.kind === "recording" ? state.videoId : "stub";
-			const uploadId = state.kind === "recording" ? state.uploadId : "stub";
-			const parts = state.kind === "recording" ? state.parts : [];
-			const totalBytes = state.kind === "recording" ? state.totalBytes : 0;
-			const uploadedBytes =
-				state.kind === "recording" ? state.uploadedBytes : 0;
-
-			const nextState: ExtensionState = {
-				kind: "uploading",
-				videoId,
-				uploadId,
-				parts,
-				totalBytes,
-				uploadedBytes,
-			};
-			await setState(nextState);
-			stopKeepAlive();
-			updateBadge(nextState);
-			await closeOffscreenDocument();
-			await finalizeUpload();
+			await finalizeRecording();
 			return { ok: true };
 		}
 
@@ -707,4 +769,22 @@ chrome.runtime.onStartup.addListener(async () => {
 chrome.runtime.onInstalled.addListener(async () => {
 	const state = await getState();
 	updateBadge(state);
+});
+
+// ── Tab removed: recover from instruction recorder tab closure ─────────────
+
+chrome.tabs.onRemoved.addListener(async (tabId) => {
+	const state = await getState();
+	if (state.kind === "arming" && state.mode === "instruction" && state.recorderTabId === tabId) {
+		// Tab closed before recording started — release the arming lock.
+		await setState({ kind: "idle" });
+		updateBadge({ kind: "idle" });
+	} else if (
+		state.kind === "recording" &&
+		state.mode === "instruction" &&
+		state.recorderTabId === tabId
+	) {
+		// Tab closed mid-recording — finalize with whatever chunks arrived.
+		await finalizeRecording().catch(() => {});
+	}
 });

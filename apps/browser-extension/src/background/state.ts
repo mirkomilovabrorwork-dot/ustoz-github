@@ -27,6 +27,9 @@ interface ArmingState {
 	mode: "instruction" | "meeting";
 	meetingId?: string;
 	tabId?: number;
+	// For an instruction recording, the id of the visible recorder.html tab that
+	// owns the capture. Stop/pause/resume/cancel must be routed to THIS tab.
+	recorderTabId?: number;
 }
 
 interface RecordingState {
@@ -41,6 +44,10 @@ interface RecordingState {
 	uploadedBytes: number;
 	meetingId?: string;
 	tabId?: number;
+	// For an instruction recording, the id of the visible recorder.html tab that
+	// owns the capture. Stop/pause/resume/cancel must be routed to THIS tab, and
+	// if the tab closes unexpectedly the arming/recording lock must be released.
+	recorderTabId?: number;
 	mime: string;
 	paused: boolean;
 }

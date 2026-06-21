@@ -353,6 +353,13 @@ function handleStateChange(s: BroadcastState): void {
 		}
 		case "error": {
 			stopTimer();
+			if (state) {
+				if (state.recorder.state !== "inactive") {
+					try { state.recorder.stop(); } catch (_) {}
+				}
+				cleanup(state);
+				state = null;
+			}
 			const el = $("error-msg");
 			if (el) el.textContent = s.reason ?? "Unknown error";
 			showView("view-error");
@@ -434,13 +441,21 @@ function wire(): void {
 	});
 
 	chrome.runtime.onMessage.addListener((message: unknown) => {
-		if (
-			typeof message === "object" &&
-			message !== null &&
-			(message as Record<string, unknown>).type === "STATE_CHANGED"
-		) {
-			const s = (message as Record<string, unknown>).state as BroadcastState;
+		if (typeof message !== "object" || message === null) return;
+		const msg = message as Record<string, unknown>;
+		if (msg.type === "STATE_CHANGED") {
+			const s = msg.state as BroadcastState;
 			if (s) handleStateChange(s);
+		} else if (msg.type === "STOP_CAPTURE") {
+			stopRecording();
+		} else if (msg.type === "PAUSE_CAPTURE") {
+			if (state && state.recorder.state === "recording") {
+				state.recorder.pause();
+			}
+		} else if (msg.type === "RESUME_CAPTURE") {
+			if (state && state.recorder.state === "paused") {
+				state.recorder.resume();
+			}
 		}
 	});
 
