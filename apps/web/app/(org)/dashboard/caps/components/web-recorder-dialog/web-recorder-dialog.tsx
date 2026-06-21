@@ -55,6 +55,8 @@ export const WebRecorderDialog = ({
 		useState<RecordingMode>("fullscreen");
 	const [cameraSelectOpen, setCameraSelectOpen] = useState(false);
 	const [micSelectOpen, setMicSelectOpen] = useState(false);
+	const [pendingSilentConfirm, setPendingSilentConfirm] = useState(false);
+	const micAutoSelectedRef = useRef(false);
 	const dialogContentRef = useRef<HTMLDivElement>(null);
 	const startSoundRef = useRef<HTMLAudioElement | null>(null);
 	const stopSoundRef = useRef<HTMLAudioElement | null>(null);
@@ -123,6 +125,13 @@ export const WebRecorderDialog = ({
 
 	const micEnabled = selectedMicId !== null;
 
+	// In camera mode audio comes only from the mic; in screen modes it can come
+	// from the mic OR system audio. "No audio" means nothing would be recorded.
+	const noAudioSelected =
+		recordingMode === "camera"
+			? !micEnabled
+			: !micEnabled && !systemAudioEnabled;
+
 	useEffect(() => {
 		if (
 			recordingMode === "camera" &&
@@ -132,6 +141,24 @@ export const WebRecorderDialog = ({
 			setSelectedCameraId(availableCameras[0]?.deviceId ?? null);
 		}
 	}, [recordingMode, selectedCameraId, availableCameras, setSelectedCameraId]);
+
+	// Default the microphone ON (first available) once the recorder opens, so a
+	// teacher's narration is always captured — a mic-off + system-audio-off
+	// recording is silent and fails transcription/AI. Mirrors Loom (mic on by
+	// default). Runs once per open; the user can still turn the mic off after.
+	useEffect(() => {
+		if (!open) {
+			micAutoSelectedRef.current = false;
+			return;
+		}
+		if (micAutoSelectedRef.current || availableMics.length === 0) {
+			return;
+		}
+		micAutoSelectedRef.current = true;
+		if (!selectedMicId) {
+			handleMicChange(availableMics[0]?.deviceId ?? null);
+		}
+	}, [open, availableMics, selectedMicId, handleMicChange]);
 
 	const {
 		phase,
@@ -173,6 +200,28 @@ export const WebRecorderDialog = ({
 		onRecordingStart: handleRecordingStartSound,
 		onRecordingStop: handleRecordingStopSound,
 	});
+
+	// Warn before a silent recording: the first Record click with no audio shows
+	// a warning and arms a confirm; the second click records without audio.
+	const handleStartRecording = useCallback(() => {
+		if (noAudioSelected && !pendingSilentConfirm) {
+			setPendingSilentConfirm(true);
+			toast.warning(
+				"No audio selected — this recording will be silent and AI transcription won't run. Click Record again to record without audio.",
+			);
+			return;
+		}
+		setPendingSilentConfirm(false);
+		void Promise.resolve(startRecording()).catch((err: unknown) => {
+			console.error("Start recording error", err);
+		});
+	}, [noAudioSelected, pendingSilentConfirm, startRecording]);
+
+	useEffect(() => {
+		if (!noAudioSelected) {
+			setPendingSilentConfirm(false);
+		}
+	}, [noAudioSelected]);
 
 	useEffect(() => {
 		if (
@@ -338,10 +387,16 @@ export const WebRecorderDialog = ({
 										onToggle={handleSystemAudioChange}
 									/>
 								)}
+								{noAudioSelected && (
+									<div className="rounded-md border border-amber-6 bg-amber-3/60 px-3 py-2 text-xs leading-snug text-amber-12">
+										No audio selected — this recording will be silent and AI
+										analysis won't run. Turn on your microphone or system audio.
+									</div>
+								)}
 								<RecordingButton
 									isRecording={isRecording}
 									disabled={!canStartRecording || (isBusy && !isRecording)}
-									onStart={startRecording}
+									onStart={handleStartRecording}
 									onStop={handleStopClick}
 								/>
 								{!isBrowserSupported && unsupportedReason && (
