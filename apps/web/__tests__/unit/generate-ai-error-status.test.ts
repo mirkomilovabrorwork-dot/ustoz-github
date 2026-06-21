@@ -117,7 +117,9 @@ describe("startAiGeneration — async workflow failure writes aiGenerationStatus
 		// The second update must set aiGenerationStatus: "ERROR".
 		const allSetCalls = updateSetMock.mock.calls;
 		const errorCall = allSetCalls.find((args) => {
-			const payload = args[0] as { metadata?: Record<string, unknown> };
+			const payload = (args as unknown[])[0] as {
+				metadata?: Record<string, unknown>;
+			};
 			return payload?.metadata?.aiGenerationStatus === "ERROR";
 		});
 
@@ -145,13 +147,15 @@ describe("startAiGeneration — async workflow failure writes aiGenerationStatus
 
 		const allSetCalls = updateSetMock.mock.calls;
 		const errorCall = allSetCalls.find((args) => {
-			const payload = args[0] as { metadata?: Record<string, unknown> };
+			const payload = (args as unknown[])[0] as {
+				metadata?: Record<string, unknown>;
+			};
 			return payload?.metadata?.aiGenerationStatus === "ERROR";
 		});
 
 		expect(errorCall).toBeDefined();
 		// Existing fields should be preserved (spread behaviour in the .catch).
-		expect(errorCall![0]).toMatchObject({
+		expect((errorCall as unknown as unknown[])[0]).toMatchObject({
 			metadata: expect.objectContaining({
 				someOtherField: "preserved",
 				aiGenerationStatus: "ERROR",
