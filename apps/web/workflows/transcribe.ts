@@ -138,7 +138,13 @@ async function validateVideo(videoId: string): Promise<VideoData> {
 
 	await db()
 		.update(videos)
-		.set({ transcriptionStatus: "PROCESSING" })
+		.set({
+			transcriptionStatus: "PROCESSING",
+			metadata: {
+				...((result.video.metadata as VideoMetadata) || {}),
+				processingStartedAt: new Date().toISOString(),
+			} as VideoMetadata,
+		})
 		.where(eq(videos.id, videoId as Video.VideoId));
 
 	return {
@@ -395,22 +401,20 @@ async function chunkEmbedAndStore(
 
 		const resolvedApiKey = apiKey;
 
-		const { embeddings, totalTokens } = await embedChunksWithUsage(
-			chunks,
-			resolvedApiKey,
-		);
-
-		await withCostGuard({
+		const { embeddings } = await withCostGuard({
 			orgId: context.orgId,
 			userId: context.userId,
 			videoId,
 			operation: "embedding",
 			model: EMBED_MODEL,
-			fn: async () => ({
-				embeddings,
-				inputTokens: totalTokens,
-				outputTokens: 0,
-			}),
+			fn: async () => {
+				const result = await embedChunksWithUsage(chunks, resolvedApiKey);
+				return {
+					embeddings: result.embeddings,
+					inputTokens: result.totalTokens,
+					outputTokens: 0,
+				};
+			},
 		});
 
 		const rows = chunks.map((chunk, i) => ({

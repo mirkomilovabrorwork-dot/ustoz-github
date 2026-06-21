@@ -1,14 +1,13 @@
 import { db } from "@cap/database";
 import { decrypt } from "@cap/database/crypto";
-import { nanoId } from "@cap/database/helpers";
-import { aiUsageEvents, users, videos } from "@cap/database/schema";
+import { users, videos } from "@cap/database/schema";
 import { serverEnv } from "@cap/env";
-import { priceForMicros } from "@cap/utils";
 import { provideOptionalAuth, VideosPolicy } from "@cap/web-backend";
-import { type Organisation, Policy, type User, Video } from "@cap/web-domain";
+import { Policy, Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 import type { NextRequest } from "next/server";
+import { BudgetExceededError, withCostGuard } from "@/lib/ai-cost-guard";
 import { EMBED_MODEL, embedChunksWithUsage } from "@/lib/gemini-embed";
 import { withGeminiRetry } from "@/lib/gemini-retry";
 import { runPromise } from "@/lib/server";
@@ -171,37 +170,25 @@ export async function POST(request: NextRequest) {
 			};
 
 			try {
-				const billingMonth = (() => {
-					const now = new Date();
-					return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
-				})();
-
-				const embedResult = await embedChunksWithUsage(
-					[{ text: lastUserMessage.content }],
-					resolvedApiKey,
-				);
+				const embedResult = await withCostGuard({
+					orgId: video.orgId,
+					userId: video.ownerId,
+					videoId,
+					operation: "embedding",
+					model: EMBED_MODEL,
+					fn: async () => {
+						const result = await embedChunksWithUsage(
+							[{ text: lastUserMessage.content }],
+							resolvedApiKey,
+						);
+						return {
+							...result,
+							inputTokens: result.totalTokens,
+							outputTokens: 0,
+						};
+					},
+				});
 				const queryEmbedding = embedResult.embeddings[0];
-
-				const embedCost = priceForMicros(
-					EMBED_MODEL,
-					embedResult.totalTokens,
-					0,
-				);
-				db()
-					.insert(aiUsageEvents)
-					.values({
-						id: nanoId(),
-						orgId: video.orgId as Organisation.OrganisationId,
-						userId: video.ownerId as User.UserId,
-						videoId: videoId as Video.VideoId,
-						operation: "chat",
-						model: EMBED_MODEL,
-						inputTokens: embedResult.totalTokens,
-						outputTokens: 0,
-						costUsdMicros: embedCost,
-						billingMonth,
-					})
-					.catch(() => {});
 
 				if (!queryEmbedding) {
 					send(JSON.stringify({ error: "Failed to embed query" }));
@@ -242,6 +229,14 @@ export async function POST(request: NextRequest) {
 					})),
 				];
 
+				await withCostGuard({
+					orgId: video.orgId,
+					userId: video.ownerId,
+					videoId,
+					operation: "chat",
+					model: "gemini-2.5-flash",
+					recordUsageBestEffort: true,
+					fn: async () => {
 				// Retry the initial connect on transient Gemini errors
 				// (429/500/503/overloaded), matching summary/transcription.
 				const geminiRes = await withGeminiRetry(async () => {
@@ -287,9 +282,7 @@ export async function POST(request: NextRequest) {
 					send(
 						JSON.stringify({ error: "Gemini error: empty response body" }),
 					);
-					send("[DONE]");
-					controller.close();
-					return;
+					return { inputTokens: 0, outputTokens: 0 };
 				}
 
 				const reader = geminiRes.body.getReader();
@@ -337,31 +330,22 @@ export async function POST(request: NextRequest) {
 					}
 				}
 
-				const chatCost = priceForMicros(
-					"gemini-2.5-flash",
-					chatInputTokens,
-					chatOutputTokens,
-				);
-				db()
-					.insert(aiUsageEvents)
-					.values({
-						id: nanoId(),
-						orgId: video.orgId as Organisation.OrganisationId,
-						userId: video.ownerId as User.UserId,
-						videoId: videoId as Video.VideoId,
-						operation: "chat",
-						model: "gemini-2.5-flash",
-						inputTokens: chatInputTokens,
-						outputTokens: chatOutputTokens,
-						costUsdMicros: chatCost,
-						billingMonth,
-					})
-					.catch(() => {});
+				return {
+					inputTokens: chatInputTokens,
+					outputTokens: chatOutputTokens,
+				};
+					},
+				});
 
 				send("[DONE]");
 				controller.close();
 			} catch (err) {
-				const message = err instanceof Error ? err.message : "Unknown error";
+				const message =
+					err instanceof BudgetExceededError
+						? "AI budget exceeded"
+						: err instanceof Error
+							? err.message
+							: "Unknown error";
 				send(JSON.stringify({ error: message }));
 				send("[DONE]");
 				controller.close();

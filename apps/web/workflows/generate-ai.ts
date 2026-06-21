@@ -1,23 +1,20 @@
 import { db } from "@cap/database";
-import { nanoId } from "@cap/database/helpers";
-import { aiUsageEvents, organizations, videos } from "@cap/database/schema";
+import { organizations, videos } from "@cap/database/schema";
 import type { AiSummary, VideoMetadata } from "@cap/database/types";
 import { serverEnv } from "@cap/env";
-import { priceForMicros } from "@cap/utils";
 import { Storage } from "@cap/web-backend";
 import {
 	AI_GENERATION_LANGUAGE_AUTO,
 	type AiGenerationLanguage,
 	getAiGenerationLanguageName,
-	type Organisation,
 	parseAiGenerationLanguage,
-	type User,
 	type Video,
 } from "@cap/web-domain";
 import { and, eq } from "drizzle-orm";
 import { Effect, Option } from "effect";
 import { FatalError } from "workflow";
 import { z } from "zod";
+import { BudgetExceededError, withCostGuard } from "@/lib/ai-cost-guard";
 import { withGeminiRetry } from "@/lib/gemini-retry";
 import { runPromise } from "@/lib/server";
 import { decodeStorageVideo } from "@/lib/video-storage";
@@ -41,6 +38,12 @@ interface VttSegment {
 interface TranscriptData {
 	segments: VttSegment[];
 	text: string;
+}
+
+interface AiCallContext {
+	orgId: string;
+	userId: string;
+	videoId: string;
 }
 
 interface AiResult {
@@ -145,18 +148,22 @@ export async function generateAiWorkflow(payload: GenerateAiWorkflowPayload) {
 		};
 	}
 
-	const result = await generateWithAi(
-		transcript,
-		videoData.aiGenerationLanguage,
-	);
-
-	if (result._usage) {
-		await recordSummaryUsage(
-			videoData.video.orgId,
-			userId,
-			videoId,
-			result._usage,
+	let result: AiResult;
+	try {
+		result = await generateWithAi(
+			transcript,
+			videoData.aiGenerationLanguage,
+			{ orgId: videoData.video.orgId, userId, videoId },
 		);
+	} catch (error) {
+		if (error instanceof BudgetExceededError) {
+			await markBudgetExceeded(videoId, videoData.metadata);
+			return {
+				success: false,
+				message: "AI budget exceeded",
+			};
+		}
+		throw error;
 	}
 
 	await saveResults(videoId, videoData, result);
@@ -198,7 +205,8 @@ async function validateAndSetProcessing(videoId: string): Promise<VideoData> {
 			metadata: {
 				...metadata,
 				aiGenerationStatus: "PROCESSING",
-			},
+				aiProcessingStartedAt: new Date().toISOString(),
+			} as VideoMetadata,
 		})
 		.where(eq(videos.id, videoId as Video.VideoId));
 
@@ -261,9 +269,30 @@ async function markSkipped(
 		.where(eq(videos.id, videoId as Video.VideoId));
 }
 
+async function markBudgetExceeded(
+	videoId: string,
+	metadata: VideoMetadata,
+): Promise<void> {
+	"use step";
+
+	const currentMetadata = await getCurrentVideoMetadata(videoId, metadata);
+
+	await db()
+		.update(videos)
+		.set({
+			metadata: {
+				...currentMetadata,
+				aiGenerationStatus: "ERROR",
+				aiGenerationError: "AI budget exceeded",
+			} as VideoMetadata,
+		})
+		.where(eq(videos.id, videoId as Video.VideoId));
+}
+
 async function generateWithAi(
 	transcript: TranscriptData,
 	language: AiGenerationLanguage,
+	context: AiCallContext,
 ): Promise<AiResult> {
 	"use step";
 
@@ -278,12 +307,14 @@ async function generateWithAi(
 			transcript.segments,
 			videoDuration,
 			languageInstruction,
+			context,
 		);
 	} else {
 		result = await generateMultipleChunks(
 			chunks,
 			videoDuration,
 			languageInstruction,
+			context,
 		);
 	}
 
@@ -500,7 +531,8 @@ interface AiApiResult {
 
 async function callAiApi(
 	prompt: string,
-	options: { json?: boolean } = {},
+	options: { json?: boolean },
+	context: AiCallContext,
 ): Promise<AiApiResult> {
 	const { json = true } = options;
 	const apiKey = serverEnv().GEMINI_API_KEY;
@@ -509,50 +541,61 @@ async function callAiApi(
 		return { content: "{}", model: "unknown", inputTokens: 0, outputTokens: 0 };
 	}
 
-	const { res, data } = await withGeminiRetry(async () => {
-		const res = await fetch(
-			`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_SUMMARY_MODEL}:generateContent?key=${apiKey}`,
-			{
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					contents: [{ parts: [{ text: prompt }] }],
-					generationConfig: {
-						temperature: 0.2,
-						maxOutputTokens: 8192,
-						...(json ? { responseMimeType: "application/json" } : {}),
-						thinkingConfig: { thinkingBudget: 0 },
+	const result = await withCostGuard({
+		orgId: context.orgId,
+		userId: context.userId,
+		videoId: context.videoId,
+		operation: "summary",
+		model: GEMINI_SUMMARY_MODEL,
+		fn: async () => {
+			const { data } = await withGeminiRetry(async () => {
+				const res = await fetch(
+					`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_SUMMARY_MODEL}:generateContent?key=${apiKey}`,
+					{
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							contents: [{ parts: [{ text: prompt }] }],
+							generationConfig: {
+								temperature: 0.2,
+								maxOutputTokens: 8192,
+								...(json ? { responseMimeType: "application/json" } : {}),
+								thinkingConfig: { thinkingBudget: 0 },
+							},
+						}),
 					},
-				}),
-			},
-		);
+				);
 
-		const data = (await res.json()) as {
-			candidates?: Array<{
-				content: { parts: Array<{ text?: string }> };
-			}>;
-			usageMetadata?: {
-				promptTokenCount?: number;
-				candidatesTokenCount?: number;
-			};
-			error?: { message: string };
-		};
+				const data = (await res.json()) as {
+					candidates?: Array<{
+						content: { parts: Array<{ text?: string }> };
+					}>;
+					usageMetadata?: {
+						promptTokenCount?: number;
+						candidatesTokenCount?: number;
+					};
+					error?: { message: string };
+				};
 
-		if (!res.ok) {
-			throw new Error(
-				`Gemini generateContent failed (HTTP ${res.status}): ${data.error?.message ?? "unknown"}`,
-			);
-		}
+				if (!res.ok) {
+					throw new Error(
+						`Gemini generateContent failed (HTTP ${res.status}): ${data.error?.message ?? "unknown"}`,
+					);
+				}
 
-		return { res, data };
+				return { data };
+			});
+
+			const content =
+				data.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
+			const inputTokens = data.usageMetadata?.promptTokenCount ?? 0;
+			const outputTokens = data.usageMetadata?.candidatesTokenCount ?? 0;
+
+			return { content, inputTokens, outputTokens };
+		},
 	});
 
-	const content =
-		data.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
-	const inputTokens = data.usageMetadata?.promptTokenCount ?? 0;
-	const outputTokens = data.usageMetadata?.candidatesTokenCount ?? 0;
-
-	return { content, model: GEMINI_SUMMARY_MODEL, inputTokens, outputTokens };
+	return { ...result, model: GEMINI_SUMMARY_MODEL };
 }
 
 function cleanJsonResponse(content: string): string {
@@ -569,6 +612,7 @@ async function generateSingleChunk(
 	segments: VttSegment[],
 	videoDuration: number,
 	languageInstruction: string,
+	context: AiCallContext,
 ): Promise<AiResult> {
 	const transcriptWithTimestamps = segments
 		.map(
@@ -610,7 +654,7 @@ Rules:
 Transcript:
 ${transcriptWithTimestamps}`;
 
-	const apiResult = await callAiApi(prompt);
+	const apiResult = await callAiApi(prompt, {}, context);
 	const parsed = parseAiResponse(apiResult.content);
 	return {
 		...parsed,
@@ -626,6 +670,7 @@ async function generateMultipleChunks(
 	chunks: { text: string; startTime: number; endTime: number }[],
 	videoDuration: number,
 	languageInstruction: string,
+	context: AiCallContext,
 ): Promise<AiResult> {
 	const chunkSummaries: {
 		summary: string;
@@ -661,7 +706,7 @@ Return ONLY valid JSON without any markdown formatting or code blocks.
 Transcript section:
 ${chunk.text}`;
 
-		const chunkResult = await callAiApi(chunkPrompt);
+		const chunkResult = await callAiApi(chunkPrompt, {}, context);
 		totalInputTokens += chunkResult.inputTokens;
 		totalOutputTokens += chunkResult.outputTokens;
 		usedModel = chunkResult.model;
@@ -705,7 +750,7 @@ Return ONLY the cleaned text. No JSON. No explanations.
 
 Transcript (${timeLabel}):
 ${chunk.text}`;
-		const refinedResult = await callAiApi(refinedPrompt, { json: false });
+		const refinedResult = await callAiApi(refinedPrompt, { json: false }, context);
 		totalInputTokens += refinedResult.inputTokens;
 		totalOutputTokens += refinedResult.outputTokens;
 		const cleanedText = refinedResult.content.trim();
@@ -784,7 +829,7 @@ Rules:
 - refinedTranscript.chapters may be left as an empty array — it is handled separately
 - Keep ALL JSON property names exactly as shown`;
 
-	const finalResult = await callAiApi(finalPrompt);
+	const finalResult = await callAiApi(finalPrompt, {}, context);
 	totalInputTokens += finalResult.inputTokens;
 	totalOutputTokens += finalResult.outputTokens;
 	usedModel = finalResult.model;
@@ -842,39 +887,6 @@ Rules:
 			},
 		};
 	}
-}
-
-async function recordSummaryUsage(
-	orgId: string,
-	userId: string,
-	videoId: string,
-	usage: { model: string; inputTokens: number; outputTokens: number },
-): Promise<void> {
-	"use step";
-
-	const billingMonth = (() => {
-		const now = new Date();
-		return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
-	})();
-	const costUsdMicros = priceForMicros(
-		usage.model,
-		usage.inputTokens,
-		usage.outputTokens,
-	);
-	await db()
-		.insert(aiUsageEvents)
-		.values({
-			id: nanoId(),
-			orgId: orgId as Organisation.OrganisationId,
-			userId: userId as User.UserId,
-			videoId: videoId as Video.VideoId,
-			operation: "summary",
-			model: usage.model,
-			inputTokens: usage.inputTokens,
-			outputTokens: usage.outputTokens,
-			costUsdMicros,
-			billingMonth,
-		});
 }
 
 function parseAiResponse(content: string): AiResult {

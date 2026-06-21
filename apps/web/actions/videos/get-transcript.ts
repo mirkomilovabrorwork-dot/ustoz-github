@@ -3,11 +3,11 @@
 import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { videos } from "@cap/database/schema";
-import { Storage } from "@cap/web-backend";
-import type { Video } from "@cap/web-domain";
+import { provideOptionalAuth, Storage, VideosPolicy } from "@cap/web-backend";
+import { Policy, type Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
-import { Effect, Option } from "effect";
-import { runPromise } from "@/lib/server";
+import { Effect, Exit, Option } from "effect";
+import { runPromise, runPromiseExit } from "@/lib/server";
 import { decodeStorageVideo } from "@/lib/video-storage";
 
 export async function getTranscript(
@@ -43,6 +43,17 @@ export async function getTranscript(
 			success: false,
 			message: "Transcript is not ready yet",
 		};
+	}
+
+	const viewExit = await Effect.gen(function* () {
+		const videosPolicy = yield* VideosPolicy;
+		return yield* Effect.void.pipe(
+			Policy.withPublicPolicy(videosPolicy.canView(videoId)),
+		);
+	}).pipe(provideOptionalAuth, runPromiseExit);
+
+	if (Exit.isFailure(viewExit)) {
+		return { success: false, message: "Not authorized" };
 	}
 
 	try {

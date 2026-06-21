@@ -3,6 +3,7 @@ import { organizations, videos, videoUploads } from "@cap/database/schema";
 import { serverEnv } from "@cap/env";
 import type { Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
+import { assertAiBudgetAvailable, BudgetExceededError } from "@/lib/ai-cost-guard";
 import { transcribeVideoWorkflow } from "@/workflows/transcribe";
 
 type TranscribeResult = {
@@ -110,6 +111,11 @@ export async function transcribeVideo(
 	}
 
 	try {
+		await assertAiBudgetAvailable({
+			orgId: video.orgId,
+			userId,
+		});
+
 		console.log(
 			`[transcribeVideo] Triggering transcription workflow for video ${videoId}`,
 		);
@@ -130,6 +136,13 @@ export async function transcribeVideo(
 			message: "Transcription started inline",
 		};
 	} catch (error) {
+		if (error instanceof BudgetExceededError) {
+			return {
+				success: false,
+				message: "AI budget exceeded",
+			};
+		}
+
 		console.error("[transcribeVideo] Failed to trigger workflow:", error);
 
 		await db()

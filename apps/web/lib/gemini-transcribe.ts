@@ -242,7 +242,7 @@ IMPORTANT: Start your response with "WEBVTT" header and format each line as WebV
 					],
 					generationConfig: {
 						temperature: 0.1,
-						maxOutputTokens: 8192,
+						maxOutputTokens: 65536,
 						thinkingConfig: { thinkingBudget: 0 },
 					},
 				}),
@@ -289,9 +289,15 @@ IMPORTANT: Start your response with "WEBVTT" header and format each line as WebV
 		{ method: "DELETE" },
 	).catch(() => {});
 
-	const transcriptVtt = rawText.trimStart().startsWith("WEBVTT")
-		? rawText.trimStart()
-		: plainTextToWebVTT(rawText, audioDurationSec);
+	const trimmedRawText = rawText.trimStart();
+	const transcriptVtt = trimmedRawText.startsWith("WEBVTT")
+		? trimmedRawText
+		: (() => {
+				console.warn(
+					"[gemini-transcribe] Gemini did not return WEBVTT timestamps; fabricated approximate timestamps from plain text fallback.",
+				);
+				return plainTextToWebVTT(rawText, audioDurationSec);
+			})();
 
 	return { transcriptVtt, inputTokens, outputTokens };
 }

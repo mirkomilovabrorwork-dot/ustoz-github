@@ -4,6 +4,7 @@ import type { VideoMetadata } from "@cap/database/types";
 import { serverEnv } from "@cap/env";
 import type { Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
+import { assertAiBudgetAvailable, BudgetExceededError } from "@/lib/ai-cost-guard";
 import { generateAiWorkflow } from "@/workflows/generate-ai";
 
 type GenerateAiResult = {
@@ -71,13 +72,19 @@ export async function startAiGeneration(
 	}
 
 	try {
+		await assertAiBudgetAvailable({
+			orgId: video.orgId,
+			userId,
+		});
+
 		await db()
 			.update(videos)
 			.set({
 				metadata: {
 					...metadata,
 					aiGenerationStatus: "QUEUED",
-				},
+					aiProcessingStartedAt: new Date().toISOString(),
+				} as VideoMetadata,
 			})
 			.where(eq(videos.id, videoId));
 
@@ -121,7 +128,14 @@ export async function startAiGeneration(
 			success: true,
 			message: "AI generation started inline",
 		};
-	} catch {
+	} catch (error) {
+		if (error instanceof BudgetExceededError) {
+			return {
+				success: false,
+				message: "AI budget exceeded",
+			};
+		}
+
 		await db()
 			.update(videos)
 			.set({

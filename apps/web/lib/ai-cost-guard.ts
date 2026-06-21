@@ -1,6 +1,11 @@
 import { db } from "@cap/database";
 import { nanoId } from "@cap/database/helpers";
-import { type AiOperation, aiUsageEvents } from "@cap/database/schema";
+import {
+	type AiOperation,
+	aiUsageEvents,
+	organizations,
+	users,
+} from "@cap/database/schema";
 import { priceForMicros } from "@cap/utils";
 import { Organisation, User, type Video } from "@cap/web-domain";
 import { and, eq, sql } from "drizzle-orm";
@@ -45,6 +50,76 @@ async function getMonthlySpendMicros(
 	return Number(result?.total ?? 0);
 }
 
+type AiBudgetSettings = {
+	monthlyUsdCents: number;
+	alertAtPct: number;
+	enabled: boolean;
+};
+
+function budgetToMicros(budget?: AiBudgetSettings | null): number | null {
+	if (!budget?.enabled || budget.monthlyUsdCents <= 0) return null;
+	return budget.monthlyUsdCents * 10_000;
+}
+
+export async function getAiBudgetCapsMicros({
+	orgId,
+	userId,
+}: {
+	orgId: string;
+	userId: string;
+}): Promise<{
+	budgetCapUserMicros: number | null;
+	budgetCapOrgMicros: number | null;
+}> {
+	const [[user], [org]] = await Promise.all([
+		db()
+			.select({ preferences: users.preferences })
+			.from(users)
+			.where(eq(users.id, User.UserId.make(userId)))
+			.limit(1),
+		db()
+			.select({ settings: organizations.settings })
+			.from(organizations)
+			.where(eq(organizations.id, Organisation.OrganisationId.make(orgId)))
+			.limit(1),
+	]);
+
+	return {
+		budgetCapUserMicros: budgetToMicros(user?.preferences?.aiBudget),
+		budgetCapOrgMicros: budgetToMicros(org?.settings?.aiBudget),
+	};
+}
+
+export async function assertAiBudgetAvailable({
+	orgId,
+	userId,
+}: {
+	orgId: string;
+	userId: string;
+}): Promise<void> {
+	const billingMonth = currentBillingMonth();
+	const { budgetCapUserMicros, budgetCapOrgMicros } =
+		await getAiBudgetCapsMicros({ orgId, userId });
+
+	if (budgetCapUserMicros != null && budgetCapUserMicros > 0) {
+		const userSpend = await getMonthlySpendMicros(
+			"userId",
+			userId,
+			billingMonth,
+		);
+		if (userSpend >= budgetCapUserMicros) {
+			throw new BudgetExceededError("user", userSpend, budgetCapUserMicros);
+		}
+	}
+
+	if (budgetCapOrgMicros != null && budgetCapOrgMicros > 0) {
+		const orgSpend = await getMonthlySpendMicros("orgId", orgId, billingMonth);
+		if (orgSpend >= budgetCapOrgMicros) {
+			throw new BudgetExceededError("org", orgSpend, budgetCapOrgMicros);
+		}
+	}
+}
+
 interface CostGuardOptions<T> {
 	orgId: string;
 	userId: string;
@@ -53,6 +128,7 @@ interface CostGuardOptions<T> {
 	model: string;
 	budgetCapUserMicros?: number | null;
 	budgetCapOrgMicros?: number | null;
+	recordUsageBestEffort?: boolean;
 	fn: () => Promise<T & { inputTokens: number; outputTokens: number }>;
 }
 
@@ -60,34 +136,34 @@ export async function withCostGuard<T>(
 	options: CostGuardOptions<T>,
 ): Promise<T & { inputTokens: number; outputTokens: number }> {
 	const billingMonth = currentBillingMonth();
+	const configuredCaps = await getAiBudgetCapsMicros({
+		orgId: options.orgId,
+		userId: options.userId,
+	});
+	const budgetCapUserMicros =
+		options.budgetCapUserMicros ?? configuredCaps.budgetCapUserMicros;
+	const budgetCapOrgMicros =
+		options.budgetCapOrgMicros ?? configuredCaps.budgetCapOrgMicros;
 
-	if (options.budgetCapUserMicros != null && options.budgetCapUserMicros > 0) {
+	if (budgetCapUserMicros != null && budgetCapUserMicros > 0) {
 		const userSpend = await getMonthlySpendMicros(
 			"userId",
 			options.userId,
 			billingMonth,
 		);
-		if (userSpend >= options.budgetCapUserMicros) {
-			throw new BudgetExceededError(
-				"user",
-				userSpend,
-				options.budgetCapUserMicros,
-			);
+		if (userSpend >= budgetCapUserMicros) {
+			throw new BudgetExceededError("user", userSpend, budgetCapUserMicros);
 		}
 	}
 
-	if (options.budgetCapOrgMicros != null && options.budgetCapOrgMicros > 0) {
+	if (budgetCapOrgMicros != null && budgetCapOrgMicros > 0) {
 		const orgSpend = await getMonthlySpendMicros(
 			"orgId",
 			options.orgId,
 			billingMonth,
 		);
-		if (orgSpend >= options.budgetCapOrgMicros) {
-			throw new BudgetExceededError(
-				"org",
-				orgSpend,
-				options.budgetCapOrgMicros,
-			);
+		if (orgSpend >= budgetCapOrgMicros) {
+			throw new BudgetExceededError("org", orgSpend, budgetCapOrgMicros);
 		}
 	}
 
@@ -99,7 +175,8 @@ export async function withCostGuard<T>(
 		result.outputTokens,
 	);
 
-	await db()
+	try {
+		await db()
 		.insert(aiUsageEvents)
 		.values({
 			id: nanoId(),
@@ -115,7 +192,7 @@ export async function withCostGuard<T>(
 		});
 
 	// Check budget thresholds and create alerts
-	if (options.budgetCapUserMicros != null && options.budgetCapUserMicros > 0) {
+	if (budgetCapUserMicros != null && budgetCapUserMicros > 0) {
 		const prevSpend = await getMonthlySpendMicros(
 			"userId",
 			options.userId,
@@ -123,13 +200,13 @@ export async function withCostGuard<T>(
 		);
 		const newSpend = prevSpend + costUsdMicros;
 
-		const prevPct = (prevSpend / options.budgetCapUserMicros) * 100;
-		const newPct = (newSpend / options.budgetCapUserMicros) * 100;
+		const prevPct = (prevSpend / budgetCapUserMicros) * 100;
+		const newPct = (newSpend / budgetCapUserMicros) * 100;
 
 		// 100% threshold crossed
 		if (prevPct < 100 && newPct >= 100) {
 			const amountFormatted = (newSpend / 1_000_000).toFixed(2);
-			const budgetFormatted = (options.budgetCapUserMicros / 1_000_000).toFixed(
+			const budgetFormatted = (budgetCapUserMicros / 1_000_000).toFixed(
 				2,
 			);
 			console.log(
@@ -139,7 +216,7 @@ export async function withCostGuard<T>(
 		// 80% threshold crossed
 		else if (prevPct < 80 && newPct >= 80) {
 			const amountFormatted = (newSpend / 1_000_000).toFixed(2);
-			const budgetFormatted = (options.budgetCapUserMicros / 1_000_000).toFixed(
+			const budgetFormatted = (budgetCapUserMicros / 1_000_000).toFixed(
 				2,
 			);
 			console.log(
@@ -148,7 +225,7 @@ export async function withCostGuard<T>(
 		}
 	}
 
-	if (options.budgetCapOrgMicros != null && options.budgetCapOrgMicros > 0) {
+	if (budgetCapOrgMicros != null && budgetCapOrgMicros > 0) {
 		const prevSpend = await getMonthlySpendMicros(
 			"orgId",
 			options.orgId,
@@ -156,13 +233,13 @@ export async function withCostGuard<T>(
 		);
 		const newSpend = prevSpend + costUsdMicros;
 
-		const prevPct = (prevSpend / options.budgetCapOrgMicros) * 100;
-		const newPct = (newSpend / options.budgetCapOrgMicros) * 100;
+		const prevPct = (prevSpend / budgetCapOrgMicros) * 100;
+		const newPct = (newSpend / budgetCapOrgMicros) * 100;
 
 		// 100% threshold crossed
 		if (prevPct < 100 && newPct >= 100) {
 			const amountFormatted = (newSpend / 1_000_000).toFixed(2);
-			const budgetFormatted = (options.budgetCapOrgMicros / 1_000_000).toFixed(
+			const budgetFormatted = (budgetCapOrgMicros / 1_000_000).toFixed(
 				2,
 			);
 			console.log(
@@ -172,13 +249,20 @@ export async function withCostGuard<T>(
 		// 80% threshold crossed
 		else if (prevPct < 80 && newPct >= 80) {
 			const amountFormatted = (newSpend / 1_000_000).toFixed(2);
-			const budgetFormatted = (options.budgetCapOrgMicros / 1_000_000).toFixed(
+			const budgetFormatted = (budgetCapOrgMicros / 1_000_000).toFixed(
 				2,
 			);
 			console.log(
 				`[BUDGET_ALERT] Org ${options.orgId}: AI spend at 80% of monthly budget ($${amountFormatted} of $${budgetFormatted})`,
 			);
 		}
+	}
+
+	} catch (error) {
+		if (!options.recordUsageBestEffort) {
+			throw error;
+		}
+		console.error("[ai-cost-guard] Failed to record AI usage:", error);
 	}
 
 	return result;

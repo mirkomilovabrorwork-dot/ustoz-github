@@ -12,5 +12,21 @@
  * If a fully custom domain is ever used it must also be added to
  * externally_connectable in manifest.json (Chrome requirement).
  */
+const extensionEnv = (
+	globalThis as {
+		process?: {
+			env?: Record<string, string | undefined>;
+		};
+	}
+).process?.env;
+
+const fallbackApiBaseUrl = "https://web-production-e6fe4.up.railway.app";
+
 export const DEFAULT_API_BASE_URL =
-	"https://web-production-e6fe4.up.railway.app";
+	[
+		extensionEnv?.WEB_URL,
+		extensionEnv?.NEXT_PUBLIC_WEB_URL,
+		fallbackApiBaseUrl,
+	]
+		.map((value) => value?.trim())
+		.find((value): value is string => Boolean(value)) ?? fallbackApiBaseUrl;

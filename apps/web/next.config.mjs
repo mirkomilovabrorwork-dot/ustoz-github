@@ -13,6 +13,31 @@ const packageJson = JSON.parse(
 );
 const { version } = packageJson;
 
+const fallbackWebUrl = "https://web-production-e6fe4.up.railway.app";
+const configuredWebUrl =
+	[process.env.WEB_URL, process.env.NEXT_PUBLIC_WEB_URL, fallbackWebUrl]
+		.map((value) => value?.trim())
+		.find(Boolean) ?? fallbackWebUrl;
+
+function getHostWithOptionalPort(value) {
+	try {
+		return new URL(value.includes("://") ? value : `https://${value}`).host;
+	} catch {
+		return value.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+	}
+}
+
+const serverActionAllowedOrigins = Array.from(
+	new Set(
+		[
+			getHostWithOptionalPort(configuredWebUrl),
+			getHostWithOptionalPort(fallbackWebUrl),
+			"localhost:3000",
+			"localhost:3001",
+		].filter(Boolean),
+	),
+);
+
 const ffmpegTracingIncludes = [
 	"./node_modules/ffmpeg-static/ffmpeg",
 	"./node_modules/.pnpm/ffmpeg-static@5.3.0/node_modules/ffmpeg-static/ffmpeg",
@@ -63,10 +88,7 @@ const nextConfig = {
 		],
 		turbopackFileSystemCacheForDev: true,
 		serverActions: {
-			allowedOrigins: [
-				"web-production-e6fe4.up.railway.app",
-				"localhost:3000",
-			],
+			allowedOrigins: serverActionAllowedOrigins,
 		},
 	},
 	images: {
