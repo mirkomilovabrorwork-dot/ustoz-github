@@ -11,6 +11,10 @@
 			"128": "icons/icon-128.png"
 		}
 	},
+	"options_ui": {
+		"page": "options.html",
+		"open_in_tab": true
+	},
 	"background": {
 		"service_worker": "background.js",
 		"type": "module"
@@ -26,7 +30,7 @@
 		"tabCapture",
 		"desktopCapture"
 	],
-	"host_permissions": ["https://*/*"],
+	"host_permissions": ["https://*/*", "http://localhost:3001/*"],
 	"content_scripts": [
 		{
 			"matches": ["https://meet.google.com/*"],
