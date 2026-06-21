@@ -81,11 +81,34 @@ export async function startAiGeneration(
 			})
 			.where(eq(videos.id, videoId));
 
-		generateAiWorkflow({ videoId, userId }).catch((err) => {
+		generateAiWorkflow({ videoId, userId }).catch(async (err) => {
 			console.error(
 				`[startAiGeneration] Inline workflow failed for video ${videoId}:`,
 				err,
 			);
+			// Mark ERROR so the UI shows a retryable error instead of a forever
+			// spinner (the workflow sets PROCESSING but never ERROR on async failure).
+			try {
+				const [current] = await db()
+					.select({ metadata: videos.metadata })
+					.from(videos)
+					.where(eq(videos.id, videoId))
+					.limit(1);
+				await db()
+					.update(videos)
+					.set({
+						metadata: {
+							...(current?.metadata ?? {}),
+							aiGenerationStatus: "ERROR",
+						},
+					})
+					.where(eq(videos.id, videoId));
+			} catch (markErr) {
+				console.error(
+					`[startAiGeneration] Failed to mark aiGenerationStatus=ERROR for ${videoId}:`,
+					markErr,
+				);
+			}
 		});
 
 		return {
