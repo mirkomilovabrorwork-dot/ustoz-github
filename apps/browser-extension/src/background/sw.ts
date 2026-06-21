@@ -162,7 +162,7 @@ async function handleMessage(
 			let streamId: string;
 			try {
 				streamId = await chooseDesktopMediaAsync(
-					["screen", "window", "tab"],
+					["screen", "window", "tab", "audio"],
 					undefined,
 				);
 			} catch {
@@ -193,13 +193,13 @@ async function handleMessage(
 			await setState({ kind: "arming", mode: "meeting", meetingId, tabId });
 			let meetStreamId: string;
 			try {
-				const senderTab =
-					tabId !== undefined
-						? await chrome.tabs.get(tabId)
-						: undefined;
+				// Pass undefined (NOT the Meet tab) so the stream id is usable by
+				// the extension's offscreen document. Binding it to the tab origin
+				// makes getUserMedia fail there — the working instruction path
+				// also passes undefined. "audio" lets the picker offer system audio.
 				meetStreamId = await chooseDesktopMediaAsync(
-					["screen", "window", "tab"],
-					senderTab,
+					["screen", "window", "tab", "audio"],
+					undefined,
 				);
 			} catch {
 				await setState({ kind: "idle" });
@@ -311,10 +311,11 @@ async function handleMessage(
 			await setState({ kind: "arming", mode: "meeting", meetingId, tabId });
 			let nudgeStreamId: string;
 			try {
-				const senderTab = _sender.tab ?? undefined;
+				// undefined (NOT the Meet tab) so the stream id works in the
+				// offscreen document; "audio" lets the picker offer system audio.
 				nudgeStreamId = await chooseDesktopMediaAsync(
-					["screen", "window", "tab"],
-					senderTab,
+					["screen", "window", "tab", "audio"],
+					undefined,
 				);
 			} catch {
 				await setState({ kind: "idle" });

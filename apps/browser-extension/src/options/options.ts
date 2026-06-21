@@ -694,7 +694,10 @@ async function init(): Promise<void> {
 	}
 
 	saveOnBlur(apiBaseUrlInput, "apiBaseUrl");
-	saveOnBlur(apiKeyInput, "apiKey");
+	// NOTE: the API key is intentionally NOT blur-saved. It is persisted only
+	// through "Save & Connect" (which validates via /api/extension/me first) or
+	// the OAuth CAP_EXTENSION_TOKEN message — so a mistyped/invalid key can't
+	// silently masquerade as "signed in".
 
 	chrome.runtime.onMessage.addListener((message: unknown) => {
 		if (
