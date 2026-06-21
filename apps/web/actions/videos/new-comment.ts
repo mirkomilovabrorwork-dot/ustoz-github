@@ -4,11 +4,14 @@ import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { nanoId } from "@cap/database/helpers";
 import { comments, organizations, videos } from "@cap/database/schema";
+import { provideOptionalAuth, VideosPolicy } from "@cap/web-backend";
 import type { ImageUpload } from "@cap/web-domain";
-import { Comment, User, type Video } from "@cap/web-domain";
+import { Comment, Policy, User, type Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
+import { Effect, Exit } from "effect";
 import { revalidatePath } from "next/cache";
 import { createNotification } from "@/lib/Notification";
+import * as EffectRuntime from "@/lib/server";
 
 export async function newComment(data: {
 	content: string;
@@ -51,6 +54,18 @@ export async function newComment(data: {
 	const commentsDisabled =
 		video.settings?.disableComments ?? video.orgSettings?.disableComments ?? false;
 	if (commentsDisabled) throw new Error("Comments are disabled");
+
+	// Gate comment creation behind the same view-authorization the rest of the
+	// app uses.  Any logged-in user who cannot VIEW the video (private, password-
+	// protected, email-restricted) must not be able to POST comments on it.
+	const viewExit = await Effect.gen(function* () {
+		const videosPolicy = yield* VideosPolicy;
+		return yield* Effect.void.pipe(
+			Policy.withPublicPolicy(videosPolicy.canView(videoId)),
+		);
+	}).pipe(provideOptionalAuth, EffectRuntime.runPromiseExit);
+
+	if (Exit.isFailure(viewExit)) throw new Error("Unauthorized to view this video");
 
 	const id = Comment.CommentId.make(nanoId());
 
