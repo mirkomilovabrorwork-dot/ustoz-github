@@ -21,7 +21,10 @@ export const useDevicePreferences = ({
 	const [rememberDevices, setRememberDevices] = useState(false);
 	const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null);
 	const [selectedMicId, setSelectedMicId] = useState<string | null>(null);
-	const [systemAudioEnabled, setSystemAudioEnabled] = useState(false);
+	// Default system audio ON so screen recordings capture audio and stay
+	// transcribable — a silent recording later fails with NO_AUDIO. Users can
+	// still toggle it off. (Mic stays off by default to avoid echo.)
+	const [systemAudioEnabled, setSystemAudioEnabled] = useState(true);
 
 	useEffect(() => {
 		if (typeof window === "undefined") return;

@@ -2,6 +2,7 @@
 
 import { Play } from "lucide-react";
 import { formatTimeMinutes } from "../utils/transcript-utils";
+import { renderMarkdownBold } from "./markdownBold";
 
 interface RefinedTranscriptPanelProps {
 	refinedTranscript?: {
@@ -61,7 +62,7 @@ export function RefinedTranscriptPanel({
 								key={`${chapter.startSec}-p-${pi}`}
 								className="text-sm leading-relaxed text-gray-700"
 							>
-								{paragraph}
+								{renderMarkdownBold(paragraph)}
 							</p>
 						))}
 					</div>

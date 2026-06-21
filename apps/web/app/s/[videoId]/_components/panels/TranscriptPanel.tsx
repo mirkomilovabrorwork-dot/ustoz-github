@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { renderMarkdownBold } from "./markdownBold";
 
 interface TranscriptPanelProps {
 	transcriptContent?: string;
@@ -220,7 +221,7 @@ export function TranscriptPanel({
 									</div>
 
 									<p className="min-w-0 px-2 pt-1 text-sm leading-relaxed text-gray-800 break-words">
-										{cue.text}
+										{renderMarkdownBold(cue.text)}
 									</p>
 
 									<div className="flex items-start justify-end pt-1">
