@@ -63,7 +63,9 @@ export async function newComment(data: {
 		content: content,
 		videoId: videoId,
 		timestamp: timestamp ?? null,
-		parentCommentId: parentCommentId,
+		// Coerce empty string (sent for top-level comments) to null — an FK
+		// references comments.id, and "" violates it (ER_NO_REFERENCED_ROW_2).
+		parentCommentId: parentCommentId || null,
 		createdAt: new Date(),
 		updatedAt: new Date(),
 	};
