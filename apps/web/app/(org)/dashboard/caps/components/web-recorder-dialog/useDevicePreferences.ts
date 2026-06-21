@@ -37,8 +37,13 @@ export const useDevicePreferences = ({
 			const storedSystemAudio = window.localStorage.getItem(
 				SYSTEM_AUDIO_ENABLED_KEY,
 			);
+			// Restore BOTH saved values explicitly — the default is now `true`, so
+			// a saved "false" (user turned it off) must be honoured, otherwise the
+			// default silently turns System Audio back on next session.
 			if (storedSystemAudio === "true") {
 				setSystemAudioEnabled(true);
+			} else if (storedSystemAudio === "false") {
+				setSystemAudioEnabled(false);
 			}
 		} catch (error) {
 			console.error("Failed to load recorder preferences", error);
