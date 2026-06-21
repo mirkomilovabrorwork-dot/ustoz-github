@@ -600,7 +600,7 @@ Rules:
 - All chapter "start" / "startSec" values must be between 0 and ${videoDuration} seconds; derive them from the transcript timestamps
 - tasks[].priority must be "high", "medium", or "low"
 - tasks[].done is always false unless explicitly resolved in the transcript
-- refinedTranscript cleans filler words and restructures the speech into readable paragraphs
+- refinedTranscript is the COMPLETE, FULL transcript with ONLY filler words ("uh", "um", "a-a", "er"), exact word-for-word repetitions, false starts, and off-topic jokes removed. It is NOT a summary — every substantive sentence must appear. Keep the original speaker wording and language (uz/ru/en mixed is fine — do NOT translate or paraphrase). The output must cover the ENTIRE transcript from start to finish without compressing or dropping any content.
 - Keep ALL JSON property names exactly as shown
 
 Transcript:
@@ -629,6 +629,7 @@ async function generateMultipleChunks(
 		chapters: { title: string; start: number }[];
 		startTime: number;
 		endTime: number;
+		rawText: string;
 	}[] = [];
 
 	let totalInputTokens = 0;
@@ -668,8 +669,45 @@ ${chunk.text}`;
 				chapters: parsed.chapters || [],
 				startTime: chunk.startTime,
 				endTime: chunk.endTime,
+				rawText: chunk.text,
 			});
 		} catch {}
+	}
+
+	// Per-chunk refined cleaning: clean raw transcript text, do NOT summarize
+	const refinedChapters: { startSec: number; title: string; paragraphs: string[] }[] = [];
+	for (let i = 0; i < chunkSummaries.length; i++) {
+		const cs = chunkSummaries[i];
+		if (!cs) continue;
+		const timeLabel = `${Math.floor(cs.startTime / 60)}:${String(cs.startTime % 60).padStart(2, "0")}`;
+		const chapterTitle = cs.chapters[0]?.title ?? `Part ${i + 1}`;
+		const refinedPrompt = `You are a transcript editor. Your ONLY job is to produce a clean, complete, full version of the spoken text below — NOT a summary.
+
+RULES (strict):
+- Remove ONLY: filler words ("uh", "um", "a-a", "er", "well", "you know", "like" used as filler), exact word-for-word repetitions, false starts (e.g. "I was — I mean, we should"), and off-topic jokes that add zero informational content.
+- Keep EVERYTHING else: all substantive sentences, explanations, arguments, questions, answers, decisions, names, numbers, details — in the original order.
+- Do NOT translate. Do NOT paraphrase. Do NOT compress into a summary. The output must cover the ENTIRE input from start to finish.
+- Preserve the speaker's original wording and language (Uzbek/Russian/English mixed is fine).
+- Output clean readable paragraphs separated by blank lines. No bullet points, no headers.
+- This is DIFFERENT from a summary: a summary is short; this must be the full cleaned text.
+
+Return ONLY the cleaned text. No JSON. No explanations.
+
+Transcript (${timeLabel}):
+${cs.rawText}`;
+		const refinedResult = await callAiApi(refinedPrompt);
+		totalInputTokens += refinedResult.inputTokens;
+		totalOutputTokens += refinedResult.outputTokens;
+		const cleanedText = refinedResult.content.trim();
+		const paragraphs = cleanedText
+			.split(/\n\s*\n/)
+			.map((p) => p.trim())
+			.filter((p) => p.length > 0);
+		refinedChapters.push({
+			startSec: cs.startTime,
+			title: chapterTitle,
+			paragraphs: paragraphs.length > 0 ? paragraphs : [cleanedText],
+		});
 	}
 
 	const allChapters: { title: string; start: number }[] = [];
@@ -733,7 +771,7 @@ ${schemaExample}
 Rules:
 - aiSummary.chapters[].startSec must be between 0 and ${videoDuration}; use the section timestamps provided above
 - tasks[].priority must be "high", "medium", or "low"
-- refinedTranscript restructures speech into clean readable paragraphs
+- refinedTranscript.chapters may be left as an empty array — it is handled separately
 - Keep ALL JSON property names exactly as shown`;
 
 	const finalResult = await callAiApi(finalPrompt);
@@ -750,6 +788,12 @@ Rules:
 			chapters: aiSummaryChaptersFromChunks,
 			refinedTranscript: { chapters: [] },
 		};
+		// Override refinedTranscript with the per-chunk cleaned result
+		if (refinedChapters.length > 0) {
+			if (aiSummaryRaw && typeof aiSummaryRaw === "object") {
+				(aiSummaryRaw as Record<string, unknown>).refinedTranscript = { chapters: refinedChapters };
+			}
+		}
 		return {
 			title: parsed.title,
 			summary: parsed.summary,
