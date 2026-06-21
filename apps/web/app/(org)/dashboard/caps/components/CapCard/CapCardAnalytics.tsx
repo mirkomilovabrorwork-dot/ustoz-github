@@ -100,7 +100,7 @@ export const CapCardAnalytics = Object.assign(
 );
 
 const Shell = (props: PropsWithChildren) => (
-	<div className="flex flex-wrap gap-4 items-center justify-between text-sm text-gray-60">
+	<div className="flex flex-wrap gap-4 items-center justify-between text-sm text-gray-10">
 		{props.children}
 	</div>
 );
@@ -114,7 +114,7 @@ const IconItem = forwardRef(
 		ref: ForwardedRef<HTMLDivElement>,
 	) => (
 		<div ref={ref} className="flex gap-2 items-center">
-			<FontAwesomeIcon className="text-gray-8 size-4" icon={props.icon} />
+			<FontAwesomeIcon className="text-gray-11 size-4" icon={props.icon} />
 			{props.children}
 		</div>
 	),

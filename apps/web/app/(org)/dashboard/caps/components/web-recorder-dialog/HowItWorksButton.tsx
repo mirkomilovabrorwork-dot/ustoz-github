@@ -11,7 +11,7 @@ export const HowItWorksButton = ({ onClick }: HowItWorksButtonProps) => {
 		<button
 			type="button"
 			onClick={onClick}
-			className="flex items-center justify-center gap-1 text-xs font-medium transition-colors hover:text-blue-12"
+			className="flex items-center justify-center gap-1 text-xs font-medium transition-colors hover:text-blue-12 min-h-[2.75rem] px-2"
 		>
 			<CircleHelpIcon className="size-3.5" aria-hidden />
 			How it works (tips)

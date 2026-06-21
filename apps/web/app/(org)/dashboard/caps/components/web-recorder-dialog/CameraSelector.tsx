@@ -48,7 +48,7 @@ export const CameraSelector = ({
 	const statusPillDisabled = !shouldRequestPermission && !cameraEnabled;
 
 	const statusPillClassName = clsx(
-		"px-[0.375rem] h-[1.25rem] min-w-[2.5rem] rounded-full text-[0.75rem] leading-[1.25rem] flex items-center justify-center font-normal transition-colors duration-200 disabled:opacity-100 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-offset-1 focus-visible:ring-[var(--blue-8)]",
+		"px-[0.375rem] h-[1.25rem] min-w-[2.5rem] rounded-full text-[0.75rem] leading-[1.25rem] flex items-center justify-center font-normal transition-colors duration-200 disabled:opacity-100 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-offset-1 focus-visible:ring-[var(--blue-8)] py-[0.6875rem] -my-[0.6875rem]",
 		statusPillDisabled ? "cursor-default" : "cursor-pointer",
 		shouldRequestPermission
 			? "bg-[var(--blue-3)] text-[var(--blue-11)] dark:bg-[var(--blue-4)] dark:text-[var(--blue-12)] hover:bg-[var(--blue-4)] dark:hover:bg-[var(--blue-5)]"
@@ -107,7 +107,7 @@ export const CameraSelector = ({
 				<div className="relative w-full">
 					<SelectTrigger
 						className={clsx(
-							"relative flex flex-row items-center h-[2rem] pl-[0.375rem] pr-[3.5rem] gap-[0.375rem] border border-gray-3 rounded-lg w-full transition-colors overflow-hidden z-10 font-normal text-[0.875rem] bg-transparent hover:bg-transparent focus:bg-transparent focus:border-gray-3 hover:border-gray-3 text-[--text-primary] disabled:text-gray-11 [&>svg]:hidden",
+							"relative flex flex-row items-center h-[2.75rem] pl-[0.375rem] pr-[3.5rem] gap-[0.375rem] border border-gray-3 rounded-xl w-full transition-colors overflow-hidden z-10 font-normal text-[0.875rem] bg-transparent hover:bg-transparent focus:bg-transparent focus:border-gray-3 hover:border-gray-3 text-[--text-primary] disabled:text-gray-11 [&>svg]:hidden",
 							disabled || shouldRequestPermission
 								? "cursor-default"
 								: undefined,

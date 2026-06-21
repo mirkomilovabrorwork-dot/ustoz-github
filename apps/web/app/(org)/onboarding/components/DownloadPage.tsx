@@ -70,7 +70,7 @@ export function DownloadPage() {
 					variant="blue"
 					size="lg"
 					href={getDownloadUrl(platform, isIntel)}
-					className="hidden justify-center items-center py-6 font-medium text-white lg:flex"
+					className="flex justify-center items-center py-6 font-medium text-white"
 				>
 					{!loading && getPlatformIcon(platform)}
 					{getDownloadButtonText(platform, loading, isIntel)}

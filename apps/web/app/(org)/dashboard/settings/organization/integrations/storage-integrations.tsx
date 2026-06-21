@@ -76,7 +76,7 @@ function StatusBadge({
 	}
 
 	return (
-		<span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium rounded-md bg-gray-3 text-gray-9">
+		<span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium rounded-md bg-gray-3 text-gray-11">
 			Not configured
 		</span>
 	);
@@ -293,8 +293,8 @@ export function OrganizationStorageIntegrations({
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex items-center gap-2 px-1">
-				<InfoIcon className="size-3.5 text-gray-9 shrink-0" />
-				<p className="text-[12px] text-gray-9">
+				<InfoIcon className="size-3.5 text-gray-11 shrink-0" />
+				<p className="text-[13px] text-gray-11">
 					Storage applies to all members of {settings.organization.name}. Admins
 					and owners can manage integrations.
 				</p>

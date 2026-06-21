@@ -154,7 +154,7 @@ const DangerZone = ({ userEmail }: { userEmail: string }) => {
 						be undone.
 					</p>
 				</div>
-				<div className="flex items-center justify-between">
+				<div className="flex flex-wrap gap-4 items-center justify-between">
 					<div className="space-y-0.5">
 						<p className="text-sm font-medium text-gray-12">Delete Account</p>
 						<p className="text-xs text-gray-10">
@@ -509,8 +509,9 @@ export const Settings = () => {
 				<Button
 					type="button"
 					size="sm"
-					variant="destructive"
+					variant="outline"
 					icon={<LogOut className="size-4" />}
+					className="mt-3 md:mt-0"
 					onClick={() => setSignOutAllDevicesOpen(true)}
 				>
 					Sign out all devices

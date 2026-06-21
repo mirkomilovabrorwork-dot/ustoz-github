@@ -270,7 +270,7 @@ export const WebRecorderDialog = ({
 								initial="hidden"
 								animate="visible"
 								exit="exit"
-								className="relative flex justify-center flex-col p-[1rem] pt-[2rem] gap-[0.75rem] text-[0.875rem] font-[400] text-[--text-primary] bg-gray-2 rounded-lg min-h-[350px]"
+								className="relative flex justify-center flex-col p-[1rem] pt-[2rem] gap-[0.75rem] text-[0.875rem] font-[400] text-[--text-primary] bg-gray-2 rounded-xl min-h-[350px]"
 							>
 								<SettingsButton
 									visible={!settingsOpen}

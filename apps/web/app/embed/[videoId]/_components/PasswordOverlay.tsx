@@ -45,7 +45,7 @@ export const PasswordOverlay: React.FC<PasswordOverlayProps> = ({
 							<h2 className="text-lg sm:text-xl font-semibold text-gray-12">
 								Protected Video
 							</h2>
-							<p className="text-xs sm:text-sm text-gray-10 max-w-xs sm:max-w-sm px-2 sm:px-0">
+							<p className="text-xs sm:text-sm text-gray-11 max-w-xs sm:max-w-sm px-2 sm:px-0">
 								This video is password protected. Please enter the password to
 								continue watching.
 							</p>

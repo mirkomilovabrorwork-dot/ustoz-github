@@ -25,7 +25,7 @@ export const Base = ({
 			{!hideBackButton && (
 				<div
 					onClick={() => router.back()}
-					className="absolute overflow-hidden flex top-5 rounded-full left-5 z-20 hover:bg-gray-1 gap-2 items-center py-1.5 px-3 text-gray-12 bg-transparent border border-gray-4 transition-colors duration-300 cursor-pointer"
+					className="absolute overflow-hidden flex top-5 rounded-lg left-5 z-20 hover:bg-gray-1 active:bg-gray-1 gap-2 items-center min-h-[44px] py-2.5 px-3 text-gray-12 bg-transparent border border-gray-4 transition-colors duration-300 cursor-pointer"
 				>
 					<FontAwesomeIcon className="w-2" icon={faArrowLeft} />
 					<p className="text-xs text-inherit">Back</p>

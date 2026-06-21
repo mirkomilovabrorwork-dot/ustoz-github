@@ -174,13 +174,13 @@ export function InviteTeamPage() {
 			</div>
 
 			<div className="space-y-3">
-				<div className="flex flex-wrap gap-5 justify-center items-center p-5 w-full rounded-xl border bg-gray-3 border-gray-4 xs:gap-3 xs:p-3 xs:rounded-full xs:justify-between">
+				<div className="flex flex-wrap gap-5 justify-center items-center p-5 w-full rounded-xl border bg-gray-3 border-gray-4 xs:gap-3 xs:p-3 xs:justify-between">
 					<div className="flex gap-2 items-center">
 						<p className="text-sm text-gray-12">Per user</p>
 						<div className="flex items-center">
 							<Button
 								onClick={decrementUsers}
-								className="p-1 bg-gray-12 hover:bg-gray-11 min-w-fit h-fit"
+								className="min-h-[44px] min-w-[44px] p-2 bg-gray-12 hover:bg-gray-11 flex items-center justify-center"
 								aria-label="Decrease user count"
 							>
 								<FontAwesomeIcon
@@ -193,7 +193,7 @@ export function InviteTeamPage() {
 							</span>
 							<Button
 								onClick={incrementUsers}
-								className="p-1 bg-gray-12 hover:bg-gray-11 min-w-fit h-fit"
+								className="min-h-[44px] min-w-[44px] p-2 bg-gray-12 hover:bg-gray-11 flex items-center justify-center"
 								aria-label="Increase user count"
 							>
 								<FontAwesomeIcon
@@ -241,7 +241,7 @@ export function InviteTeamPage() {
 			</div>
 			<div className="w-full h-px bg-gray-4" />
 			<Button
-				variant="dark"
+				variant="transparent"
 				className="mx-auto w-full"
 				onClick={handleSubmit}
 				spinner={inviteTeamMutation.isPending}

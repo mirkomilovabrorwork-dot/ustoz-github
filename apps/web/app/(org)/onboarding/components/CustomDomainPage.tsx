@@ -62,7 +62,7 @@ export function CustomDomainPage() {
 			<div className="w-full h-px bg-gray-4" />
 			<Button
 				type="button"
-				variant="dark"
+				variant="transparent"
 				spinner={customDomainMutation.isPending}
 				disabled={customDomainMutation.isPending}
 				className="mx-auto w-full"

@@ -81,7 +81,7 @@ const Top = () => {
 	return (
 		<div
 			className={clsx(
-				"flex fixed z-40 justify-between items-center py-3 pr-2 pl-5 w-full md:relative mt-[60px] lg:mt-0 lg:py-[19px] lg:pl-0 lg:pr-5",
+				"flex fixed z-40 justify-between items-center py-3 pr-2 pl-5 w-full md:relative mt-16 lg:mt-0 lg:py-[19px] lg:pl-0 lg:pr-5",
 				"top-0 bg-gray-1",
 			)}
 		>

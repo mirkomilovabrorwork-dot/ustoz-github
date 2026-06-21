@@ -2,10 +2,16 @@
 
 import type { videos as videosSchema } from "@cap/database/schema";
 import type { VideoMetadata } from "@cap/database/types";
-import { Button } from "@cap/ui";
+import {
+	Button,
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@cap/ui";
 import type { SpaceRuleSource, ViewerSettingKey } from "@cap/web-backend";
 import type { ImageUpload, Video } from "@cap/web-domain";
-import { faFolderPlus, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
+import { faChevronDown, faFolderPlus, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Effect, Exit } from "effect";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -258,17 +264,34 @@ export const Caps = ({
 				onOpenChange={setOpenNewFolderDialog}
 			/>
 			<div className="flex flex-wrap gap-3 items-center mb-10 w-full">
-				<Button
-					onClick={() => setOpenNewFolderDialog(true)}
-					size="sm"
-					variant="dark"
-					className="flex gap-2 items-center w-fit"
-				>
-					<FontAwesomeIcon className="size-3.5" icon={faFolderPlus} />
-					New Folder
-				</Button>
-				<UploadCapButton size="sm" />
 				<WebRecorderDialog />
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<Button
+							size="sm"
+							variant="white"
+							className="flex gap-2 items-center w-fit"
+						>
+							More
+							<FontAwesomeIcon className="size-3" icon={faChevronDown} />
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="start" sideOffset={5}>
+						<DropdownMenuItem
+							onClick={() => setOpenNewFolderDialog(true)}
+							className="flex gap-2 items-center rounded-lg"
+						>
+							<FontAwesomeIcon className="size-3" icon={faFolderPlus} />
+							<p className="text-sm text-gray-12">New Folder</p>
+						</DropdownMenuItem>
+						<DropdownMenuItem
+							onSelect={(e) => e.preventDefault()}
+							className="flex gap-2 items-center rounded-lg p-0"
+						>
+							<UploadCapButton size="sm" />
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
 			</div>
 			{isEmpty && <EmptyCapState />}
 			{folders.length > 0 && (
@@ -276,7 +299,7 @@ export const Caps = ({
 					<div className="flex gap-3 items-center mb-6 w-full">
 						<h1 className="text-2xl font-medium text-gray-12">Folders</h1>
 					</div>
-					<div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-4 mb-10">
+					<div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4 mb-10">
 						{folders.map((folder) => (
 							<Folder key={folder.id} {...folder} />
 						))}

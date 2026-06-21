@@ -440,7 +440,7 @@ export const CapCard = ({
 							? "opacity-0"
 							: isDropdownOpen
 								? "opacity-100"
-								: "opacity-0 group-hover:opacity-100",
+								: "opacity-100 lg:opacity-0 lg:group-hover:opacity-100",
 						"top-2 right-2 flex-col gap-2 z-[51]",
 					)}
 				>

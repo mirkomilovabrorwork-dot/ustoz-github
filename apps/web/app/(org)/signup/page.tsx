@@ -14,7 +14,7 @@ export default async function SignupPage() {
 	}
 	return (
 		<div className="flex relative justify-center items-center w-full h-screen bg-gray-2">
-			<div className="flex absolute top-10 left-10 gap-2 justify-center items-center transition-opacity hover:opacity-75">
+			<div className="flex absolute top-10 left-10 gap-2 justify-center items-center min-h-[44px] min-w-[44px] transition-opacity hover:opacity-75 active:opacity-75 focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg">
 				<FontAwesomeIcon
 					className="opacity-75 size-3 text-gray-12"
 					icon={faArrowLeft}

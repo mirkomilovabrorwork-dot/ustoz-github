@@ -1,8 +1,10 @@
 "use client";
 
 import type { Video } from "@cap/web-domain";
+import { faFolderOpen } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Effect, Exit } from "effect";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDashboardContext } from "@/app/(org)/dashboard/Contexts";
@@ -11,6 +13,7 @@ import { useVideosAnalyticsQuery } from "@/lib/Queries/Analytics";
 import type { VideoData } from "../../../caps/Caps";
 import { CapCard } from "../../../caps/components/CapCard/CapCard";
 import { SelectedCapsBar } from "../../../caps/components/SelectedCapsBar";
+import { UploadCapButton } from "../../../caps/components/UploadCapButton";
 import { UploadPlaceholderCard } from "../../../caps/components/UploadPlaceholderCard";
 import { useUploadingStatus } from "../../../caps/UploadingContext";
 
@@ -24,6 +27,8 @@ export default function FolderVideosSection({
 	analyticsEnabled,
 }: FolderVideosSectionProps) {
 	const router = useRouter();
+	const params = useParams<{ id?: string; folderId?: string }>();
+	const folderId = params.folderId ?? params.id;
 	const { user } = useDashboardContext();
 
 	const [selectedCaps, setSelectedCaps] = useState<Video.VideoId[]>([]);
@@ -130,10 +135,14 @@ export default function FolderVideosSection({
 			</div>
 			<div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
 				{visibleVideos.length === 0 && !isUploading ? (
-					<p className="col-span-full text-gray-9">
-						No videos in this folder yet. Drag and drop into the folder or
-						upload.
-					</p>
+					<div className="col-span-full flex flex-col items-center gap-3 py-12 text-center">
+						<FontAwesomeIcon icon={faFolderOpen} className="size-10 text-gray-8" />
+						<p className="text-lg font-semibold text-gray-12">This folder is empty</p>
+						<p className="text-sm text-gray-11 max-w-xs">Upload a video to add it here.</p>
+						<div className="flex flex-wrap gap-3 justify-center mt-2">
+							<UploadCapButton size="sm" folderId={folderId} />
+						</div>
+					</div>
 				) : (
 					<>
 						{isUploading && (

@@ -41,7 +41,7 @@ export function StorageDetailsClient({ data }: { data: Data }) {
 					{fmtBytes(data.usedBytes)} used of {fmtBytes(data.quotaBytes)} (
 					{pct.toFixed(1)}%)
 					{data.enforceQuota && (
-						<span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-800 border border-amber-200">
+						<span className="block mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-700">
 							Quota enforced
 						</span>
 					)}
@@ -97,8 +97,8 @@ export function StorageDetailsClient({ data }: { data: Data }) {
 								key={u.userId}
 								className={`p-3 border rounded ${
 									u.overQuota
-										? "border-red-300 bg-red-50"
-										: "border-gray-5 bg-white"
+										? "border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-700"
+										: "border-gray-5 bg-gray-1"
 								}`}
 							>
 								<div className="flex justify-between items-center">
@@ -214,7 +214,7 @@ function QuotaSettingsForm({
 						step={1}
 						value={orgGB}
 						onChange={(e) => setOrgGB(e.target.value)}
-						className="px-3 py-2 rounded border border-gray-5 bg-white text-sm"
+						className="px-3 py-2 rounded border border-gray-4 bg-gray-1 dark:bg-gray-2 text-sm"
 						disabled={pending}
 					/>
 					<span className="text-[11px] text-gray-9">
@@ -232,7 +232,7 @@ function QuotaSettingsForm({
 						value={userGB}
 						placeholder="No per-user limit"
 						onChange={(e) => setUserGB(e.target.value)}
-						className="px-3 py-2 rounded border border-gray-5 bg-white text-sm"
+						className="px-3 py-2 rounded border border-gray-4 bg-gray-1 dark:bg-gray-2 text-sm"
 						disabled={pending}
 					/>
 					<span className="text-[11px] text-gray-9">

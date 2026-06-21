@@ -70,7 +70,7 @@ export const RecordingModeSelector = ({
 				}}
 				disabled={disabled}
 			>
-				<SelectTrigger className="relative flex flex-row items-center h-[2rem] px-[0.375rem] border border-gray-3 rounded-lg w-full max-w-[280px] disabled:text-gray-11 transition-colors overflow-hidden z-10 font-normal text-[0.875rem] bg-transparent hover:bg-transparent focus:bg-transparent focus:border-gray-3 hover:border-gray-3 text-[--text-primary] [&>svg]:hidden">
+				<SelectTrigger className="relative flex flex-row items-center h-[2.75rem] px-[0.375rem] border border-gray-3 rounded-xl w-full max-w-[280px] disabled:text-gray-11 transition-colors overflow-hidden z-10 font-normal text-[0.875rem] bg-transparent hover:bg-transparent focus:bg-transparent focus:border-gray-3 hover:border-gray-3 text-[--text-primary] [&>svg]:hidden">
 					<SelectValue
 						placeholder="Select recording mode"
 						className="flex w-full items-center gap-[0.375rem] text-left truncate"
@@ -96,7 +96,7 @@ export const RecordingModeSelector = ({
 										{option.label}
 									</span>
 									{isFullscreen && (
-										<span className="text-xs italic text-gray-10 pl-6">
+										<span className="text-xs italic text-gray-11 pl-6">
 											Recommended to capture camera window when picture in
 											picture is activated
 										</span>

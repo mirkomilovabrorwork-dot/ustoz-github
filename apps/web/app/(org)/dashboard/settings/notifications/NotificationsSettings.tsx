@@ -4,6 +4,7 @@ import { Card, CardDescription, CardTitle, Switch } from "@cap/ui";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { X } from "lucide-react";
 import { toast } from "sonner";
 import { updatePreferences } from "@/actions/notifications/update-preferences";
 import { useDashboardContext } from "../../Contexts";
@@ -67,11 +68,18 @@ export const NotificationsSettings = () => {
 		}),
 	);
 
+	const [saveError, setSaveError] = useState<string | null>(null);
+
 	const { mutate } = useMutation({
 		mutationFn: (next: NotificationPreferences) =>
 			updatePreferences({ notifications: next }),
-		onSuccess: () => router.refresh(),
-		onError: () => toast.error("Failed to update notification preferences"),
+		onSuccess: () => {
+			setSaveError(null);
+			router.refresh();
+		},
+		onError: () => {
+			setSaveError("Failed to save notification preferences. Please try again.");
+		},
 	});
 
 	const toggle = (key: keyof NotificationPreferences) => {
@@ -83,6 +91,19 @@ export const NotificationsSettings = () => {
 
 	return (
 		<Card className="divide-y divide-gray-4">
+			{saveError && (
+				<div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 dark:bg-red-900/20 dark:border-red-700 dark:text-red-400 mb-2">
+					<span>{saveError}</span>
+					<button
+						type="button"
+						aria-label="Dismiss error"
+						className="shrink-0 text-red-500 hover:text-red-700"
+						onClick={() => setSaveError(null)}
+					>
+						<X className="size-4" />
+					</button>
+				</div>
+			)}
 			{NOTIFICATION_TYPES.map(({ key, title, description }) => (
 				<div
 					key={key}

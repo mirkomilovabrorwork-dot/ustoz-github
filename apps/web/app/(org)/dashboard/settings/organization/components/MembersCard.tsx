@@ -238,7 +238,8 @@ export const MembersCard = ({ setIsInviteDialogOpen }: MembersCardProps) => {
 						</Link>
 					)}
 				</div>
-				<Table className="mt-5">
+				<div className="overflow-x-auto mt-5">
+				<Table>
 					<TableHeader>
 						<TableRow>
 							<TableHead>Member</TableHead>
@@ -400,6 +401,7 @@ export const MembersCard = ({ setIsInviteDialogOpen }: MembersCardProps) => {
 						))}
 					</TableBody>
 				</Table>
+				</div>
 			</Card>
 		</>
 	);

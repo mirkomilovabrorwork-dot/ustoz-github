@@ -261,7 +261,7 @@ const CapSettingsCard = () => {
 				{options.map((option) => (
 					<div
 						key={option.value}
-						className="flex gap-10 justify-between items-center p-4 text-left rounded-xl border transition-colors bg-gray-2 min-w-fit border-gray-3"
+						className="flex gap-10 justify-between items-center p-4 min-h-[44px] text-left rounded-xl border transition-colors bg-gray-2 min-w-fit border-gray-3"
 					>
 						<div
 							className={clsx("flex flex-col flex-1", option.pro && "gap-1")}
@@ -336,7 +336,7 @@ const CapSettingsCard = () => {
 						chapters.
 					</p>
 				</div>
-				<div className="relative w-full sm:w-auto" ref={languageMenuRef}>
+				<div className="relative overflow-visible w-full sm:w-auto" ref={languageMenuRef}>
 					<button
 						onClick={() => setShowLanguageMenu((value) => !value)}
 						disabled={!user.isPro}

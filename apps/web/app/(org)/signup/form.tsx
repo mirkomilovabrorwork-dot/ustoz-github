@@ -26,7 +26,7 @@ export function SignupForm() {
 				layout: { duration: 0.3, ease: "easeInOut" },
 				height: { duration: 0.3, ease: "easeInOut" },
 			}}
-			className="overflow-hidden relative w-[calc(100%-5%)] p-[28px] max-w-[432px] bg-gray-3 border border-gray-5 rounded-2xl"
+			className="overflow-hidden relative w-[calc(100%-32px)] p-[28px] max-w-[432px] bg-gray-3 border border-gray-5 rounded-2xl"
 		>
 			<MotionLink layout="position" className="flex mx-auto size-fit" href="/">
 				<MotionLogoBadge layout="position" className="w-[72px] h-[72px]" />
@@ -53,7 +53,7 @@ export function SignupForm() {
 			<motion.div layout="position" className="flex flex-col space-y-3 px-1">
 				<motion.p
 					layout="position"
-					className="text-xs text-center text-gray-9"
+					className="text-xs text-center text-gray-11"
 				>
 					Already have an account?{" "}
 					<Link

@@ -22,27 +22,35 @@ export function InviteMemberForm() {
 
 	return (
 		<div className="space-y-3 p-4 border rounded">
-			<div className="flex gap-2">
-				<Button
-					variant={mode === "direct" ? "dark" : "gray"}
+			<div className="inline-flex items-center gap-0.5 rounded-lg bg-gray-3 p-0.5">
+				<button
+					type="button"
+					className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${
+						mode === "direct"
+							? "bg-gray-1 text-gray-12 shadow-sm"
+							: "text-gray-10 hover:text-gray-12"
+					}`}
 					onClick={() => {
 						setMode("direct");
 						setGeneratedLink(null);
 					}}
-					type="button"
 				>
 					Add by email
-				</Button>
-				<Button
-					variant={mode === "link" ? "dark" : "gray"}
+				</button>
+				<button
+					type="button"
+					className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${
+						mode === "link"
+							? "bg-gray-1 text-gray-12 shadow-sm"
+							: "text-gray-10 hover:text-gray-12"
+					}`}
 					onClick={() => {
 						setMode("link");
 						setGeneratedLink(null);
 					}}
-					type="button"
 				>
 					Generate one-time link
-				</Button>
+				</button>
 			</div>
 			<form
 				onSubmit={async (e) => {
@@ -74,7 +82,7 @@ export function InviteMemberForm() {
 						setLoading(false);
 					}
 				}}
-				className="flex gap-2 items-end"
+				className="flex flex-col gap-2 sm:flex-row sm:items-end"
 			>
 				<div className="flex-1">
 					<label htmlFor={emailId} className="text-sm">

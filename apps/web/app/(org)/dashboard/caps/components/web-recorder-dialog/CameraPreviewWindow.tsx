@@ -29,6 +29,7 @@ type AutoPictureInPictureVideo = HTMLVideoElement & {
 
 const WINDOW_PADDING = 20;
 const BAR_HEIGHT = 52;
+const DRAG_THRESHOLD = 5;
 
 const getPreviewMetrics = (
 	previewSize: CameraPreviewSize,
@@ -98,7 +99,11 @@ export const CameraPreviewWindow = ({
 		useState<VideoDimensions | null>(null);
 	const [mounted, setMounted] = useState(false);
 	const [isInPictureInPicture, setIsInPictureInPicture] = useState(false);
+	const [isControlsVisible, setIsControlsVisible] = useState(false);
 	const autoPictureInPictureRef = useRef(false);
+	const dragPointerStartRef = useRef<{ x: number; y: number } | null>(null);
+	const hasMovedDuringDragRef = useRef(false);
+	const suppressNextClickRef = useRef(false);
 	const isPictureInPictureSupported =
 		typeof document !== "undefined" && document.pictureInPictureEnabled;
 	const canUseAutoPiPAttribute = useMemo(() => {
@@ -231,6 +236,8 @@ export const CameraPreviewWindow = ({
 			e.stopPropagation();
 			e.preventDefault();
 			setIsDragging(true);
+			dragPointerStartRef.current = { x: e.clientX, y: e.clientY };
+			hasMovedDuringDragRef.current = false;
 			setDragStart({
 				x: e.clientX - (position?.x || 0),
 				y: e.clientY - (position?.y || 0),
@@ -239,9 +246,50 @@ export const CameraPreviewWindow = ({
 		[position],
 	);
 
+	const handleTouchStartDrag = useCallback(
+		(e: React.TouchEvent) => {
+			if ((e.target as HTMLElement).closest("[data-controls]")) {
+				return;
+			}
+			const touch = e.touches[0];
+			if (!touch) return;
+			e.stopPropagation();
+			setIsDragging(true);
+			dragPointerStartRef.current = { x: touch.clientX, y: touch.clientY };
+			hasMovedDuringDragRef.current = false;
+			setDragStart({
+				x: touch.clientX - (position?.x || 0),
+				y: touch.clientY - (position?.y || 0),
+			});
+		},
+		[position],
+	);
+
+	const hasMovedPastDragThreshold = useCallback(
+		(clientX: number, clientY: number) => {
+			const start = dragPointerStartRef.current;
+			if (!start) return true;
+
+			const deltaX = clientX - start.x;
+			const deltaY = clientY - start.y;
+
+			if (
+				!hasMovedDuringDragRef.current &&
+				Math.hypot(deltaX, deltaY) < DRAG_THRESHOLD
+			) {
+				return false;
+			}
+
+			hasMovedDuringDragRef.current = true;
+			return true;
+		},
+		[],
+	);
+
 	const handleMouseMove = useCallback(
 		(e: MouseEvent) => {
 			if (!isDragging) return;
+			if (!hasMovedPastDragThreshold(e.clientX, e.clientY)) return;
 
 			const newX = e.clientX - dragStart.x;
 			const newY = e.clientY - dragStart.y;
@@ -256,10 +304,53 @@ export const CameraPreviewWindow = ({
 				y: Math.max(0, Math.min(newY, maxY)),
 			});
 		},
-		[isDragging, dragStart, size, shape, videoDimensions],
+		[
+			isDragging,
+			dragStart,
+			size,
+			shape,
+			videoDimensions,
+			hasMovedPastDragThreshold,
+		],
+	);
+
+	const handleTouchMoveDrag = useCallback(
+		(e: TouchEvent) => {
+			if (!isDragging) return;
+			const touch = e.touches[0];
+			if (!touch) return;
+			if (!hasMovedPastDragThreshold(touch.clientX, touch.clientY)) return;
+			e.preventDefault();
+
+			const newX = touch.clientX - dragStart.x;
+			const newY = touch.clientY - dragStart.y;
+
+			const metrics = getPreviewMetrics(size, shape, videoDimensions);
+			const totalHeight = metrics.height + BAR_HEIGHT;
+			const maxX = Math.max(0, window.innerWidth - metrics.width);
+			const maxY = Math.max(0, window.innerHeight - totalHeight);
+
+			setPosition({
+				x: Math.max(0, Math.min(newX, maxX)),
+				y: Math.max(0, Math.min(newY, maxY)),
+			});
+		},
+		[
+			isDragging,
+			dragStart,
+			size,
+			shape,
+			videoDimensions,
+			hasMovedPastDragThreshold,
+		],
 	);
 
 	const handleMouseUp = useCallback(() => {
+		if (hasMovedDuringDragRef.current) {
+			suppressNextClickRef.current = true;
+		}
+		dragPointerStartRef.current = null;
+		hasMovedDuringDragRef.current = false;
 		setIsDragging(false);
 	}, []);
 
@@ -267,12 +358,16 @@ export const CameraPreviewWindow = ({
 		if (isDragging) {
 			window.addEventListener("mousemove", handleMouseMove);
 			window.addEventListener("mouseup", handleMouseUp);
+			window.addEventListener("touchmove", handleTouchMoveDrag, { passive: false });
+			window.addEventListener("touchend", handleMouseUp);
 			return () => {
 				window.removeEventListener("mousemove", handleMouseMove);
 				window.removeEventListener("mouseup", handleMouseUp);
+				window.removeEventListener("touchmove", handleTouchMoveDrag);
+				window.removeEventListener("touchend", handleMouseUp);
 			};
 		}
-	}, [isDragging, handleMouseMove, handleMouseUp]);
+	}, [isDragging, handleMouseMove, handleMouseUp, handleTouchMoveDrag]);
 
 	const handleClose = useCallback(async () => {
 		if (
@@ -465,6 +560,18 @@ export const CameraPreviewWindow = ({
 				e.preventDefault();
 				handleMouseDown(e);
 			}}
+			onTouchStart={(e) => {
+				handleTouchStartDrag(e);
+			}}
+			onClick={(e) => {
+				if (suppressNextClickRef.current) {
+					suppressNextClickRef.current = false;
+					return;
+				}
+				if (!(e.target as HTMLElement).closest("[data-controls]")) {
+					setIsControlsVisible((v) => !v);
+				}
+			}}
 		>
 			<div
 				className="flex relative flex-col w-full h-full cursor-move"
@@ -474,7 +581,12 @@ export const CameraPreviewWindow = ({
 					<div className="flex flex-row justify-center items-center">
 						<div
 							data-controls
-							className="flex flex-row gap-[0.25rem] p-[0.25rem] opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 rounded-xl transition-[opacity,transform] bg-gray-1 border border-white-transparent-20 text-gray-10 pointer-events-auto"
+							className={clsx(
+								"flex flex-row gap-[0.25rem] p-[0.25rem] rounded-xl transition-[opacity,transform] bg-gray-1 border border-white-transparent-20 text-gray-10 pointer-events-auto",
+								isControlsVisible
+									? "opacity-100 translate-y-0"
+									: "opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0",
+							)}
 							role="toolbar"
 							aria-label="Camera preview controls"
 							onMouseDown={(e) => e.stopPropagation()}
@@ -615,7 +727,7 @@ export const CameraPreviewWindow = ({
 										e.stopPropagation();
 										handleTogglePictureInPicture();
 									}}
-									className="flex items-center justify-center size-4 rounded-full hover:bg-white/20 transition-colors"
+									className="flex items-center justify-center size-4 rounded-full hover:bg-white/20 transition-colors p-4 -m-4 box-content"
 									aria-label="Exit Picture in Picture"
 								>
 									<X className="size-3" />

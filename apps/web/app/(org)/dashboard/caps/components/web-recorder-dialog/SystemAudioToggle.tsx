@@ -32,7 +32,7 @@ export const SystemAudioToggle = ({
 				disabled={disabled}
 				onClick={() => onToggle(!enabled)}
 				className={clsx(
-					"relative flex flex-row items-center h-[2rem] px-[0.375rem] gap-[0.375rem] border border-gray-3 rounded-lg w-full transition-colors overflow-hidden font-normal text-[0.875rem] text-[--text-primary] disabled:text-gray-11",
+					"relative flex flex-row items-center h-[2.75rem] px-[0.375rem] gap-[0.375rem] border border-gray-3 rounded-xl w-full transition-colors overflow-hidden font-normal text-[0.875rem] text-[--text-primary] disabled:text-gray-11",
 					disabled ? "cursor-default" : "cursor-pointer hover:bg-gray-3/50",
 				)}
 			>
@@ -50,7 +50,7 @@ export const SystemAudioToggle = ({
 				</span>
 			</button>
 			{hint && (
-				<p className="text-[0.6875rem] leading-snug text-gray-10 px-[0.375rem]">
+				<p className="text-xs leading-snug text-gray-11 px-[0.375rem]">
 					{hint}
 				</p>
 			)}

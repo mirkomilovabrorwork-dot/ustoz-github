@@ -70,7 +70,7 @@ export function LoginForm() {
 				layout: { duration: 0.3, ease: "easeInOut" },
 				height: { duration: 0.3, ease: "easeInOut" },
 			}}
-			className="overflow-hidden relative w-[calc(100%-5%)] p-[28px] max-w-[432px] bg-gray-3 border border-gray-5 rounded-2xl"
+			className="overflow-hidden relative w-[calc(100%-32px)] p-[28px] max-w-[432px] bg-gray-3 border border-gray-5 rounded-2xl"
 		>
 			<MotionLink layout="position" className="flex mx-auto size-fit" href="/">
 				<MotionLogoBadge layout="position" className="size-12" />
@@ -120,7 +120,14 @@ export function LoginForm() {
 						onChange={(e) => setPassword(e.target.value)}
 					/>
 					{error && (
-						<p className="text-sm text-red-500 text-center">{error}</p>
+						<div
+							role="alert"
+							aria-live="polite"
+							className="flex gap-2 items-center px-3 py-2 text-sm text-red-600 rounded-lg border border-red-200 bg-red-50"
+						>
+							<span aria-hidden="true" className="shrink-0 text-red-500">&#9888;</span>
+							<span>{error}</span>
+						</div>
 					)}
 					<MotionButton
 						variant="dark"
@@ -133,7 +140,7 @@ export function LoginForm() {
 				</form>
 				<motion.p
 					layout="position"
-					className="mt-3 mb-2 text-xs text-center text-gray-9"
+					className="mt-3 mb-2 text-xs text-center text-gray-11"
 				>
 					Don't have an account?{" "}
 					<Link
@@ -145,7 +152,7 @@ export function LoginForm() {
 				</motion.p>
 				<motion.p
 					layout="position"
-					className="pt-3 text-xs text-center text-gray-9"
+					className="pt-3 text-xs text-center text-gray-11"
 				>
 					By signing in, you acknowledge that you have both read and agree to
 					Cap's{" "}

@@ -116,7 +116,7 @@ export const ApiKeysSection = () => {
 					<button
 						type="button"
 						onClick={() => setShowKey(!showKey)}
-						className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-10 hover:text-gray-12"
+						className="absolute right-2 top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] flex items-center justify-center text-xs text-gray-10 hover:text-gray-12"
 					>
 						{showKey ? "Hide" : "Show"}
 					</button>
@@ -143,7 +143,7 @@ export const ApiKeysSection = () => {
 				recordings.
 			</p>
 
-			<div className="flex gap-2">
+			<div className="flex flex-wrap gap-2">
 				<Button
 					type="button"
 					size="xs"

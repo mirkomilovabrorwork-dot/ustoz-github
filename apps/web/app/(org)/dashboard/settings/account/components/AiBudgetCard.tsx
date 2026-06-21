@@ -120,7 +120,7 @@ export const AiBudgetCard = () => {
 					disabled={!enabled}
 					className="w-full accent-blue-11 disabled:opacity-50"
 				/>
-				<div className="flex justify-between text-[10px] text-gray-9">
+				<div className="flex justify-between text-xs text-gray-11">
 					<span>50%</span>
 					<span>95%</span>
 				</div>
@@ -147,3 +147,4 @@ export const AiBudgetCard = () => {
 		</Card>
 	);
 };
+

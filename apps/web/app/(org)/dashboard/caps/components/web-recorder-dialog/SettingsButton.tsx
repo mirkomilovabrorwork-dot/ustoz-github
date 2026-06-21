@@ -17,7 +17,7 @@ export const SettingsButton = ({ visible, onClick }: SettingsButtonProps) => {
 			variant="outline"
 			size="icon"
 			aria-label="Open recorder settings"
-			className="absolute right-3 top-3 z-10 !p-0"
+			className="absolute right-3 top-3 z-10 !p-0 h-11 w-11"
 			onClick={onClick}
 		>
 			<CogIcon size={20} aria-hidden className="text-gray-12" />

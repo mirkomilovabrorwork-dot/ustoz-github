@@ -48,7 +48,7 @@ export const SettingsPanel = ({
 								<p className="text-sm font-medium text-gray-12">
 									Automatically select your last webcam/microphone
 								</p>
-								<p className="text-xs text-gray-10">
+								<p className="text-xs text-gray-11">
 									If available, the last used camera and mic will be
 									automatically selected.
 								</p>

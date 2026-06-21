@@ -12,6 +12,7 @@ import {
 import {
 	type ComponentProps,
 	type MouseEvent as ReactMouseEvent,
+	type TouchEvent as ReactTouchEvent,
 	useCallback,
 	useEffect,
 	useRef,
@@ -64,6 +65,15 @@ interface InProgressRecordingBarProps {
 }
 
 const DRAG_PADDING = 12;
+
+const shouldTogglePopoverOnClick = (
+	event: ReactMouseEvent<HTMLButtonElement>,
+) => {
+	if (event.detail === 0) return true;
+	if (typeof window === "undefined" || !window.matchMedia) return true;
+
+	return window.matchMedia("(hover: none), (pointer: coarse)").matches;
+};
 
 export const InProgressRecordingBar = ({
 	phase,
@@ -152,34 +162,70 @@ export const InProgressRecordingBar = ({
 		[position],
 	);
 
+	const handleTouchStart = useCallback(
+		(event: ReactTouchEvent<HTMLDivElement>) => {
+			if ((event.target as HTMLElement)?.closest("[data-no-drag]")) {
+				return;
+			}
+
+			const touch = event.touches[0];
+			if (!touch) return;
+
+			setIsDragging(true);
+			dragOffsetRef.current = {
+				x: touch.clientX - position.x,
+				y: touch.clientY - position.y,
+			};
+		},
+		[position],
+	);
+
 	useEffect(() => {
 		if (!isDragging || typeof window === "undefined") {
 			return undefined;
 		}
 
-		const handleMouseMove = (event: MouseEvent) => {
+		const getUpdatedPosition = (clientX: number, clientY: number) => {
 			const rect = containerRef.current?.getBoundingClientRect();
 			const width = rect?.width ?? 360;
 			const height = rect?.height ?? 64;
 			const maxX = window.innerWidth - width - DRAG_PADDING;
 			const maxY = window.innerHeight - height - DRAG_PADDING;
+			return {
+				x: clamp(clientX - dragOffsetRef.current.x, DRAG_PADDING, maxX),
+				y: clamp(clientY - dragOffsetRef.current.y, DRAG_PADDING, maxY),
+			};
+		};
 
-			setPosition({
-				x: clamp(event.clientX - dragOffsetRef.current.x, DRAG_PADDING, maxX),
-				y: clamp(event.clientY - dragOffsetRef.current.y, DRAG_PADDING, maxY),
-			});
+		const handleMouseMove = (event: MouseEvent) => {
+			setPosition(getUpdatedPosition(event.clientX, event.clientY));
 		};
 
 		const handleMouseUp = () => {
 			setIsDragging(false);
 		};
 
+		const handleTouchMove = (event: TouchEvent) => {
+			const touch = event.touches[0];
+			if (!touch) return;
+			event.preventDefault();
+			setPosition(getUpdatedPosition(touch.clientX, touch.clientY));
+		};
+
+		const handleTouchEnd = () => {
+			setIsDragging(false);
+		};
+
 		window.addEventListener("mousemove", handleMouseMove);
 		window.addEventListener("mouseup", handleMouseUp);
+		window.addEventListener("touchmove", handleTouchMove, { passive: false });
+		window.addEventListener("touchend", handleTouchEnd);
 
 		return () => {
 			window.removeEventListener("mousemove", handleMouseMove);
 			window.removeEventListener("mouseup", handleMouseUp);
+			window.removeEventListener("touchmove", handleTouchMove);
+			window.removeEventListener("touchend", handleTouchEnd);
 		};
 	}, [isDragging]);
 
@@ -262,11 +308,12 @@ export const InProgressRecordingBar = ({
 			)}
 			style={{ left: `${position.x}px`, top: `${position.y}px` }}
 			onMouseDown={handlePointerDown}
+			onTouchStart={handleTouchStart}
 			role="presentation"
 			tabIndex={-1}
 			aria-live="polite"
 		>
-			<div className="flex flex-row items-stretch rounded-[0.9rem] border border-gray-5 bg-gray-1 text-gray-12 shadow-[0_16px_60px_rgba(0,0,0,0.35)] min-w-[360px]">
+			<div className="flex flex-row items-stretch rounded-[0.9rem] border border-gray-5 bg-gray-1 text-gray-12 shadow-[0_16px_60px_rgba(0,0,0,0.35)] min-w-0 w-[calc(100vw-2rem)] max-w-[360px]">
 				{isErrorState ? (
 					<div
 						className="flex flex-1 items-center justify-between gap-3 p-3"
@@ -457,6 +504,16 @@ const InlineChunkProgress = ({
 		}, 180);
 	}, [clearHoverTimeout]);
 
+	const togglePopoverOnClick = useCallback(
+		(event: ReactMouseEvent<HTMLButtonElement>) => {
+			event.preventDefault();
+			if (!shouldTogglePopoverOnClick(event)) return;
+			clearHoverTimeout();
+			setIsPopoverOpen((prev) => !prev);
+		},
+		[clearHoverTimeout],
+	);
+
 	useEffect(() => () => clearHoverTimeout(), [clearHoverTimeout]);
 
 	const statusSummary = [
@@ -506,6 +563,7 @@ const InlineChunkProgress = ({
 				<button
 					type="button"
 					data-no-drag
+					onClick={togglePopoverOnClick}
 					className="inline-flex items-center gap-2 rounded-lg px-1.5 py-1 text-[12px] text-gray-12 transition-colors hover:bg-gray-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-9"
 					aria-label="Show upload segments"
 					aria-expanded={isPopoverOpen}

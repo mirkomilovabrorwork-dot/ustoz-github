@@ -132,7 +132,7 @@ export const CapCardContent: React.FC<CapContentProps> = ({
 
 	const renderSharedStatus = () => {
 		const baseClassName = clsx(
-			"text-sm text-gray-10 transition-colors duration-200 flex items-center mb-1",
+			"text-sm text-gray-11 transition-colors duration-200 flex items-center mb-1",
 			"hover:text-gray-12",
 			hideSharedStatus ? "pointer-events-none" : "cursor-pointer",
 		);
@@ -218,7 +218,7 @@ export const CapCardContent: React.FC<CapContentProps> = ({
 						content={`Cap created at ${formatPlatformDateTime(effectiveDate)}`}
 					>
 						<p
-							className="text-sm truncate text-gray-10 cursor-pointer flex items-center h-full leading-[1.5rem]"
+							className="text-sm truncate text-gray-11 cursor-pointer flex items-center h-full leading-[1.5rem]"
 							onClick={handleDateClick}
 						>
 							{showFullDate

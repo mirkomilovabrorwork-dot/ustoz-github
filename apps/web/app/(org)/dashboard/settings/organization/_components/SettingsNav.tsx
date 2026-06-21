@@ -32,15 +32,20 @@ export function SettingsNav() {
 	] as const;
 
 	return (
-		<div className="flex gap-4 items-center border-b border-gray-4">
+		<div
+			role="tablist"
+			className="flex gap-4 items-center border-b border-gray-4 overflow-x-auto scrollbar-none"
+		>
 			{tabs.map((tab) => {
 				const isActive = pathname === tab.href;
 
 				return (
-					<div key={tab.href} className="relative min-w-fit">
+					<div key={tab.href} className="relative shrink-0">
 						<Link
 							href={tab.href}
-							className="flex relative items-center py-3 cursor-pointer group"
+							role="tab"
+							aria-selected={isActive}
+							className="flex relative items-center min-h-[44px] whitespace-nowrap px-0.5 cursor-pointer group"
 						>
 							<p
 								className={clsx(
