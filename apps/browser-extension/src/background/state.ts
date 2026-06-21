@@ -27,6 +27,9 @@ interface ArmingState {
 	mode: "instruction" | "meeting";
 	meetingId?: string;
 	tabId?: number;
+	// For an in-page Meet nudge recording, the Meet content script owns the
+	// MediaStream and MediaRecorder.
+	contentRecorderTabId?: number;
 	// For an instruction recording, the id of the visible recorder.html tab that
 	// owns the capture. Stop/pause/resume/cancel must be routed to THIS tab.
 	recorderTabId?: number;
@@ -44,6 +47,9 @@ interface RecordingState {
 	uploadedBytes: number;
 	meetingId?: string;
 	tabId?: number;
+	// For an in-page Meet nudge recording, stop/pause/resume/cancel route back
+	// to the Meet tab content script instead of the offscreen tabCapture path.
+	contentRecorderTabId?: number;
 	// For an instruction recording, the id of the visible recorder.html tab that
 	// owns the capture. Stop/pause/resume/cancel must be routed to THIS tab, and
 	// if the tab closes unexpectedly the arming/recording lock must be released.

@@ -280,11 +280,12 @@ async function openPopupForPendingMeet(
 /** Shared finalization logic called from RECORDER_STOPPED and the tabs.onRemoved handler. */
 async function finalizeRecording(): Promise<void> {
 	const state = await getState();
-	const videoId = state.kind === "recording" ? state.videoId : "stub";
-	const uploadId = state.kind === "recording" ? state.uploadId : "stub";
-	const parts = state.kind === "recording" ? state.parts : [];
-	const totalBytes = state.kind === "recording" ? state.totalBytes : 0;
-	const uploadedBytes = state.kind === "recording" ? state.uploadedBytes : 0;
+	if (state.kind !== "recording") return;
+	const videoId = state.videoId;
+	const uploadId = state.uploadId;
+	const parts = state.parts;
+	const totalBytes = state.totalBytes;
+	const uploadedBytes = state.uploadedBytes;
 
 	const nextState: ExtensionState = {
 		kind: "uploading",
@@ -394,11 +395,21 @@ async function handleMessage(
 					: stopState.kind === "arming" && stopState.mode === "instruction"
 					  ? stopState.recorderTabId
 					  : undefined;
+			const contentStopTabId =
+				stopState.kind === "recording" && stopState.contentRecorderTabId !== undefined
+					? stopState.contentRecorderTabId
+					: stopState.kind === "arming" && stopState.contentRecorderTabId !== undefined
+					  ? stopState.contentRecorderTabId
+					  : undefined;
 			if (stopTabId !== undefined) {
 				// Instruction recording: tell the recorder tab to stop.
 				// SW state advances only when the tab sends RECORDER_STOPPED.
 				chrome.tabs
 					.sendMessage(stopTabId, { type: "STOP_CAPTURE" })
+					.catch(() => {});
+			} else if (contentStopTabId !== undefined) {
+				chrome.tabs
+					.sendMessage(contentStopTabId, { type: "STOP_CAPTURE" })
 					.catch(() => {});
 			} else {
 				await sendToOffscreen({ type: "STOP_CAPTURE" });
@@ -417,6 +428,13 @@ async function handleMessage(
 				chrome.tabs
 					.sendMessage(pauseTabId, { type: "PAUSE_CAPTURE" })
 					.catch(() => {});
+			} else if (
+				pauseState.kind === "recording" &&
+				pauseState.contentRecorderTabId !== undefined
+			) {
+				chrome.tabs
+					.sendMessage(pauseState.contentRecorderTabId, { type: "PAUSE_CAPTURE" })
+					.catch(() => {});
 			} else {
 				await sendToOffscreen({ type: "PAUSE_CAPTURE" });
 			}
@@ -433,6 +451,13 @@ async function handleMessage(
 			if (resumeTabId !== undefined) {
 				chrome.tabs
 					.sendMessage(resumeTabId, { type: "RESUME_CAPTURE" })
+					.catch(() => {});
+			} else if (
+				resumeState.kind === "recording" &&
+				resumeState.contentRecorderTabId !== undefined
+			) {
+				chrome.tabs
+					.sendMessage(resumeState.contentRecorderTabId, { type: "RESUME_CAPTURE" })
 					.catch(() => {});
 			} else {
 				await sendToOffscreen({ type: "RESUME_CAPTURE" });
@@ -463,11 +488,23 @@ async function handleMessage(
 					: cancelState.kind === "arming" && cancelState.mode === "instruction"
 					  ? cancelState.recorderTabId
 					  : undefined;
+			const contentCancelTabId =
+				cancelState.kind === "recording" &&
+				cancelState.contentRecorderTabId !== undefined
+					? cancelState.contentRecorderTabId
+					: cancelState.kind === "arming" &&
+						  cancelState.contentRecorderTabId !== undefined
+					  ? cancelState.contentRecorderTabId
+					  : undefined;
 			if (cancelTabId !== undefined) {
 				// Tell the instruction recorder tab to stop so it sends RECORDER_STOPPED
 				// and cleanup runs. Then also reset SW to idle immediately.
 				chrome.tabs
 					.sendMessage(cancelTabId, { type: "STOP_CAPTURE" })
+					.catch(() => {});
+			} else if (contentCancelTabId !== undefined) {
+				chrome.tabs
+					.sendMessage(contentCancelTabId, { type: "STOP_CAPTURE" })
 					.catch(() => {});
 			} else {
 				await sendToOffscreen({ type: "STOP_CAPTURE" }).catch(() => {});
@@ -507,7 +544,13 @@ async function handleMessage(
 				(senderTabId === undefined || state.tabId === senderTabId) &&
 				Date.now() - state.startedAt >= MIN_MEET_RECORDING_MS_BEFORE_AUTO_STOP
 			) {
-				await sendToOffscreen({ type: "STOP_CAPTURE" });
+				if (state.contentRecorderTabId !== undefined) {
+					chrome.tabs
+						.sendMessage(state.contentRecorderTabId, { type: "STOP_CAPTURE" })
+						.catch(() => {});
+				} else {
+					await sendToOffscreen({ type: "STOP_CAPTURE" });
+				}
 			}
 			return { ok: true };
 		}
@@ -572,6 +615,48 @@ async function handleMessage(
 			return { ok: true };
 		}
 
+		// Content: the in-page Meet nudge already obtained a getDisplayMedia()
+		// stream from the real button gesture. Prepare SW state so its following
+		// RECORDER_STARTED message initializes a meeting upload, not instruction.
+		case "MEET_NUDGE_CAPTURE_READY": {
+			const meetingId = getString(msg, "meetingId");
+			const tabId = await resolveMeetSenderTabId(_sender);
+			const state = await getState();
+			if (isInProgress(state)) {
+				return { ok: false, error: "A recording is already in progress" };
+			}
+			const settings = await getSettings();
+			if (!settings.apiKey) {
+				try {
+					if (typeof chrome.action?.openPopup === "function") {
+						await (chrome.action.openPopup() as Promise<void>).catch(() => {
+							chrome.runtime.openOptionsPage();
+						});
+					} else {
+						chrome.runtime.openOptionsPage();
+					}
+				} catch {
+					chrome.runtime.openOptionsPage();
+				}
+				return { ok: false, error: "not signed in" };
+			}
+			if (tabId === undefined) {
+				return { ok: false, error: "No Meet tab to record" };
+			}
+			await setState({
+				kind: "arming",
+				mode: "meeting",
+				meetingId,
+				tabId,
+				contentRecorderTabId: tabId,
+			});
+			return {
+				ok: true,
+				micEnabled: settings.micEnabled,
+				micDeviceId: settings.micDeviceId,
+			};
+		}
+
 		case "MEET_NUDGE_LATER":
 		case "MEET_NUDGE_DISMISS":
 			return { ok: true };
@@ -595,6 +680,8 @@ async function handleMessage(
 			const tabId = state.kind === "arming" ? state.tabId : undefined;
 			const recorderTabId =
 				state.kind === "arming" ? state.recorderTabId : undefined;
+			const contentRecorderTabId =
+				state.kind === "arming" ? state.contentRecorderTabId : undefined;
 
 			let videoId: string;
 			let uploadId: string;
@@ -630,6 +717,7 @@ async function handleMessage(
 				mime,
 				paused: false,
 				recorderTabId,
+				contentRecorderTabId,
 			};
 			await setState(nextState);
 			startKeepAlive();
@@ -868,6 +956,24 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 		state.recorderTabId === tabId
 	) {
 		// Tab closed mid-recording — finalize with whatever chunks arrived.
+		await finalizeRecording().catch(() => {});
+	}
+});
+
+chrome.tabs.onRemoved.addListener(async (tabId) => {
+	const state = await getState();
+	if (
+		state.kind === "arming" &&
+		state.mode === "meeting" &&
+		state.contentRecorderTabId === tabId
+	) {
+		await setState({ kind: "idle" });
+		updateBadge({ kind: "idle" });
+	} else if (
+		state.kind === "recording" &&
+		state.mode === "meeting" &&
+		state.contentRecorderTabId === tabId
+	) {
 		await finalizeRecording().catch(() => {});
 	}
 });
