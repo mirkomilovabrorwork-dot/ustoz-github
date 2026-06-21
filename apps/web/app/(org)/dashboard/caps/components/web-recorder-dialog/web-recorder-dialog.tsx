@@ -257,7 +257,7 @@ export const WebRecorderDialog = ({
 				</DialogTrigger>
 				<DialogContent
 					ref={dialogContentRef}
-					className="w-[300px] border-none bg-transparent p-0 [&>button]:hidden"
+					className="w-[300px] border-none bg-transparent p-0"
 					onPointerDownOutside={handlePointerDownOutside}
 					onFocusOutside={handleFocusOutside}
 					onInteractOutside={handleInteractOutside}

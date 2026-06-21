@@ -117,9 +117,6 @@ export const ShareableLinkIcon = () => {
 				<div className="space-y-1">
 					<div className="flex gap-1.5 items-center">
 						<Label htmlFor={iconInputId}>Shareable link icon</Label>
-						<p className="py-1 px-1.5 text-[10px] leading-none font-medium rounded-full text-white bg-blue-11">
-							Pro
-						</p>
 					</div>
 					<CardDescription className="w-full">
 						Use a custom logo or icon on your shareable link pages.
