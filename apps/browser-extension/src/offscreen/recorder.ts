@@ -69,6 +69,18 @@ function sendMsg(msg: Record<string, unknown>): void {
 	chrome.runtime.sendMessage(msg).catch(() => {});
 }
 
+function sendMsgAwait(msg: Record<string, unknown>): Promise<unknown> {
+	return new Promise((resolve) => {
+		chrome.runtime.sendMessage(msg, (response: unknown) => {
+			if (chrome.runtime.lastError) {
+				resolve({ ok: false, error: chrome.runtime.lastError.message });
+			} else {
+				resolve(response);
+			}
+		});
+	});
+}
+
 function cleanup(s: RecordingState): void {
 	for (const t of s.displayStream.getTracks()) t.stop();
 	if (s.micStream) for (const t of s.micStream.getTracks()) t.stop();
@@ -200,14 +212,29 @@ async function startCapture(msg: StartCaptureMsg): Promise<void> {
 
 		state = { recorder, audioCtx, displayStream, micStream, chunkIndex };
 
-		recorder.start(1000);
-
-		sendMsg({
+		// Wait for the SW to initialize the upload (state → "recording") BEFORE
+		// capturing. If we started immediately, the first tab-capture chunks
+		// would arrive while the SW is still "arming" and be dropped → 0 bytes.
+		const startResp = (await sendMsgAwait({
 			type: "RECORDER_STARTED",
 			mime,
 			hasVideo: displayStream.getVideoTracks().length > 0,
 			hasAudio: dest.stream.getAudioTracks().length > 0,
-		});
+		})) as { ok?: boolean; error?: string } | undefined;
+
+		if (!startResp?.ok) {
+			if (state) {
+				cleanup(state);
+				state = null;
+			}
+			sendMsg({
+				type: "RECORDER_ERROR",
+				error: startResp?.error ?? "Couldn't start the upload session.",
+			});
+			return;
+		}
+
+		recorder.start(1000);
 	} catch (err) {
 		sendMsg({
 			type: "RECORDER_ERROR",

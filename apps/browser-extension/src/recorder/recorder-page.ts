@@ -265,17 +265,34 @@ async function startRecording(): Promise<void> {
 
 		state = { recorder, audioCtx, displayStream, micStream };
 
-		recorder.start(1000);
-
-		sendMsg({
+		// Initialize the upload BEFORE producing any media data. The SW creates
+		// the video + multipart session in its RECORDER_STARTED handler and only
+		// replies { ok: true } once it has set state to "recording". We MUST wait
+		// for that ok before recorder.start(), otherwise the first chunks arrive
+		// while the SW is still "arming" and get dropped → totalBytes=0 →
+		// "No recording data was captured". (This was an intermittent failure:
+		// it only struck when upload-init was slower than the first chunk.)
+		const startResp = (await sendMsgAwait({
 			type: "RECORDER_STARTED",
 			mime,
 			hasVideo: displayStream.getVideoTracks().length > 0,
 			hasAudio: dest.stream.getAudioTracks().length > 0,
-		});
+		})) as { ok?: boolean; error?: string } | undefined;
 
-		// Optimistically show the recording view; the SW will also broadcast
-		// STATE_CHANGED → recording once the upload session is initialized.
+		if (!startResp?.ok) {
+			cleanup(state);
+			state = null;
+			const reason = startResp?.error ?? "Couldn't start the upload session.";
+			setIdleMsg(`Couldn't start recording: ${reason}`, true);
+			showView("view-idle");
+			if (startBtn) startBtn.disabled = false;
+			return;
+		}
+
+		// Upload session is ready and the SW is in "recording" — capture is now
+		// safe; no chunk can be dropped for arriving "too early".
+		recorder.start(1000);
+
 		showView("view-recording");
 		startTimer();
 	} catch (err) {
