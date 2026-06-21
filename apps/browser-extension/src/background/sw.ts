@@ -9,36 +9,55 @@ import {
 	retryPendingUploads,
 } from "./upload";
 
-// ── Pending desktop-capture picker ────────────────────────────────────────
+// ── Tab capture (Google Meet path) ─────────────────────────────────────────
+//
+// chrome.tabCapture.getMediaStreamId({ targetTabId }) mints a *serializable*
+// stream id that the offscreen document can consume via getUserMedia with
+// chromeMediaSource: "tab". This is the ONLY capture path that works from a
+// service worker for tab content. (The old desktopCapture.chooseDesktopMedia
+// path was architecturally broken from a SW: it required a targetTab, and its
+// stream id could not be consumed inside an offscreen document.)
 
-let pendingPickerId: number | null = null;
-
-function chooseDesktopMediaAsync(
-	sources: chrome.desktopCapture.DesktopCaptureSourceType[],
-	tab: chrome.tabs.Tab | undefined,
-): Promise<string> {
+function getTabMediaStreamId(targetTabId: number): Promise<string> {
 	return new Promise((resolve, reject) => {
-		const callback = (streamId: string) => {
-			pendingPickerId = null;
-			if (!streamId) {
-				reject(new Error("cancelled"));
-			} else {
-				resolve(streamId);
-			}
-		};
-		if (tab) {
-			pendingPickerId = chrome.desktopCapture.chooseDesktopMedia(
-				sources,
-				tab,
-				callback,
+		try {
+			chrome.tabCapture.getMediaStreamId(
+				{ targetTabId },
+				(streamId: string) => {
+					if (chrome.runtime.lastError) {
+						reject(new Error(chrome.runtime.lastError.message));
+					} else if (!streamId) {
+						reject(new Error("tabCapture returned no stream id"));
+					} else {
+						resolve(streamId);
+					}
+				},
 			);
-		} else {
-			pendingPickerId = chrome.desktopCapture.chooseDesktopMedia(
-				sources,
-				callback,
-			);
+		} catch (err) {
+			reject(err instanceof Error ? err : new Error(String(err)));
 		}
 	});
+}
+
+// ── Visible instruction recorder page ──────────────────────────────────────
+//
+// Full-screen instruction recording needs getDisplayMedia(), which only works
+// in a visible page with a real user gesture. We open a dedicated extension tab
+// that owns the whole capture and streams chunks back here using the same
+// RECORDER_* protocol as the offscreen recorder.
+
+async function openInstructionRecorder(): Promise<void> {
+	const url = chrome.runtime.getURL("recorder.html");
+	// Reuse an existing recorder tab if one is already open.
+	const existing = await chrome.tabs.query({ url });
+	if (existing.length > 0 && existing[0].id != null) {
+		await chrome.tabs.update(existing[0].id, { active: true });
+		if (existing[0].windowId != null) {
+			await chrome.windows.update(existing[0].windowId, { focused: true });
+		}
+		return;
+	}
+	await chrome.tabs.create({ url, active: true });
 }
 
 // ── Offscreen document ─────────────────────────────────────────────────────
@@ -193,36 +212,37 @@ async function handleMessage(
 
 	switch (type) {
 		// ── Popup: start instruction recording ────────────────────────────
+		// Full-screen instruction capture happens in a dedicated VISIBLE tab
+		// (recorder.html) where getDisplayMedia() has a real user gesture. The
+		// SW only opens that tab; the page owns the MediaStream and streams
+		// chunks back via the RECORDER_* protocol. We deliberately do NOT enter
+		// "arming" here — the actual gesture/picker lives in the recorder tab,
+		// so state advances to "recording" only when that page sends
+		// RECORDER_STARTED.
 		case "START_INSTRUCTION": {
 			const state = await getState();
 			if (state.kind !== "idle" && state.kind !== "error") {
 				return { ok: false, error: "already active" };
 			}
 			const settings = await getSettings();
+			if (!settings.apiKey) {
+				return { ok: false, error: "not signed in" };
+			}
 			await setState({ kind: "arming", mode: "instruction" });
-			let streamId: string;
 			try {
-				streamId = await chooseDesktopMediaAsync(
-					["screen", "window", "tab", "audio"],
-					undefined,
-				);
-			} catch {
+				await openInstructionRecorder();
+			} catch (err) {
 				await setState({ kind: "idle" });
 				updateBadge({ kind: "idle" });
-				return { ok: true };
+				return {
+					ok: false,
+					error: `Couldn't open the recorder: ${err instanceof Error ? err.message : String(err)}`,
+				};
 			}
-			await ensureOffscreenDocument();
-			await sendToOffscreen({
-				type: "START_CAPTURE",
-				mode: "desktop",
-				streamId,
-				micEnabled: settings.micEnabled,
-				...(settings.micEnabled ? { micDeviceId: settings.micDeviceId } : {}),
-			});
 			return { ok: true };
 		}
 
-		// ── Popup: start meeting recording ────────────────────────────────
+		// ── Popup: start meeting recording (Google Meet → tab capture) ────
 		case "START_MEET": {
 			const meetingId = getString(msg, "meetingId");
 			const tabId = getNumber(msg, "tabId");
@@ -230,27 +250,30 @@ async function handleMessage(
 			if (state.kind !== "idle" && state.kind !== "error") {
 				return { ok: false, error: "already active" };
 			}
+			if (tabId === undefined) {
+				return { ok: false, error: "No Meet tab to record" };
+			}
 			const settings = await getSettings();
+			if (!settings.apiKey) {
+				return { ok: false, error: "not signed in" };
+			}
 			await setState({ kind: "arming", mode: "meeting", meetingId, tabId });
 			let meetStreamId: string;
 			try {
-				// Pass undefined (NOT the Meet tab) so the stream id is usable by
-				// the extension's offscreen document. Binding it to the tab origin
-				// makes getUserMedia fail there — the working instruction path
-				// also passes undefined. "audio" lets the picker offer system audio.
-				meetStreamId = await chooseDesktopMediaAsync(
-					["screen", "window", "tab", "audio"],
-					undefined,
-				);
-			} catch {
+				// Tab capture: mint a serializable stream id for the Meet tab. This
+				// is consumable in the offscreen document (chromeMediaSource: tab).
+				meetStreamId = await getTabMediaStreamId(tabId);
+			} catch (err) {
 				await setState({ kind: "idle" });
 				updateBadge({ kind: "idle" });
-				return { ok: true };
+				return {
+					ok: false,
+					error: `Couldn't capture the meeting tab: ${err instanceof Error ? err.message : String(err)}`,
+				};
 			}
 			await ensureOffscreenDocument();
 			await sendToOffscreen({
 				type: "START_CAPTURE",
-				mode: "desktop",
 				streamId: meetStreamId,
 				meetingId,
 				tabId,
@@ -278,12 +301,22 @@ async function handleMessage(
 			return { ok: true };
 		}
 
+		// ── Recorder tab: instruction capture aborted before it began ─────
+		// The visible recorder tab cancelled the screen picker or was closed
+		// before recording started. Release the "arming" lock — but ONLY if we
+		// are still arming an instruction, so an active recording (meeting or a
+		// running instruction) is never disrupted.
+		case "INSTRUCTION_CANCEL": {
+			const state = await getState();
+			if (state.kind === "arming" && state.mode === "instruction") {
+				await setState({ kind: "idle" });
+				updateBadge({ kind: "idle" });
+			}
+			return { ok: true };
+		}
+
 		// ── Popup: cancel ─────────────────────────────────────────────────
 		case "CANCEL": {
-			if (pendingPickerId !== null) {
-				chrome.desktopCapture.cancelChooseDesktopMedia(pendingPickerId);
-				pendingPickerId = null;
-			}
 			await sendToOffscreen({ type: "STOP_CAPTURE" }).catch(() => {});
 			await closeOffscreenDocument();
 			await setState({ kind: "idle" });
@@ -349,24 +382,25 @@ async function handleMessage(
 				}
 				return { ok: false, error: "not signed in" };
 			}
+			if (tabId === undefined) {
+				return { ok: false, error: "No Meet tab to record" };
+			}
 			await setState({ kind: "arming", mode: "meeting", meetingId, tabId });
 			let nudgeStreamId: string;
 			try {
-				// undefined (NOT the Meet tab) so the stream id works in the
-				// offscreen document; "audio" lets the picker offer system audio.
-				nudgeStreamId = await chooseDesktopMediaAsync(
-					["screen", "window", "tab", "audio"],
-					undefined,
-				);
-			} catch {
+				// Tab capture of the Meet tab the nudge button was clicked in.
+				nudgeStreamId = await getTabMediaStreamId(tabId);
+			} catch (err) {
 				await setState({ kind: "idle" });
 				updateBadge({ kind: "idle" });
-				return { ok: true };
+				return {
+					ok: false,
+					error: `Couldn't capture the meeting tab: ${err instanceof Error ? err.message : String(err)}`,
+				};
 			}
 			await ensureOffscreenDocument();
 			await sendToOffscreen({
 				type: "START_CAPTURE",
-				mode: "desktop",
 				streamId: nudgeStreamId,
 				meetingId,
 				tabId,

@@ -1,9 +1,24 @@
-type CaptureMode = "picker" | "silent-tab" | "desktop";
+// ── Offscreen recorder ──────────────────────────────────────────────────────
+//
+// This document runs ONLY the Google Meet (tab-capture) recording path.
+//
+// Why offscreen + tabCapture (and NOT desktopCapture / getDisplayMedia here):
+//   • The service worker calls chrome.tabCapture.getMediaStreamId({ targetTabId })
+//     which returns a *serializable* streamId.
+//   • That streamId is handed to THIS document, which calls getUserMedia with
+//     chromeMediaSource: "tab". Tab streamIds ARE consumable inside an offscreen
+//     document — unlike desktopCapture streamIds, which are blocked here.
+//   • getDisplayMedia() is impossible in a programmatic offscreen document (no
+//     user gesture / activation), so full-screen INSTRUCTION recording lives in
+//     the visible recorder.html page instead — NOT here.
+//
+// The message protocol to the service worker (RECORDER_STARTED / RECORDER_CHUNK /
+// RECORDER_STOPPED / RECORDER_ERROR) is shared with recorder.html so the upload
+// pipeline in the SW is identical for both paths.
 
 interface StartCaptureMsg {
 	type: "START_CAPTURE";
-	mode: CaptureMode;
-	streamId?: string;
+	streamId: string;
 	micEnabled?: boolean;
 	micDeviceId?: string;
 }
@@ -67,48 +82,12 @@ async function startCapture(msg: StartCaptureMsg): Promise<void> {
 	}
 
 	try {
-		let displayStream: MediaStream;
+		if (!msg.streamId) throw new Error("streamId required for tab capture");
 
-		if (msg.mode === "desktop") {
-			if (!msg.streamId) throw new Error("streamId required for desktop mode");
-			const desktopVideo = {
-				mandatory: {
-					chromeMediaSource: "desktop",
-					chromeMediaSourceId: msg.streamId,
-				},
-			} as unknown as MediaTrackConstraints;
-			const desktopAudio = {
-				mandatory: {
-					chromeMediaSource: "desktop",
-					chromeMediaSourceId: msg.streamId,
-				},
-			} as unknown as MediaTrackConstraints;
-			try {
-				// Prefer capturing system audio alongside the video.
-				displayStream = await navigator.mediaDevices.getUserMedia({
-					video: desktopVideo,
-					audio: desktopAudio,
-				});
-			} catch {
-				// The chosen source may expose no desktop audio (e.g. a window or
-				// tab without "share audio"). Don't fail the whole recording —
-				// fall back to video-only so the screen is still captured.
-				displayStream = await navigator.mediaDevices.getUserMedia({
-					video: desktopVideo,
-				});
-			}
-		} else if (msg.mode === "picker") {
-			displayStream = await navigator.mediaDevices.getDisplayMedia({
-				video: {
-					width: { max: 1280 },
-					height: { max: 720 },
-					frameRate: { max: 30 },
-				},
-				audio: true,
-			});
-		} else {
-			if (!msg.streamId)
-				throw new Error("streamId required for silent-tab mode");
+		// Tab capture: consume the streamId minted by tabCapture.getMediaStreamId
+		// in the service worker. Audio + video share the same streamId.
+		let displayStream: MediaStream;
+		try {
 			displayStream = await navigator.mediaDevices.getUserMedia({
 				video: {
 					mandatory: {
@@ -117,6 +96,17 @@ async function startCapture(msg: StartCaptureMsg): Promise<void> {
 					},
 				} as unknown as MediaTrackConstraints,
 				audio: {
+					mandatory: {
+						chromeMediaSource: "tab",
+						chromeMediaSourceId: msg.streamId,
+					},
+				} as unknown as MediaTrackConstraints,
+			});
+		} catch {
+			// The tab may expose no audio — fall back to video-only so the
+			// meeting screen is still captured rather than failing outright.
+			displayStream = await navigator.mediaDevices.getUserMedia({
+				video: {
 					mandatory: {
 						chromeMediaSource: "tab",
 						chromeMediaSourceId: msg.streamId,
@@ -148,9 +138,9 @@ async function startCapture(msg: StartCaptureMsg): Promise<void> {
 		if (displayStream.getAudioTracks().length > 0) {
 			const displaySrc = audioCtx.createMediaStreamSource(displayStream);
 			displaySrc.connect(dest);
-			if (msg.mode === "silent-tab") {
-				displaySrc.connect(audioCtx.destination);
-			}
+			// Tab capture mutes the tab for the user by default; route the captured
+			// tab audio back to the speakers so the meeting is still audible.
+			displaySrc.connect(audioCtx.destination);
 		}
 
 		if (micStream && micStream.getAudioTracks().length > 0) {

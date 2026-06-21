@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Cap — Record Instruction</title>
+		<style>
+			:root {
+				color-scheme: light dark;
+				--bg: #f7f7f8;
+				--card: #ffffff;
+				--text: #1a1a1a;
+				--hint: #6b7280;
+				--primary: #675fff;
+				--danger: #ef4444;
+				--border: #e5e7eb;
+			}
+			@media (prefers-color-scheme: dark) {
+				:root {
+					--bg: #18181b;
+					--card: #232327;
+					--text: #f4f4f5;
+					--hint: #a1a1aa;
+					--border: #3f3f46;
+				}
+			}
+			* { box-sizing: border-box; }
+			body {
+				margin: 0;
+				min-height: 100vh;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				background: var(--bg);
+				color: var(--text);
+				font-family: system-ui, -apple-system, sans-serif;
+				padding: 24px;
+			}
+			.card {
+				background: var(--card);
+				border: 1px solid var(--border);
+				border-radius: 16px;
+				box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+				padding: 32px;
+				width: 100%;
+				max-width: 420px;
+				text-align: center;
+			}
+			.logo {
+				width: 48px;
+				height: 48px;
+				margin: 0 auto 12px;
+				display: block;
+			}
+			h1 {
+				font-size: 20px;
+				margin: 0 0 6px;
+			}
+			.sub {
+				font-size: 13px;
+				color: var(--hint);
+				margin: 0 0 24px;
+				line-height: 1.5;
+			}
+			.btn {
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				gap: 8px;
+				width: 100%;
+				border: none;
+				border-radius: 10px;
+				padding: 13px 18px;
+				font-size: 15px;
+				font-weight: 600;
+				cursor: pointer;
+				font-family: inherit;
+				transition: filter 0.15s, transform 0.1s, background 0.15s;
+			}
+			.btn:active { transform: scale(0.98); }
+			.btn-primary { background: var(--primary); color: #fff; }
+			.btn-primary:hover { filter: brightness(1.08); }
+			.btn-danger { background: var(--danger); color: #fff; }
+			.btn-danger:hover { filter: brightness(1.08); }
+			.btn-secondary {
+				background: transparent;
+				color: var(--hint);
+				font-size: 13px;
+				font-weight: 500;
+				padding: 8px;
+				margin-top: 8px;
+				text-decoration: underline;
+			}
+			.timer {
+				font-size: 34px;
+				font-weight: 700;
+				font-variant-numeric: tabular-nums;
+				margin: 8px 0 4px;
+			}
+			.rec-row {
+				display: inline-flex;
+				align-items: center;
+				gap: 8px;
+				margin-bottom: 16px;
+			}
+			.rec-dot {
+				width: 10px;
+				height: 10px;
+				border-radius: 50%;
+				background: var(--danger);
+				animation: pulse 1.8s ease-out infinite;
+			}
+			@keyframes pulse {
+				0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
+				55% { box-shadow: 0 0 0 7px rgba(239, 68, 68, 0); }
+			}
+			.msg {
+				font-size: 13px;
+				margin: 12px 0 0;
+				min-height: 18px;
+			}
+			.msg-error { color: var(--danger); }
+			.share-url {
+				font-size: 12px;
+				color: var(--hint);
+				word-break: break-all;
+				margin: 12px 0;
+			}
+			.hidden { display: none !important; }
+			.btn-row {
+				display: flex;
+				gap: 10px;
+			}
+			.btn-row .btn { flex: 1; }
+		</style>
+	</head>
+	<body>
+		<div class="card">
+			<img class="logo" src="icons/icon-128.png" alt="Cap" />
+
+			<!-- IDLE: must click to start (provides the user gesture for getDisplayMedia) -->
+			<div id="view-idle">
+				<h1>Record Instruction</h1>
+				<p class="sub">
+					Click below, then choose the screen, window, or tab you want to
+					record. Keep this tab open while recording.
+				</p>
+				<button id="btn-start" class="btn btn-primary">Choose screen &amp; start</button>
+				<button id="btn-cancel" class="btn btn-secondary">Cancel</button>
+				<p id="idle-msg" class="msg"></p>
+			</div>
+
+			<!-- RECORDING -->
+			<div id="view-recording" class="hidden">
+				<div class="rec-row">
+					<span class="rec-dot"></span>
+					<span>Recording</span>
+				</div>
+				<div id="timer" class="timer">00:00</div>
+				<p class="sub">Recording in progress. Keep this tab open.</p>
+				<button id="btn-stop" class="btn btn-danger">Stop &amp; upload</button>
+			</div>
+
+			<!-- UPLOADING -->
+			<div id="view-uploading" class="hidden">
+				<h1>Uploading…</h1>
+				<p id="upload-progress" class="sub">Sending your recording to Cap…</p>
+			</div>
+
+			<!-- COMPLETE -->
+			<div id="view-complete" class="hidden">
+				<h1>Recording saved!</h1>
+				<p id="complete-url" class="share-url"></p>
+				<div class="btn-row">
+					<button id="btn-copy" class="btn btn-primary">Copy link</button>
+					<button id="btn-open" class="btn btn-primary">Open</button>
+				</div>
+				<button id="btn-close" class="btn btn-secondary">Close this tab</button>
+			</div>
+
+			<!-- ERROR -->
+			<div id="view-error" class="hidden">
+				<h1>Something went wrong</h1>
+				<p id="error-msg" class="msg msg-error"></p>
+				<button id="btn-retry" class="btn btn-primary">Try again</button>
+				<button id="btn-close-err" class="btn btn-secondary">Close this tab</button>
+			</div>
+		</div>
+		<script type="module" src="recorder-page.js"></script>
+	</body>
+</html>

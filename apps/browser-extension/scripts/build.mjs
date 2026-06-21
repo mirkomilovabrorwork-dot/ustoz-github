@@ -36,6 +36,11 @@ const entryPoints = [
 		format: "esm",
 	},
 	{
+		path: join(srcDir, "recorder/recorder-page.ts"),
+		outfile: join(distDir, "recorder-page.js"),
+		format: "esm",
+	},
+	{
 		path: join(srcDir, "popup/popup.ts"),
 		outfile: join(distDir, "popup.js"),
 		format: "esm",
@@ -87,6 +92,7 @@ function copyAssets() {
 	const pages = [
 		{ dir: "popup", files: ["popup.html", "popup.css"] },
 		{ dir: "offscreen", files: ["offscreen.html"] },
+		{ dir: "recorder", files: ["recorder.html"] },
 		{ dir: "options", files: ["options.html", "options.css"] },
 	];
 	for (const page of pages) {
