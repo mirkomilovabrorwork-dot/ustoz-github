@@ -240,20 +240,25 @@ export const Sidebar = forwardRef<{ scrollToBottom: () => void }, SidebarProps>(
 				className="flex flex-col gap-3"
 				style={{ width: "100%", position: "sticky", top: "1rem" }}
 			>
-				<div
-					style={{
-						borderRadius: "14px",
-						background: "linear-gradient(135deg, #eef4ff 0%, #f7f9fc 100%)",
-						border: "1px solid rgba(37, 99, 235, .15)",
-						boxShadow:
-							"0 1px 2px rgba(15,23,42,.06), 0 2px 6px rgba(15,23,42,.07)",
-						backdropFilter: "blur(8px)",
-						WebkitBackdropFilter: "blur(8px)",
-						overflow: "hidden",
-					}}
-				>
-					<MeetingCostPanel videoId={data.id} />
-				</div>
+				{/* Processing cost is internal billing info — show it only to the
+				    owner/org members, never to viewers (students/clients) who open
+				    the share link. */}
+				{isOwnerOrMember && (
+					<div
+						style={{
+							borderRadius: "14px",
+							background: "linear-gradient(135deg, #eef4ff 0%, #f7f9fc 100%)",
+							border: "1px solid rgba(37, 99, 235, .15)",
+							boxShadow:
+								"0 1px 2px rgba(15,23,42,.06), 0 2px 6px rgba(15,23,42,.07)",
+							backdropFilter: "blur(8px)",
+							WebkitBackdropFilter: "blur(8px)",
+							overflow: "hidden",
+						}}
+					>
+						<MeetingCostPanel videoId={data.id} />
+					</div>
+				)}
 
 				<div className="overflow-hidden flex flex-col" style={{
 					background: "#fff",
