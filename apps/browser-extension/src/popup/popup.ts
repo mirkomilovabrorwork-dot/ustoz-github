@@ -14,6 +14,14 @@ let micStream: MediaStream | null = null;
 let audioCtx: AudioContext | null = null;
 let analyser: AnalyserNode | null = null;
 let meterRaf: number | null = null;
+const PENDING_MEET_START_KEY = "capPendingMeetStart";
+const PENDING_MEET_START_TTL_MS = 15000;
+
+interface PendingMeetStart {
+	tabId?: number;
+	meetingId?: string;
+	createdAt?: number;
+}
 
 function stopTimer(): void {
 	if (timerInterval !== null) {
@@ -79,6 +87,20 @@ function sendMsg(msg: Record<string, unknown>): void {
 	chrome.runtime.sendMessage(msg, () => {
 		if (chrome.runtime.lastError) {
 		}
+	});
+}
+
+function sendMsgAwait(msg: Record<string, unknown>): Promise<Record<string, unknown>> {
+	return new Promise((resolve) => {
+		chrome.runtime.sendMessage(msg, (response: unknown) => {
+			if (chrome.runtime.lastError) {
+				resolve({ ok: false, error: chrome.runtime.lastError.message });
+			} else if (response && typeof response === "object") {
+				resolve(response as Record<string, unknown>);
+			} else {
+				resolve({ ok: false, error: "No response from recorder" });
+			}
+		});
 	});
 }
 
@@ -840,6 +862,32 @@ function getMeetingId(url: string): string | null {
 	}
 }
 
+async function maybeStartPendingMeet(data: PopupData): Promise<boolean> {
+	const result = await chrome.storage.local.get(PENDING_MEET_START_KEY);
+	const pending = result[PENDING_MEET_START_KEY] as PendingMeetStart | undefined;
+	if (!pending) return false;
+
+	await chrome.storage.local.remove(PENDING_MEET_START_KEY);
+
+	if (
+		typeof pending.createdAt !== "number" ||
+		Date.now() - pending.createdAt > PENDING_MEET_START_TTL_MS
+	) {
+		return false;
+	}
+
+	const tabId = pending.tabId ?? data.activeTabId;
+	const meetingId = pending.meetingId ?? data.meetingId;
+	if (tabId === undefined || !meetingId) return false;
+
+	const resp = await sendMsgAwait({ type: "START_MEET", meetingId, tabId });
+	if (resp.ok === true) {
+		window.close();
+		return true;
+	}
+	return false;
+}
+
 async function getSettingsFromSW(): Promise<ExtensionSettings> {
 	return new Promise((resolve) => {
 		chrome.runtime.sendMessage(
@@ -945,6 +993,8 @@ async function init(): Promise<void> {
 
 	const root = document.getElementById("root");
 	if (!root) return;
+
+	if (await maybeStartPendingMeet(currentData)) return;
 
 	const firstRunResult = await chrome.storage.local.get("capExtFirstRun");
 	if (firstRunResult.capExtFirstRun !== false) {

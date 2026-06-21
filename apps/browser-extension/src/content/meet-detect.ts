@@ -58,11 +58,13 @@ let countdownTimer: ReturnType<typeof setInterval> | null = null;
 let countdownRemaining = 0;
 let recordingStartTime = 0;
 let elapsedTimer: ReturnType<typeof setInterval> | null = null;
+let meetEndTimer: ReturnType<typeof setTimeout> | null = null;
 
 let shadowHost: HTMLElement | null = null;
 let shadowRoot: ShadowRoot | null = null;
 
 const LATER_MS = 12 * 60 * 1000;
+const MEET_END_DEBOUNCE_MS = 5000;
 
 // ── Meet detection ────────────────────────────────────────────────────────────
 
@@ -82,6 +84,51 @@ function isInMeeting(): boolean {
 function currentMeetingId(): string | null {
 	const m = location.pathname.match(/^(\/[a-z]+-[a-z]+-[a-z]+)/);
 	return m ? m[1] : null;
+}
+
+function cancelMeetEnded(): void {
+	if (meetEndTimer !== null) {
+		clearTimeout(meetEndTimer);
+		meetEndTimer = null;
+	}
+}
+
+function scheduleMeetEnded(): void {
+	if (meetEndTimer !== null) return;
+	const id = meetingId;
+	meetEndTimer = setTimeout(() => {
+		meetEndTimer = null;
+		if (!inCall) return;
+		if (isMeetingUrl() && isInMeeting()) return;
+		inCall = false;
+		if (id) sendToBackground({ type: "MEET_CALL_ENDED", meetingId: id });
+		stopCountdown();
+		if (elapsedTimer !== null) {
+			clearInterval(elapsedTimer);
+			elapsedTimer = null;
+		}
+		if (nudgeState !== "recording") {
+			clearNudge();
+			nudgeState = "hidden";
+		}
+	}, MEET_END_DEBOUNCE_MS);
+}
+
+function friendlyStartError(error: unknown): string {
+	const raw = typeof error === "string" ? error.toLowerCase() : "";
+	if (raw.includes("already")) return "A recording is already running.";
+	if (raw.includes("not signed")) return "Sign in to Cap first.";
+	if (
+		raw.includes("not been invoked") ||
+		raw.includes("activetab") ||
+		raw.includes("active tab")
+	) {
+		return "Click the Cap extension icon, then Record Meeting.";
+	}
+	if (raw.includes("meet tab") || raw.includes("tab")) {
+		return "Open this Meet tab, then try Record now again.";
+	}
+	return "Couldn't start recording. Try the extension popup.";
 }
 
 // ── Sound helpers ─────────────────────────────────────────────────────────────
@@ -593,11 +640,8 @@ function renderDefaultNudge(): void {
 					btnRecord.disabled = false;
 					btnRecord.textContent = "Record now";
 				} else if (resp.ok === false) {
-					// Any other server-side error — show the message, keep nudge
-					const errMsg =
-						typeof resp.error === "string"
-							? resp.error
-							: "Couldn't start — try again";
+					// Any other server-side error — show friendly guidance, keep nudge
+					const errMsg = friendlyStartError(resp.error);
 					const existing = card.querySelector(".cap-nudge-send-err");
 					if (existing) {
 						existing.textContent = errMsg;
@@ -854,22 +898,16 @@ function sendToBackground(msg: OutboundMessage): void {
 function maybeShow(): void {
 	if (!isMeetingUrl() || !isInMeeting()) {
 		if (inCall) {
-			inCall = false;
-			const id = meetingId;
-			if (id) sendToBackground({ type: "MEET_CALL_ENDED", meetingId: id });
-			stopCountdown();
-			if (elapsedTimer !== null) {
-				clearInterval(elapsedTimer);
-				elapsedTimer = null;
-			}
-			clearNudge();
-			nudgeState = "hidden";
+			scheduleMeetEnded();
 		}
 		return;
 	}
 
+	cancelMeetEnded();
+
 	const id = currentMeetingId();
 	if (id !== meetingId) {
+		cancelMeetEnded();
 		meetingId = id;
 		dismissed = false;
 		laterUntil = 0;

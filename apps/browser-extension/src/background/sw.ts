@@ -217,6 +217,66 @@ function _getBoolean(
 	return typeof v === "boolean" ? v : undefined;
 }
 
+const PENDING_MEET_START_KEY = "capPendingMeetStart";
+const MIN_MEET_RECORDING_MS_BEFORE_AUTO_STOP = 10000;
+
+function isMeetUrl(url: string | undefined): boolean {
+	if (!url) return false;
+	try {
+		const parsed = new URL(url);
+		return (
+			parsed.hostname === "meet.google.com" &&
+			/^\/[a-z]+-[a-z]+-[a-z]+/.test(parsed.pathname)
+		);
+	} catch {
+		return false;
+	}
+}
+
+async function resolveMeetSenderTabId(
+	sender: chrome.runtime.MessageSender,
+): Promise<number | undefined> {
+	if (sender.tab?.id !== undefined && isMeetUrl(sender.tab.url)) {
+		return sender.tab.id;
+	}
+
+	const tabs = await chrome.tabs.query({
+		active: true,
+		currentWindow: true,
+		url: "https://meet.google.com/*",
+	});
+	const tab = tabs.find((t) => t.id !== undefined && isMeetUrl(t.url));
+	return tab?.id;
+}
+
+function isTabCaptureInvocationError(error: string): boolean {
+	const lower = error.toLowerCase();
+	return (
+		lower.includes("not been invoked") ||
+		lower.includes("activetab") ||
+		lower.includes("active tab")
+	);
+}
+
+async function openPopupForPendingMeet(
+	tabId: number,
+	meetingId: string | undefined,
+): Promise<boolean> {
+	await chrome.storage.local.set({
+		[PENDING_MEET_START_KEY]: { tabId, meetingId, createdAt: Date.now() },
+	});
+	try {
+		if (typeof chrome.action?.openPopup === "function") {
+			await chrome.action.openPopup();
+			return true;
+		}
+	} catch {
+		// Fall through to a friendly inline error in the Meet nudge.
+	}
+	await chrome.storage.local.remove(PENDING_MEET_START_KEY);
+	return false;
+}
+
 /** Shared finalization logic called from RECORDER_STOPPED and the tabs.onRemoved handler. */
 async function finalizeRecording(): Promise<void> {
 	const state = await getState();
@@ -438,11 +498,14 @@ async function handleMessage(
 		// ── Content: Meet call ended ──────────────────────────────────────
 		case "MEET_CALL_ENDED": {
 			const meetingId = getString(msg, "meetingId");
+			const senderTabId = _sender.tab?.id;
 			const state = await getState();
 			if (
 				state.kind === "recording" &&
 				state.mode === "meeting" &&
-				state.meetingId === meetingId
+				state.meetingId === meetingId &&
+				(senderTabId === undefined || state.tabId === senderTabId) &&
+				Date.now() - state.startedAt >= MIN_MEET_RECORDING_MS_BEFORE_AUTO_STOP
 			) {
 				await sendToOffscreen({ type: "STOP_CAPTURE" });
 			}
@@ -452,7 +515,7 @@ async function handleMessage(
 		// ── Content: user clicked "Record now" nudge ──────────────────────
 		case "MEET_NUDGE_RECORD_NOW": {
 			const meetingId = getString(msg, "meetingId");
-			const tabId = _sender.tab?.id;
+			const tabId = await resolveMeetSenderTabId(_sender);
 			const state = await getState();
 			if (isInProgress(state)) {
 				return { ok: false, error: "A recording is already in progress" };
@@ -487,9 +550,14 @@ async function handleMessage(
 			} catch (err) {
 				await setState({ kind: "idle" });
 				updateBadge({ kind: "idle" });
+				const error = err instanceof Error ? err.message : String(err);
+				if (isTabCaptureInvocationError(error)) {
+					const opened = await openPopupForPendingMeet(tabId, meetingId);
+					if (opened) return { ok: true, openedPopup: true };
+				}
 				return {
 					ok: false,
-					error: `Couldn't capture the meeting tab: ${err instanceof Error ? err.message : String(err)}`,
+					error: `Couldn't capture the meeting tab: ${error}`,
 				};
 			}
 			await ensureOffscreenDocument();
