@@ -200,27 +200,54 @@ export function TranscriptPanel({
 								<div
 									key={`${group.speaker}-${gi}-${ci}`}
 									ref={active ? activeRef : undefined}
-									className={`grid items-start rounded-lg px-2 py-2 transition-colors group ${
-										active
-											? "border-l-2 border-blue-600 bg-blue-50 pl-3"
-											: "border-l-2 border-transparent hover:bg-gray-50"
-									}`}
-									style={{ gridTemplateColumns: "42px 1fr 34px" }}
+									className="group"
+								style={{
+									display: "grid",
+									gridTemplateColumns: "42px 1fr 38px",
+									gap: "14px",
+									alignItems: "start",
+									padding: "14px 16px",
+									marginBottom: "6px",
+									borderRadius: "16px",
+									background: active ? "#eef4ff" : "#fff",
+									border: active ? "1px solid rgba(37,99,235,.16)" : "1px solid transparent",
+									position: "relative",
+									cursor: "default",
+									transition: "background 320ms, border-color 320ms, box-shadow 320ms",
+									boxShadow: active ? undefined : "0 1px 3px rgba(15,23,42,.045)",
+								}}
 								>
 									<div className="flex flex-col items-center gap-1 pt-0.5">
 										<div
-											className="flex size-7 items-center justify-center rounded-full text-[10px] font-semibold text-white shrink-0"
-											style={{ backgroundColor: avatarBg }}
+											className="flex items-center justify-center text-[14px] font-bold text-white shrink-0"
+											style={{
+												width: "42px",
+												height: "42px",
+												borderRadius: "13px",
+												backgroundColor: avatarBg,
+												boxShadow: "inset 0 0 0 1px rgba(255,255,255,.22), 0 2px 6px rgba(15,23,42,.12)",
+												flexShrink: 0,
+											}}
 											title={group.speaker}
 										>
 											{initials}
 										</div>
-										<span className="text-[10px] font-medium text-gray-400 tabular-nums">
-											{cue.timestamp}
+										<span
+										  style={{
+										    fontSize: "11px",
+										    fontWeight: 600,
+										    color: "#94a3b8",
+										    fontVariantNumeric: "tabular-nums",
+										    background: "#f0f4f9",
+										    padding: "2px 8px",
+										    borderRadius: "999px",
+										  }}
+										>
+										  {cue.timestamp}
 										</span>
 									</div>
 
-									<p className="min-w-0 px-2 pt-1 text-sm leading-relaxed text-gray-800 break-words">
+									<p className="min-w-0 break-words" style={{ fontSize: "13.5px", lineHeight: 1.72, color: "#475569", paddingTop: "4px" }}>
 										{renderMarkdownBold(cue.text)}
 									</p>
 
@@ -229,7 +256,8 @@ export function TranscriptPanel({
 											type="button"
 											onClick={() => onVideoJump?.(cue.startSeconds)}
 											aria-label={`Jump to ${cue.timestamp}`}
-											className="flex size-6 items-center justify-center rounded-full bg-gray-100 text-gray-500 opacity-0 transition-all duration-150 group-hover:opacity-100 hover:scale-110 hover:bg-blue-100 hover:text-blue-600"
+											className="flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-all duration-150 hover:scale-110"
+											style={{ width: "34px", height: "34px", background: "#f0f4f9", color: "#475569" }}
 										>
 											<svg
 												aria-hidden="true"

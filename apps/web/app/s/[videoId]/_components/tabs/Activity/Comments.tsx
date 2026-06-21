@@ -285,7 +285,7 @@ export const Comments = Object.assign(
 					</div>
 
 					{!props.commentInputProps?.disabled && (
-						<div className="flex-none p-2 border-t border-gray-5 bg-gray-2">
+						<div className="flex-none p-2" style={{ borderTop: "1px solid #e9edf3", background: "#f7f9fc" }}>
 							<CommentInput
 								{...props.commentInputProps}
 								placeholder="Leave a comment"

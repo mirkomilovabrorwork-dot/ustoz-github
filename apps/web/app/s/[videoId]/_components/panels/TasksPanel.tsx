@@ -66,13 +66,23 @@ function ProgressBar({ done, total }: { done: number; total: number }) {
 	const pct = total === 0 ? 0 : Math.round((done / total) * 100);
 	return (
 		<div className="flex items-center gap-3">
-			<div className="relative h-2 flex-1 overflow-hidden rounded-full bg-gray-200">
+			<div
+				className="relative flex-1 overflow-hidden rounded-full"
+				style={{ height: "8px", background: "#f0f4f9" }}
+			>
 				<div
-					className="absolute inset-y-0 left-0 rounded-full bg-gray-800 transition-all duration-300"
-					style={{ width: `${pct}%` }}
+					className="absolute inset-y-0 left-0 rounded-full transition-all duration-600"
+					style={{
+						width: `${pct}%`,
+						background: "linear-gradient(90deg, #2563eb, #1d4ed8)",
+						boxShadow: "0 0 10px rgba(37,99,235,.4)",
+					}}
 				/>
 			</div>
-			<span className="w-10 shrink-0 text-right text-xs font-semibold text-gray-700">
+			<span
+				className="w-10 shrink-0 text-right text-xs font-semibold"
+				style={{ color: "#1d4ed8", fontVariantNumeric: "tabular-nums" }}
+			>
 				{pct}%
 			</span>
 		</div>
@@ -188,7 +198,7 @@ function Column({
 	onToggle: (i: number) => void;
 }) {
 	return (
-		<div className="flex flex-col gap-2 bg-gray-50 border border-gray-200 rounded-xl p-4 min-h-[120px] overflow-hidden">
+		<div className="flex flex-col gap-2 min-h-[120px] overflow-hidden" style={{ background: "#f7f9fc", border: "1px solid #e9edf3", borderRadius: "11px", padding: "16px" }}>
 			<div className="flex items-center gap-2">
 				<span className="text-xs font-semibold text-gray-600">{label}</span>
 				<span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
@@ -220,14 +230,22 @@ function TaskCard({
 }) {
 	return (
 		<div
-			className={`flex flex-col gap-2 rounded-lg border p-3 shadow-sm transition-opacity ${task.done ? "border-gray-100 bg-gray-50 opacity-60" : "border-gray-200 bg-white"}`}
+			className="flex flex-col gap-2 transition-opacity"
+			style={{
+				borderRadius: "12px",
+				border: `1px solid ${task.done ? "#f1f4f9" : "#e9edf3"}`,
+				background: task.done ? "#f7f9fc" : "#fff",
+				padding: "13px 14px",
+				boxShadow: "0 1px 2px rgba(15,23,42,.06), 0 2px 6px rgba(15,23,42,.07), inset 0 1px 0 rgba(255,255,255,.65)",
+				opacity: task.done ? 0.6 : 1,
+			}}
 		>
 			<div className="flex items-start gap-2">
 				<input
 					type="checkbox"
 					checked={task.done}
 					onChange={() => onToggle(index)}
-					className="mt-0.5 size-3.5 shrink-0 cursor-pointer accent-gray-800"
+					className="mt-0.5 size-3.5 shrink-0 cursor-pointer accent-blue-600"
 				/>
 				<span
 					className={`text-xs leading-snug text-gray-900 ${task.done ? "line-through" : ""}`}
@@ -296,7 +314,7 @@ function ChecklistView({
 										type="checkbox"
 										checked={t.done}
 										onChange={() => onToggle(i)}
-										className="size-3.5 shrink-0 cursor-pointer accent-gray-800"
+										className="size-3.5 shrink-0 cursor-pointer accent-blue-600"
 									/>
 									<span
 										className={`flex-1 text-sm text-gray-900 ${t.done ? "line-through opacity-50" : ""}`}

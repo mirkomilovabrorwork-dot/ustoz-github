@@ -107,17 +107,18 @@ export function BelowVideoTabs({
 		<div className="flex flex-col w-full">
 			{/* Sticky tab bar */}
 			<div
-				className="sticky top-0 z-10 border-b border-gray-200"
+				className="sticky top-0 z-10"
 				style={{
 					fontFamily:
 						"-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
 					display: "flex",
 					gap: "4px",
 					padding: "8px",
-					background: "rgba(255,255,255,0.95)",
+					background: "linear-gradient(#f7f9fc, #fff)",
 					backdropFilter: "blur(6px)",
 					WebkitBackdropFilter: "blur(6px)",
 					borderRadius: "16px 16px 0 0",
+					borderBottom: "1px solid #e9edf3",
 				}}
 			>
 				{TABS.map((tab) => (
@@ -132,7 +133,7 @@ export function BelowVideoTabs({
 							fontWeight: 600,
 							textAlign: "center",
 							cursor: "pointer",
-							color: activeTab === tab.id ? "#2563eb" : "#475569",
+							color: activeTab === tab.id ? "#1d4ed8" : "#475569",
 							border: "none",
 							borderRadius: "9px",
 							background: activeTab === tab.id ? "#eef4ff" : "none",
@@ -159,13 +160,30 @@ export function BelowVideoTabs({
 						ref={(el) => {
 							sectionRefs.current[id] = el;
 						}}
-						className="bg-white border border-gray-200 rounded-xl shadow-sm p-5"
+						style={{
+							background: "#fff",
+							border: "1px solid #e9edf3",
+							borderRadius: "16px",
+							boxShadow: "0 1px 2px rgba(15,23,42,.06), 0 2px 6px rgba(15,23,42,.07)",
+							padding: "24px 24px 28px",
+						}}
 					>
 						<h2
-							className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3"
-							style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}
+							style={{
+								fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+								fontSize: "11px",
+								fontWeight: 700,
+								letterSpacing: ".07em",
+								textTransform: "uppercase",
+								color: "#94a3b8",
+								marginBottom: "12px",
+								display: "flex",
+								alignItems: "center",
+								gap: "8px",
+							}}
 						>
 							{TABS.find((t) => t.id === id)?.label}
+							<span style={{ flex: 1, height: "1px", background: "#e9edf3", display: "block" }} />
 						</h2>
 						{content}
 					</section>

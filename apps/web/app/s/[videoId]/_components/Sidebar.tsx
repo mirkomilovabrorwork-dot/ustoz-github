@@ -92,7 +92,8 @@ const SidebarAnalytics = ({
 	);
 
 	return (
-		<div className="flex flex-wrap gap-4 items-center justify-between px-4 py-3 border-b border-gray-5">
+		<div className="flex flex-wrap gap-4 items-center justify-between px-4 py-3"
+			style={{ borderBottom: "1px solid #e9edf3" }}>
 			<div className="flex gap-4 items-center">
 				<div className="flex gap-2 items-center">
 					<FontAwesomeIcon className="text-gray-8 size-4" icon={faEye} />
@@ -126,14 +127,16 @@ const ReactionsBlock = ({
 	reactions: Record<string, number>;
 	onReact: (emoji: string) => void;
 }) => (
-	<div className="flex flex-wrap gap-2 p-4 border-t border-gray-5">
+	<div className="flex flex-wrap gap-2 p-4"
+		style={{ borderTop: "1px solid #e9edf3" }}>
 		{REACTIONS.map(({ emoji, label }) => (
 			<button
 				key={emoji}
 				type="button"
 				aria-label={label}
 				onClick={() => onReact(emoji)}
-				className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-5 bg-gray-1 hover:bg-gray-3 transition-colors text-sm font-emoji"
+				className="inline-flex items-center gap-1.5 rounded-full transition-colors text-sm font-emoji"
+				style={{ padding: "6px 12px", background: "#f7f9fc", border: "1px solid #e9edf3", borderRadius: "999px" }}
 			>
 				<span role="img" aria-label={label}>
 					{emoji}
@@ -252,8 +255,14 @@ export const Sidebar = forwardRef<{ scrollToBottom: () => void }, SidebarProps>(
 					<MeetingCostPanel videoId={data.id} />
 				</div>
 
-				<div className="bg-white rounded-2xl border border-gray-5 overflow-hidden flex flex-col">
-					<div className="flex items-center px-4 py-3 border-b border-gray-5">
+				<div className="overflow-hidden flex flex-col" style={{
+					background: "#fff",
+					border: "1px solid #e9edf3",
+					borderRadius: "16px",
+					boxShadow: "0 2px 6px rgba(15,23,42,.06), 0 8px 20px rgba(15,23,42,.10), 0 16px 32px -8px rgba(15,23,42,.08)",
+				}}>
+					<div className="flex items-center px-4 py-3"
+						style={{ borderBottom: "1px solid #e9edf3" }}>
 						<span className="text-sm font-semibold text-gray-12">Comments</span>
 					</div>
 
