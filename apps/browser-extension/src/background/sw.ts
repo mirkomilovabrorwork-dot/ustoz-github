@@ -123,6 +123,21 @@ function updateBadge(state: ExtensionState): void {
 	}
 }
 
+// ── Recording lock ──────────────────────────────────────────────────────────
+//
+// A new recording may start from any TERMINAL state (idle / error / complete) —
+// a finished "complete" recording must NOT block the next one. Only block while
+// media is genuinely being captured or uploaded. (A stale "arming" is transient
+// and intentionally NOT blocking: a fresh user-initiated start supersedes it,
+// otherwise a half-armed attempt would lock out all future recordings.)
+function isInProgress(state: ExtensionState): boolean {
+	return (
+		state.kind === "recording" ||
+		state.kind === "uploading" ||
+		state.kind === "finishing"
+	);
+}
+
 // ── Message routing ────────────────────────────────────────────────────────
 
 interface MessageBase {
@@ -246,8 +261,8 @@ async function handleMessage(
 		// RECORDER_STARTED.
 		case "START_INSTRUCTION": {
 			const state = await getState();
-			if (state.kind !== "idle" && state.kind !== "error") {
-				return { ok: false, error: "already active" };
+			if (isInProgress(state)) {
+				return { ok: false, error: "A recording is already in progress" };
 			}
 			const settings = await getSettings();
 			if (!settings.apiKey) {
@@ -274,8 +289,8 @@ async function handleMessage(
 			const meetingId = getString(msg, "meetingId");
 			const tabId = getNumber(msg, "tabId");
 			const state = await getState();
-			if (state.kind !== "idle" && state.kind !== "error") {
-				return { ok: false, error: "already active" };
+			if (isInProgress(state)) {
+				return { ok: false, error: "A recording is already in progress" };
 			}
 			if (tabId === undefined) {
 				return { ok: false, error: "No Meet tab to record" };
@@ -439,8 +454,8 @@ async function handleMessage(
 			const meetingId = getString(msg, "meetingId");
 			const tabId = _sender.tab?.id;
 			const state = await getState();
-			if (state.kind !== "idle" && state.kind !== "error") {
-				return { ok: false, error: "already active" };
+			if (isInProgress(state)) {
+				return { ok: false, error: "A recording is already in progress" };
 			}
 			const settings = await getSettings();
 			if (!settings.apiKey) {
