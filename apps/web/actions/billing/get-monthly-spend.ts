@@ -1,8 +1,10 @@
 "use server";
 
 import { db } from "@cap/database";
-import { aiUsageEvents } from "@cap/database/schema";
+import { getCurrentUser } from "@cap/database/auth/session";
+import { aiUsageEvents, organizationMembers, organizations, videos } from "@cap/database/schema";
 import { and, eq, sql } from "drizzle-orm";
+import { Organisation, Video } from "@cap/web-domain";
 
 function currentBillingMonth(): string {
 	const now = new Date();
@@ -10,6 +12,13 @@ function currentBillingMonth(): string {
 	const month = String(now.getUTCMonth() + 1).padStart(2, "0");
 	return `${year}-${month}`;
 }
+
+const emptyResult = {
+	totalUsdCents: 0,
+	breakdown: {} as Record<string, number>,
+	capUsdCents: null as number | null,
+	percentUsed: 0,
+};
 
 export async function getMonthlySpend(scope: {
 	type: "user" | "org" | "video";
@@ -20,6 +29,51 @@ export async function getMonthlySpend(scope: {
 	capUsdCents: number | null;
 	percentUsed: number;
 }> {
+	const user = await getCurrentUser();
+	if (!user?.id) return emptyResult;
+
+	if (scope.type === "user") {
+		// A user may only read their own spend.
+		if (scope.id !== user.id) return emptyResult;
+	} else if (scope.type === "org") {
+		// Org spend: caller must be owner or a member of that org.
+		const [org] = await db()
+			.select({ ownerId: organizations.ownerId })
+			.from(organizations)
+			.where(eq(organizations.id, scope.id as Organisation.OrganisationId))
+			.limit(1);
+
+		if (!org) return emptyResult;
+
+		const isOrgOwner = org.ownerId === user.id;
+		if (!isOrgOwner) {
+			const [membership] = await db()
+				.select({ id: organizationMembers.id })
+				.from(organizationMembers)
+				.where(
+					and(
+						eq(organizationMembers.userId, user.id),
+						eq(
+							organizationMembers.organizationId,
+							scope.id as Organisation.OrganisationId,
+						),
+					),
+				)
+				.limit(1);
+
+			if (!membership) return emptyResult;
+		}
+	} else if (scope.type === "video") {
+		// Video spend: caller must own the video.
+		const [video] = await db()
+			.select({ ownerId: videos.ownerId })
+			.from(videos)
+			.where(eq(videos.id, scope.id as Video.VideoId))
+			.limit(1);
+
+		if (!video || video.ownerId !== user.id) return emptyResult;
+	}
+
 	const billingMonth = currentBillingMonth();
 
 	const colMap = {

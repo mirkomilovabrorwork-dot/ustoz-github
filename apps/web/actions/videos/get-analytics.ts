@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@cap/database";
+import { getCurrentUser } from "@cap/database/auth/session";
 import { videos } from "@cap/database/schema";
 import { Tinybird } from "@cap/web-backend";
 import { Video } from "@cap/web-domain";
@@ -37,11 +38,20 @@ export async function getVideoAnalytics(
 ) {
 	if (!videoId) throw new Error("Video ID is required");
 
-	const [{ orgId } = { orgId: null }] = await db()
-		.select({ orgId: videos.orgId })
+	const user = await getCurrentUser();
+
+	const [videoRow = { orgId: null, ownerId: null }] = await db()
+		.select({ orgId: videos.orgId, ownerId: videos.ownerId })
 		.from(videos)
 		.where(eq(videos.id, Video.VideoId.make(videoId)))
 		.limit(1);
+
+	// Only the video owner may read analytics.
+	if (!user?.id || videoRow.ownerId !== user.id) {
+		return { count: 0 };
+	}
+
+	const { orgId } = videoRow;
 
 	return runPromise(
 		Effect.gen(function* () {

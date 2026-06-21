@@ -1,3 +1,5 @@
+import { withGeminiRetry } from "@/lib/gemini-retry";
+
 const BATCH_SIZE = 100;
 export const EMBED_MODEL = "gemini-embedding-001";
 
@@ -30,36 +32,38 @@ export async function embedChunksWithUsage(
 	for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
 		const batch = chunks.slice(i, i + BATCH_SIZE);
 
-		const res = await fetch(
-			`https://generativelanguage.googleapis.com/v1beta/models/${EMBED_MODEL}:batchEmbedContents?key=${apiKey}`,
-			{
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					requests: batch.map((chunk) => ({
-						model: `models/${EMBED_MODEL}`,
-						content: {
-							parts: [{ text: chunk.text }],
-						},
-					})),
-				}),
-			},
-		);
-
-		if (!res.ok) {
-			const errBody = await res.text();
-			throw new Error(
-				`Gemini batchEmbedContents failed: ${res.status} ${errBody}`,
+		const batchData = await withGeminiRetry(async () => {
+			const res = await fetch(
+				`https://generativelanguage.googleapis.com/v1beta/models/${EMBED_MODEL}:batchEmbedContents?key=${apiKey}`,
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						requests: batch.map((chunk) => ({
+							model: `models/${EMBED_MODEL}`,
+							content: {
+								parts: [{ text: chunk.text }],
+							},
+						})),
+					}),
+				},
 			);
-		}
 
-		const data = (await res.json()) as BatchEmbedResponse & {
-			usageMetadata?: { promptTokenCount?: number };
-		};
-		for (const emb of data.embeddings) {
+			if (!res.ok) {
+				const errBody = await res.text();
+				throw new Error(
+					`Gemini batchEmbedContents failed: ${res.status} ${errBody}`,
+				);
+			}
+
+			return (await res.json()) as BatchEmbedResponse & {
+				usageMetadata?: { promptTokenCount?: number };
+			};
+		});
+		for (const emb of batchData.embeddings) {
 			allEmbeddings.push(emb.values);
 		}
-		totalTokens += data.usageMetadata?.promptTokenCount ?? 0;
+		totalTokens += batchData.usageMetadata?.promptTokenCount ?? 0;
 	}
 
 	return { embeddings: allEmbeddings, totalTokens };
