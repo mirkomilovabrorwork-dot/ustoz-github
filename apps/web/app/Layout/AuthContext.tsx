@@ -42,5 +42,10 @@ export function useAuthContext() {
 
 export function useCurrentUser() {
 	const context = use(AuthContext);
-	return use(context?.user ?? anonymousUser);
+	if (!context) {
+		throw new Error(
+			"useCurrentUser must be used within an AuthContextProvider"
+		);
+	}
+	return use(context.user);
 }
