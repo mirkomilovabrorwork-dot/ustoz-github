@@ -3,21 +3,18 @@
 import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { videos } from "@cap/database/schema";
-import { Storage } from "@cap/web-backend";
 import type { Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
 import { Effect, Schedule } from "effect";
 import { runPromise } from "@/lib/server";
 import { startVideoProcessingWorkflow } from "@/lib/video-processing";
-import { decodeStorageVideo } from "@/lib/video-storage";
+import { getStorageAccessForVideo } from "@/lib/video-storage";
 
 async function verifyRawFileUploaded(
 	video: typeof videos.$inferSelect,
 	rawFileKey: string,
 ) {
-	const [bucket] = await Storage.getAccessForVideo(
-		decodeStorageVideo(video),
-	).pipe(runPromise);
+	const [bucket] = await getStorageAccessForVideo(video).pipe(runPromise);
 	const head = await bucket
 		.headObject(rawFileKey)
 		.pipe(

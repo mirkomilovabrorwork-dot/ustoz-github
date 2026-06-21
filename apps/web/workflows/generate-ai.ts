@@ -2,7 +2,6 @@ import { db } from "@cap/database";
 import { organizations, videos } from "@cap/database/schema";
 import type { AiSummary, VideoMetadata } from "@cap/database/types";
 import { serverEnv } from "@cap/env";
-import { Storage } from "@cap/web-backend";
 import {
 	AI_GENERATION_LANGUAGE_AUTO,
 	type AiGenerationLanguage,
@@ -17,7 +16,7 @@ import { z } from "zod";
 import { BudgetExceededError, withCostGuard } from "@/lib/ai-cost-guard";
 import { withGeminiRetry } from "@/lib/gemini-retry";
 import { runPromise } from "@/lib/server";
-import { decodeStorageVideo } from "@/lib/video-storage";
+import { getStorageAccessForVideo } from "@/lib/video-storage";
 
 interface GenerateAiWorkflowPayload {
 	videoId: string;
@@ -150,11 +149,11 @@ export async function generateAiWorkflow(payload: GenerateAiWorkflowPayload) {
 
 	let result: AiResult;
 	try {
-		result = await generateWithAi(
-			transcript,
-			videoData.aiGenerationLanguage,
-			{ orgId: videoData.video.orgId, userId, videoId },
-		);
+		result = await generateWithAi(transcript, videoData.aiGenerationLanguage, {
+			orgId: videoData.video.orgId,
+			userId,
+			videoId,
+		});
 	} catch (error) {
 		if (error instanceof BudgetExceededError) {
 			await markBudgetExceeded(videoId, videoData.metadata);
@@ -227,9 +226,7 @@ async function fetchTranscript(
 	"use step";
 
 	const vtt = await Effect.gen(function* () {
-		const [bucket] = yield* Storage.getAccessForVideo(
-			decodeStorageVideo(video),
-		);
+		const [bucket] = yield* getStorageAccessForVideo(video);
 		return yield* bucket.getObject(`${userId}/${videoId}/transcription.vtt`);
 	}).pipe(runPromise);
 
@@ -586,8 +583,7 @@ async function callAiApi(
 				return { data };
 			});
 
-			const content =
-				data.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
+			const content = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
 			const inputTokens = data.usageMetadata?.promptTokenCount ?? 0;
 			const outputTokens = data.usageMetadata?.candidatesTokenCount ?? 0;
 
@@ -726,7 +722,11 @@ ${chunk.text}`;
 	// Per-chunk refined cleaning: clean raw transcript text, do NOT summarize.
 	// Iterates the ORIGINAL chunks array so every chunk is cleaned regardless of
 	// whether its summary JSON parsed successfully.
-	const refinedChapters: { startSec: number; title: string; paragraphs: string[] }[] = [];
+	const refinedChapters: {
+		startSec: number;
+		title: string;
+		paragraphs: string[];
+	}[] = [];
 	for (let i = 0; i < chunks.length; i++) {
 		const chunk = chunks[i];
 		if (!chunk) continue;
@@ -750,7 +750,11 @@ Return ONLY the cleaned text. No JSON. No explanations.
 
 Transcript (${timeLabel}):
 ${chunk.text}`;
-		const refinedResult = await callAiApi(refinedPrompt, { json: false }, context);
+		const refinedResult = await callAiApi(
+			refinedPrompt,
+			{ json: false },
+			context,
+		);
 		totalInputTokens += refinedResult.inputTokens;
 		totalOutputTokens += refinedResult.outputTokens;
 		const cleanedText = refinedResult.content.trim();
@@ -846,7 +850,9 @@ Rules:
 		// Override refinedTranscript with the per-chunk cleaned result
 		if (refinedChapters.length > 0) {
 			if (aiSummaryRaw && typeof aiSummaryRaw === "object") {
-				(aiSummaryRaw as Record<string, unknown>).refinedTranscript = { chapters: refinedChapters };
+				(aiSummaryRaw as Record<string, unknown>).refinedTranscript = {
+					chapters: refinedChapters,
+				};
 			}
 		}
 		return {

@@ -3,7 +3,11 @@ import { organizations, videos, videoUploads } from "@cap/database/schema";
 import { serverEnv } from "@cap/env";
 import type { Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
-import { assertAiBudgetAvailable, BudgetExceededError } from "@/lib/ai-cost-guard";
+import {
+	assertAiBudgetAvailable,
+	BudgetExceededError,
+} from "@/lib/ai-cost-guard";
+import { isTranscriptionDisabled } from "@/lib/transcription-settings";
 import { transcribeVideoWorkflow } from "@/workflows/transcribe";
 
 type TranscribeResult = {
@@ -56,10 +60,7 @@ export async function transcribeVideo(
 		return { success: false, message: "Video information is missing" };
 	}
 
-	if (
-		video.settings?.disableTranscript ??
-		result.orgSettings?.disableTranscript
-	) {
+	if (isTranscriptionDisabled(video.settings, result.orgSettings)) {
 		console.log(
 			`[transcribeVideo] Transcription disabled for video ${videoId}`,
 		);

@@ -12,7 +12,6 @@ import {
 import type { VideoMetadata } from "@cap/database/types";
 import { serverEnv } from "@cap/env";
 import { userIsPro } from "@cap/utils";
-import { Storage } from "@cap/web-backend";
 import type { Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
 import { FatalError } from "workflow";
@@ -28,7 +27,8 @@ import { transcribeWithGemini } from "@/lib/gemini-transcribe";
 import { startAiGeneration } from "@/lib/generate-ai";
 import { runPromise } from "@/lib/server";
 import { chunkTranscript } from "@/lib/transcript-chunk";
-import { decodeStorageVideo } from "@/lib/video-storage";
+import { isTranscriptionDisabled } from "@/lib/transcription-settings";
+import { getStorageAccessForVideo } from "@/lib/video-storage";
 
 interface TranscribeWorkflowPayload {
 	videoId: string;
@@ -125,10 +125,10 @@ async function validateVideo(videoId: string): Promise<VideoData> {
 		throw new FatalError("Video information is missing");
 	}
 
-	const transcriptionDisabled =
-		result.video.settings?.disableTranscript ??
-		result.orgSettings?.disableTranscript ??
-		false;
+	const transcriptionDisabled = isTranscriptionDisabled(
+		result.video.settings,
+		result.orgSettings,
+	);
 
 	const isOwnerPro = userIsPro(result.owner);
 
@@ -190,9 +190,7 @@ async function extractAudio(
 ): Promise<string | null> {
 	"use step";
 
-	const [bucket] = await Storage.getAccessForVideo(
-		decodeStorageVideo(video),
-	).pipe(runPromise);
+	const [bucket] = await getStorageAccessForVideo(video).pipe(runPromise);
 
 	const videoUrl = await resolveVideoSourceUrl(videoId, userId, video);
 
@@ -247,9 +245,8 @@ async function resolveVideoSourceUrl(
 	userId: string,
 	video: typeof videos.$inferSelect,
 ): Promise<string> {
-	const [resolvedBucket] = await Storage.getAccessForVideo(
-		decodeStorageVideo(video),
-	).pipe(runPromise);
+	const [resolvedBucket] =
+		await getStorageAccessForVideo(video).pipe(runPromise);
 
 	const upload = await db()
 		.select({ rawFileKey: videoUploads.rawFileKey })
@@ -345,9 +342,7 @@ async function saveTranscription(
 ): Promise<void> {
 	"use step";
 
-	const [bucket] = await Storage.getAccessForVideo(
-		decodeStorageVideo(video),
-	).pipe(runPromise);
+	const [bucket] = await getStorageAccessForVideo(video).pipe(runPromise);
 
 	await bucket
 		.putObject(`${userId}/${videoId}/transcription.vtt`, transcription, {
@@ -453,9 +448,7 @@ async function cleanupTempAudio(
 	const audioKey = `${userId}/${videoId}/audio-temp.mp3`;
 
 	try {
-		const [bucket] = await Storage.getAccessForVideo(
-			decodeStorageVideo(video),
-		).pipe(runPromise);
+		const [bucket] = await getStorageAccessForVideo(video).pipe(runPromise);
 
 		await bucket.deleteObject(audioKey).pipe(runPromise);
 	} catch (error) {
@@ -512,9 +505,7 @@ async function _enhanceAndSaveAudio(
 			`[transcribe] Audio enhanced, saving to S3 (${enhancedBuffer.length} bytes)`,
 		);
 
-		const [bucket] = await Storage.getAccessForVideo(
-			decodeStorageVideo(video),
-		).pipe(runPromise);
+		const [bucket] = await getStorageAccessForVideo(video).pipe(runPromise);
 
 		const enhancedAudioKey = `${userId}/${videoId}/enhanced-audio.${ENHANCED_AUDIO_EXTENSION}`;
 

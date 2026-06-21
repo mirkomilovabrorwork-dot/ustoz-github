@@ -1,4 +1,5 @@
 import type { videos } from "@cap/database/schema";
+import { Storage } from "@cap/web-backend";
 import { Video } from "@cap/web-domain";
 import { Option } from "effect";
 
@@ -16,3 +17,6 @@ export const decodeStorageVideo = (video: DbVideo) =>
 		height: Option.fromNullable(video.height),
 		duration: Option.fromNullable(video.duration),
 	});
+
+export const getStorageAccessForVideo = (video: DbVideo) =>
+	Storage.getAccessForVideo(decodeStorageVideo(video));
