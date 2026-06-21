@@ -11,11 +11,6 @@
 import type { Video } from "@cap/web-domain";
 import { CapVideoPlayer } from "./CapVideoPlayer";
 
-interface CaptionOption {
-	code: string;
-	name: string;
-}
-
 interface Props {
 	videoSrc: string;
 	videoId: Video.VideoId;
@@ -30,11 +25,6 @@ interface Props {
 	allowSegmentProbeDuringUpload?: boolean;
 	enhancedAudioUrl?: string | null;
 	enhancedAudioStatus?: string | null;
-	captionLanguage?: string;
-	onCaptionLanguageChange?: (language: string) => void;
-	availableCaptions?: CaptionOption[];
-	isCaptionLoading?: boolean;
-	hasCaptions?: boolean;
 	canRetryProcessing?: boolean;
 	duration?: number | null;
 	defaultPlaybackSpeed?: number;
@@ -52,11 +42,6 @@ export function HLSVideoPlayer({
 	autoplay = false,
 	hasActiveUpload,
 	disableCaptions,
-	captionLanguage,
-	onCaptionLanguageChange,
-	availableCaptions = [],
-	isCaptionLoading = false,
-	hasCaptions = false,
 	canRetryProcessing = false,
 	duration,
 	defaultPlaybackSpeed,
@@ -100,11 +85,6 @@ export function HLSVideoPlayer({
 			enableCrossOrigin
 			hasActiveUpload={hasActiveUpload}
 			disableCaptions={disableCaptions}
-			captionLanguage={captionLanguage}
-			onCaptionLanguageChange={onCaptionLanguageChange}
-			availableCaptions={availableCaptions}
-			isCaptionLoading={isCaptionLoading}
-			hasCaptions={hasCaptions}
 			canRetryProcessing={canRetryProcessing}
 			duration={duration}
 			defaultPlaybackSpeed={defaultPlaybackSpeed}

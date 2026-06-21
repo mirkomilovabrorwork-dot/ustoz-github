@@ -21,7 +21,7 @@ import type { VideoData } from "../types";
 import { AIChatPopup } from "./AIChatPopup";
 import { AIFab } from "./AIFab";
 import { BelowVideoTabs } from "./BelowVideoTabs";
-import { type CaptionLanguage, useCaptionContext } from "./CaptionContext";
+import { useCaptionContext } from "./CaptionContext";
 import { CapVideoPlayer } from "./CapVideoPlayer";
 import {
 	shouldDeferPlaybackSource,
@@ -115,10 +115,6 @@ export const ShareVideo = forwardRef<
 		}, [aiGenerationStatus, router]);
 
 		const captionContext = useCaptionContext();
-
-		const handleCaptionLanguageChange = (language: string) => {
-			captionContext.setSelectedLanguage(language as CaptionLanguage);
-		};
 
 		const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
 		const [subtitleUrl, setSubtitleUrl] = useState<string | null>(null);
@@ -430,11 +426,6 @@ export const ShareVideo = forwardRef<
 								authorImage: comment.authorImage ?? undefined,
 							}))}
 							onSeek={handleSeek}
-							captionLanguage={captionContext.selectedLanguage}
-							onCaptionLanguageChange={handleCaptionLanguageChange}
-							availableCaptions={captionContext.availableTranslations}
-							isCaptionLoading={captionContext.isTranslating}
-							hasCaptions={data.transcriptionStatus === "COMPLETE"}
 							canRetryProcessing={canRetryProcessing}
 							chapters={
 								areChaptersDisabled

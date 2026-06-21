@@ -72,11 +72,6 @@ function getProgressStatusText(
 
 type EnhancedAudioStatus = "PROCESSING" | "COMPLETE" | "ERROR" | "SKIPPED";
 
-interface CaptionOption {
-	code: string;
-	name: string;
-}
-
 interface Props {
 	videoSrc: string;
 	rawFallbackSrc?: string;
@@ -103,11 +98,6 @@ interface Props {
 	onSeek?: (time: number) => void;
 	enhancedAudioUrl?: string | null;
 	enhancedAudioStatus?: EnhancedAudioStatus | null;
-	captionLanguage?: string;
-	onCaptionLanguageChange?: (language: string) => void;
-	availableCaptions?: CaptionOption[];
-	isCaptionLoading?: boolean;
-	hasCaptions?: boolean;
 	canRetryProcessing?: boolean;
 	duration?: number | null;
 	defaultPlaybackSpeed?: number;
@@ -137,11 +127,6 @@ export function CapVideoPlayer({
 	onSeek,
 	enhancedAudioUrl: _enhancedAudioUrl,
 	enhancedAudioStatus: _enhancedAudioStatus,
-	captionLanguage,
-	onCaptionLanguageChange,
-	availableCaptions = [],
-	isCaptionLoading = false,
-	hasCaptions = false,
 	canRetryProcessing = false,
 	duration: fallbackDuration,
 	defaultPlaybackSpeed,
@@ -913,11 +898,6 @@ export function CapVideoPlayer({
 							// enhancedAudioStatus={enhancedAudioStatus}
 							// enhancedAudioEnabled={enhancedAudioEnabled}
 							// setEnhancedAudioEnabled={setEnhancedAudioEnabled}
-							captionLanguage={captionLanguage}
-							onCaptionLanguageChange={onCaptionLanguageChange}
-							availableCaptions={availableCaptions}
-							isCaptionLoading={isCaptionLoading}
-							hasCaptions={hasCaptions}
 						/>
 						<MediaPlayerPiP />
 						<MediaPlayerFullscreen />
