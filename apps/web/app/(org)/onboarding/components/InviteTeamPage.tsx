@@ -11,8 +11,12 @@ import { type MouseEvent, startTransition, useId, useState } from "react";
 import { toast } from "sonner";
 import { useStripeContext } from "@/app/Layout/StripeContext";
 import { useEffectMutation, useRpcClient } from "@/lib/EffectRuntime";
-import { homepageCopy } from "../../../../data/homepage-copy";
 import { Base } from "./Base";
+
+const CAP_PRO_LABELS = {
+	monthly: "Monthly",
+	annually: "Annual (save 32%)",
+};
 
 export function InviteTeamPage() {
 	const billingCycleId = useId();
@@ -22,9 +26,8 @@ export function InviteTeamPage() {
 	const router = useRouter();
 	const rpc = useRpcClient();
 
-	const CAP_PRO_ANNUAL_PRICE_PER_USER = homepageCopy.pricing.pro.pricing.annual;
-	const CAP_PRO_MONTHLY_PRICE_PER_USER =
-		homepageCopy.pricing.pro.pricing.monthly;
+	const CAP_PRO_ANNUAL_PRICE_PER_USER = 8.16;
+	const CAP_PRO_MONTHLY_PRICE_PER_USER = 12;
 
 	const currentTotalPrice =
 		users *
@@ -210,7 +213,7 @@ export function InviteTeamPage() {
 								!isAnnually ? "text-gray-12" : "text-gray-10",
 							)}
 						>
-							{homepageCopy.pricing.pro.labels.monthly}
+							{CAP_PRO_LABELS.monthly}
 						</span>
 						<Switch
 							checked={isAnnually}
@@ -225,7 +228,7 @@ export function InviteTeamPage() {
 								isAnnually ? "text-gray-12" : "text-gray-10",
 							)}
 						>
-							{homepageCopy.pricing.pro.labels.annually}
+							{CAP_PRO_LABELS.annually}
 						</span>
 					</div>
 				</div>

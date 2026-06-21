@@ -1,7 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { getBlogPosts, getDocs } from "@/utils/blog";
-import { seoPages } from "../lib/seo-pages";
+import { getDocs } from "@/utils/blog";
 
 async function getPagePaths(
 	dir: string,
@@ -51,21 +50,6 @@ export default async function sitemap() {
 	const appDirectory = path.join(process.cwd(), "app");
 	const pagePaths = await getPagePaths(appDirectory);
 
-	// Add blog post routes
-	const blogPosts = getBlogPosts();
-	const blogRoutes = blogPosts.map((post) => {
-		const publishedAt =
-			"publishedAt" in post.metadata
-				? post.metadata.publishedAt
-				: new Date().toISOString();
-		const publishDate = new Date(publishedAt);
-		publishDate.setHours(9, 0, 0, 0); // Set time to 9:00 AM
-		return {
-			path: `/blog/${post.slug}`,
-			lastModified: publishDate.toISOString(),
-		};
-	});
-
 	// Add docs routes
 	const docs = getDocs();
 	const docsRoutes = docs.map((doc) => ({
@@ -73,14 +57,8 @@ export default async function sitemap() {
 		lastModified: new Date().toISOString(), // You might want to add a publishedAt to doc metadata
 	}));
 
-	// Add SEO pages
-	const seoRoutes = Object.keys(seoPages).map((slug) => ({
-		path: `/${slug}`,
-		lastModified: new Date().toISOString(),
-	}));
-
 	// Combine routes and ensure '/' is first
-	const allRoutes = [...pagePaths, ...blogRoutes, ...docsRoutes, ...seoRoutes];
+	const allRoutes = [...pagePaths, ...docsRoutes];
 	const homeRoute = allRoutes.find((route) => route.path === "/");
 	const otherRoutes = allRoutes.filter((route) => route.path !== "/");
 

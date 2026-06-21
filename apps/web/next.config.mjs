@@ -48,7 +48,6 @@ const nextConfig = {
 	serverExternalPackages: ["ffmpeg-static", "prettier"],
 	outputFileTracingIncludes: {
 		"/.well-known/workflow/v1/step": ffmpegTracingIncludes,
-		"/api/tools/loom-download": ffmpegTracingIncludes,
 	},
 	transpilePackages: [
 		"@cap/ui",
