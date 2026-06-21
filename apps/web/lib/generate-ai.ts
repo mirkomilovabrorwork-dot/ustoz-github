@@ -94,11 +94,17 @@ export async function startAiGeneration(
 					.from(videos)
 					.where(eq(videos.id, videoId))
 					.limit(1);
+				const currentMeta = (current?.metadata as VideoMetadata) ?? {};
+				// Don't clobber a concurrent success: if another run already
+				// finished, leave COMPLETE in place instead of overwriting ERROR.
+				if (currentMeta.aiGenerationStatus === "COMPLETE") {
+					return;
+				}
 				await db()
 					.update(videos)
 					.set({
 						metadata: {
-							...(current?.metadata ?? {}),
+							...currentMeta,
 							aiGenerationStatus: "ERROR",
 						},
 					})

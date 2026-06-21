@@ -99,6 +99,8 @@ function parseAiSummary(raw: unknown): AiSummary | null {
 }
 
 const MAX_CHARS_PER_CHUNK = 24000;
+const AI_SUMMARY_FAILURE_PLACEHOLDER =
+	"The AI was unable to generate a proper summary for this content.";
 const GENERATED_TITLE_PATTERN =
 	/^(Cap (Recording|Upload) - .+|Untitled|\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}|.+ \((Display|Window|Area|Camera)\) \d{4}-\d{2}-\d{2} \d{2}:\d{2} [AP]M)$/;
 
@@ -346,13 +348,24 @@ async function saveResults(
 		: metadata;
 	const currentTitle = currentVideo?.name ?? video.name;
 
+	const mergedSummary = result.summary || currentMetadata.summary;
+	const mergedAiSummary = result.aiSummary ?? currentMetadata.aiSummary;
+	const summaryText = mergedSummary?.trim() ?? "";
+	// An empty Gemini response ("{}") parses to no summary and no aiSummary —
+	// don't save that as COMPLETE (UI would show empty content with no retry).
+	// Mark ERROR so the user gets a retryable state instead.
+	const hasUsableContent =
+		(summaryText.length > 0 &&
+			summaryText !== AI_SUMMARY_FAILURE_PLACEHOLDER) ||
+		Boolean(mergedAiSummary);
+
 	const updatedMetadata: VideoMetadata = {
 		...currentMetadata,
 		aiTitle: generatedTitle || currentMetadata.aiTitle,
-		summary: result.summary || currentMetadata.summary,
+		summary: mergedSummary,
 		chapters: result.chapters || currentMetadata.chapters,
-		aiSummary: result.aiSummary ?? currentMetadata.aiSummary,
-		aiGenerationStatus: "COMPLETE",
+		aiSummary: mergedAiSummary,
+		aiGenerationStatus: hasUsableContent ? "COMPLETE" : "ERROR",
 	};
 
 	await db()
@@ -822,8 +835,7 @@ function parseAiResponse(content: string): AiResult {
 	} catch {
 		return {
 			title: "Generated Title",
-			summary:
-				"The AI was unable to generate a proper summary for this content.",
+			summary: AI_SUMMARY_FAILURE_PLACEHOLDER,
 			chapters: [],
 			aiSummary: null,
 		};

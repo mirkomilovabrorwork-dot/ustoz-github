@@ -10,6 +10,7 @@ import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 import type { NextRequest } from "next/server";
 import { EMBED_MODEL, embedChunksWithUsage } from "@/lib/gemini-embed";
+import { withGeminiRetry } from "@/lib/gemini-retry";
 import { runPromise } from "@/lib/server";
 import { retrieveTopK } from "@/lib/transcript-retrieve";
 
@@ -241,33 +242,45 @@ export async function POST(request: NextRequest) {
 					})),
 				];
 
-				const geminiRes = await fetch(
-					`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:streamGenerateContent?alt=sse&key=${resolvedApiKey}`,
-					{
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({
-							system_instruction: {
-								parts: [
-									{
-										text: "You answer questions about a meeting recording. Use ONLY the provided transcript context. Cite timestamps as [mm:ss]. The content may be in Uzbek, Russian, or English — respond in the same language.",
-									},
-								],
-							},
-							contents: geminiMessages,
-							generationConfig: {
-								temperature: 0.2,
-								maxOutputTokens: 1024,
-							},
-						}),
-					},
-				);
+				// Retry the initial connect on transient Gemini errors
+				// (429/500/503/overloaded), matching summary/transcription.
+				const geminiRes = await withGeminiRetry(async () => {
+					const res = await fetch(
+						`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:streamGenerateContent?alt=sse&key=${resolvedApiKey}`,
+						{
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({
+								system_instruction: {
+									parts: [
+										{
+											text: "You answer questions about a meeting recording. Use ONLY the provided transcript context. Cite timestamps as [mm:ss]. The content may be in Uzbek, Russian, or English — respond in the same language.",
+										},
+									],
+								},
+								contents: geminiMessages,
+								generationConfig: {
+									temperature: 0.2,
+									maxOutputTokens: 1024,
+								},
+							}),
+						},
+					);
 
-				if (!geminiRes.ok || !geminiRes.body) {
-					const errText = await geminiRes
-						.text()
-						.catch(() => String(geminiRes.status));
-					send(JSON.stringify({ error: `Gemini error: ${errText}` }));
+					if (!res.ok) {
+						const errText = await res
+							.text()
+							.catch(() => String(res.status));
+						throw new Error(`Gemini error: ${errText}`);
+					}
+
+					return res;
+				});
+
+				if (!geminiRes.body) {
+					send(
+						JSON.stringify({ error: "Gemini error: empty response body" }),
+					);
 					send("[DONE]");
 					controller.close();
 					return;
