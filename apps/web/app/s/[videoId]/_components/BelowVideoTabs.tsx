@@ -105,9 +105,10 @@ export function BelowVideoTabs({
 
 	return (
 		<div className="flex flex-col w-full">
-			{/* Sticky tab bar */}
+			{/* Tab bar */}
 			<div
-				className="sticky top-0 z-10"
+				className=""
+				role="tablist"
 				style={{
 					fontFamily:
 						"-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
@@ -119,15 +120,21 @@ export function BelowVideoTabs({
 					WebkitBackdropFilter: "blur(6px)",
 					borderRadius: "16px 16px 0 0",
 					borderBottom: "1px solid #e9edf3",
+					overflowX: "auto",
+					flexWrap: "nowrap",
+					WebkitOverflowScrolling: "touch",
 				}}
 			>
 				{TABS.map((tab) => (
 					<button
 						key={tab.id}
 						type="button"
+						role="tab"
+						aria-selected={activeTab === tab.id}
 						onClick={() => handleTabClick(tab.id)}
 						style={{
-							flex: 1,
+							flex: "0 0 auto",
+							minWidth: "80px",
 							padding: "9px 8px",
 							fontSize: "13.5px",
 							fontWeight: 600,
@@ -166,6 +173,7 @@ export function BelowVideoTabs({
 							borderRadius: "16px",
 							boxShadow: "0 1px 2px rgba(15,23,42,.06), 0 2px 6px rgba(15,23,42,.07)",
 							padding: "24px 24px 28px",
+							scrollMarginTop: "210px",
 						}}
 					>
 						<h2
@@ -175,7 +183,7 @@ export function BelowVideoTabs({
 								fontWeight: 700,
 								letterSpacing: ".07em",
 								textTransform: "uppercase",
-								color: "#94a3b8",
+								color: "#64748b",
 								marginBottom: "12px",
 								display: "flex",
 								alignItems: "center",

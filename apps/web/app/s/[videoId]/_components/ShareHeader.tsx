@@ -1,7 +1,15 @@
 "use client";
 
 import { buildEnv, NODE_ENV } from "@cap/env";
-import { Button, LogoBadge } from "@cap/ui";
+import {
+	Button,
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+	LogoBadge,
+} from "@cap/ui";
 import { formatPlatformDateRelative } from "@cap/utils";
 import type { ViewerSettingKey } from "@cap/web-backend";
 import {
@@ -16,6 +24,7 @@ import {
 	Check,
 	Clock,
 	Copy,
+	Ellipsis,
 	Globe2,
 	Pencil,
 	Scissors,
@@ -524,14 +533,28 @@ export const ShareHeader = ({
 								/>
 							)}
 							<div className="relative" ref={copyOptionsRef}>
+								{/* Full pill: visible on sm+ */}
 								<button
 									type="button"
 									onClick={handleCopyClick}
-									className="inline-flex items-center gap-2 rounded-full border border-gray-6 bg-gray-3 px-3 py-1.5 text-sm text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12"
+									className="hidden sm:inline-flex items-center gap-2 rounded-full border border-gray-6 bg-gray-3 px-3 py-1.5 text-sm text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12"
 								>
 									<span className="max-w-[50vw] truncate sm:max-w-72">
 										{getDisplayLink()}
 									</span>
+									{linkCopied ? (
+										<Check className="w-3.5 h-3.5 shrink-0 text-green-600 svgpathanimation" />
+									) : (
+										<Copy className="w-3.5 h-3.5 shrink-0" />
+									)}
+								</button>
+								{/* Icon-only copy button: visible on mobile only */}
+								<button
+									type="button"
+									onClick={handleCopyClick}
+									aria-label="Copy link"
+									className="inline-flex sm:hidden items-center justify-center rounded-full border border-gray-6 bg-gray-3 p-1.5 text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12"
+								>
 									{linkCopied ? (
 										<Check className="w-3.5 h-3.5 shrink-0 text-green-600 svgpathanimation" />
 									) : (
@@ -559,6 +582,66 @@ export const ShareHeader = ({
 									</div>
 								)}
 							</div>
+
+							{/* Mobile-only "…" overflow menu (owner only) */}
+							{isOwner && (
+								<DropdownMenu>
+									<DropdownMenuTrigger asChild>
+										<button
+											type="button"
+											aria-label="More actions"
+											className="inline-flex sm:hidden items-center justify-center rounded-full border border-gray-6 bg-gray-3 p-1.5 text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12"
+										>
+											<Ellipsis className="w-3.5 h-3.5 shrink-0" />
+										</button>
+									</DropdownMenuTrigger>
+									<DropdownMenuContent align="end">
+										{canEditVideo && (
+											<DropdownMenuItem onClick={handleEditVideo}>
+												<Scissors className="mr-2 size-3.5 text-gray-12" />
+												Edit video
+											</DropdownMenuItem>
+										)}
+										<DropdownMenuItem
+											onClick={() =>
+												push(`/dashboard/analytics?capId=${data.id}`)
+											}
+										>
+											<FontAwesomeIcon
+												className="mr-2 size-3.5 text-gray-12"
+												icon={faChartSimple}
+											/>
+											View analytics
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											onClick={() => push("/dashboard/caps?page=1")}
+										>
+											Go to dashboard
+										</DropdownMenuItem>
+										{canManageSharePageBranding && branding && (
+											<>
+												<DropdownMenuSeparator />
+												<DropdownMenuItem
+													disabled={isOpeningBrandingSettings}
+													onClick={handleEditBranding}
+												>
+													<Pencil className="mr-2 size-3.5 text-gray-12" />
+													Change logo
+												</DropdownMenuItem>
+												{branding.type === "cap" && (
+													<DropdownMenuItem
+														disabled={isHidingBranding}
+														onClick={handleHideBranding}
+													>
+														<X className="mr-2 size-3.5 text-gray-12" />
+														Remove logo
+													</DropdownMenuItem>
+												)}
+											</>
+										)}
+									</DropdownMenuContent>
+								</DropdownMenu>
+							)}
 						</div>
 					</div>
 
@@ -596,7 +679,7 @@ export const ShareHeader = ({
 						</div>
 
 						{isOwner && (
-							<div className="flex flex-wrap items-center gap-2 sm:justify-end">
+							<div className="hidden sm:flex flex-wrap items-center gap-2 sm:justify-end">
 								{canEditVideo && (
 									<Button
 										variant="gray"

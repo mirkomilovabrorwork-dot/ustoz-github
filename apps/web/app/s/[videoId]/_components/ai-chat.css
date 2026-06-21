@@ -30,7 +30,7 @@
 .ai-fab {
 	position: fixed;
 	right: 26px;
-	bottom: 26px;
+	bottom: calc(26px + env(safe-area-inset-bottom, 0px));
 	z-index: 2147483002;
 	width: 62px;
 	height: 62px;
@@ -730,4 +730,11 @@
 	font-size: 10.5px;
 	color: var(--g-text-3);
 	margin-top: 8px;
+}
+
+/* Hide FAB when any text input on the page is focused (e.g. comment box / on-screen keyboard) */
+.ai-fab.input-focused {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.85);
 }

@@ -179,8 +179,22 @@ export function TranscriptPanel({
 
 	if (!transcriptContent || cues.length === 0) {
 		return (
-			<div className="flex items-center justify-center h-full">
-				<p className="text-sm text-gray-500">No transcript available.</p>
+			<div className="flex flex-col items-center justify-center gap-3 px-4 py-10 text-center">
+				<svg
+					aria-hidden="true"
+					xmlns="http://www.w3.org/2000/svg"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="#94a3b8"
+					strokeWidth="1.5"
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					className="size-8"
+				>
+					<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+				</svg>
+				<p className="text-sm font-medium text-gray-600">No transcript available</p>
+				<p className="text-xs text-gray-400">Transcript will appear here once processing is complete</p>
 			</div>
 		);
 	}
@@ -236,7 +250,7 @@ export function TranscriptPanel({
 										  style={{
 										    fontSize: "11px",
 										    fontWeight: 600,
-										    color: "#94a3b8",
+										    color: "#64748b",
 										    fontVariantNumeric: "tabular-nums",
 										    background: "#f0f4f9",
 										    padding: "2px 8px",
