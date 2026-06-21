@@ -33,20 +33,108 @@ function isBlockedIpv4(ip: string): boolean {
 	);
 }
 
+/**
+ * Expand a full or compressed IPv6 address string (stripped of zone-id and
+ * surrounding brackets) into exactly 16 bytes.  Returns null if the input
+ * cannot be parsed — callers must treat null as "blocked" (fail-closed).
+ *
+ * Handles:
+ *  - `::` compression anywhere
+ *  - an embedded dotted-quad IPv4 tail (e.g. `::ffff:192.0.2.1`)
+ */
+function parseIPv6Bytes(address: string): Uint8Array | null {
+	// Split on "::" to find the compressed gap (at most one).
+	const halves = address.split("::");
+	if (halves.length > 2) return null; // more than one "::" — invalid
+
+	const parseGroups = (segment: string): number[] | null => {
+		if (segment === "") return [];
+		const parts = segment.split(":");
+		const groups: number[] = [];
+		for (const part of parts) {
+			// Last group may be a dotted-quad IPv4 tail.
+			if (part.includes(".")) {
+				const v4Parts = part.split(".").map(Number);
+				if (
+					v4Parts.length !== 4 ||
+					v4Parts.some((n) => !Number.isInteger(n) || n < 0 || n > 255)
+				)
+					return null;
+				// Encode as two 16-bit groups.
+				const [a = 0, b = 0, c = 0, d = 0] = v4Parts;
+				groups.push((a << 8) | b, (c << 8) | d);
+			} else {
+				if (part.length === 0 || part.length > 4) return null;
+				const n = Number.parseInt(part, 16);
+				if (Number.isNaN(n)) return null;
+				groups.push(n);
+			}
+		}
+		return groups;
+	};
+
+	let groups: number[];
+
+	if (halves.length === 1) {
+		// No "::" — must be exactly 8 groups.
+		const g = parseGroups(halves[0] ?? "");
+		if (!g || g.length !== 8) return null;
+		groups = g;
+	} else {
+		// Has "::" — left and right halves fill the missing groups.
+		const left = parseGroups(halves[0] ?? "");
+		const right = parseGroups(halves[1] ?? "");
+		if (!left || !right) return null;
+		const missing = 8 - left.length - right.length;
+		if (missing < 0) return null;
+		groups = [...left, ...Array(missing).fill(0), ...right];
+	}
+
+	if (groups.length !== 8) return null;
+
+	// Flatten 8 × 16-bit groups → 16 bytes.
+	const bytes = new Uint8Array(16);
+	for (let i = 0; i < 8; i++) {
+		bytes[i * 2] = (groups[i]! >> 8) & 0xff;
+		bytes[i * 2 + 1] = groups[i]! & 0xff;
+	}
+	return bytes;
+}
+
 function isBlockedIpv6(ip: string): boolean {
 	const normalized = ip.toLowerCase();
 
 	// Strip a zone id (e.g. fe80::1%eth0) if present.
 	const address = normalized.split("%")[0] ?? normalized;
 
-	if (address === "::1" || address === "::") return true; // loopback / unspecified
-	if (address.startsWith("fe80")) return true; // fe80::/10 link-local
-	if (address.startsWith("fc") || address.startsWith("fd")) return true; // fc00::/7 unique-local
+	const bytes = parseIPv6Bytes(address);
+	// Fail closed: if we can't parse it, block it.
+	if (!bytes) return true;
 
-	// IPv4-mapped / -compatible IPv6 (e.g. ::ffff:169.254.169.254).
-	const lastColon = address.lastIndexOf(":");
-	const tail = lastColon >= 0 ? address.slice(lastColon + 1) : address;
-	if (net.isIPv4(tail) && isBlockedIpv4(tail)) return true;
+	// ::1  loopback
+	// ::   unspecified
+	const allZero = bytes.every((b) => b === 0);
+	if (allZero) return true; // ::
+	const loopback =
+		bytes.slice(0, 15).every((b) => b === 0) && bytes[15] === 1;
+	if (loopback) return true; // ::1
+
+	// fe80::/10  link-local  (byte0 == 0xfe && (byte1 & 0xc0) == 0x80)
+	if (bytes[0] === 0xfe && (bytes[1]! & 0xc0) === 0x80) return true;
+
+	// fc00::/7  unique-local  (byte0 == 0xfc or 0xfd)
+	if (bytes[0] === 0xfc || bytes[0] === 0xfd) return true;
+
+	// ::ffff:0:0/96  IPv4-mapped  (bytes 0-9 zero, bytes 10-11 == 0xff)
+	const isMapped =
+		bytes.slice(0, 10).every((b) => b === 0) &&
+		bytes[10] === 0xff &&
+		bytes[11] === 0xff;
+	if (isMapped) {
+		// Extract the trailing IPv4 (bytes 12-15) and reuse the IPv4 blocker.
+		const v4 = `${bytes[12]}.${bytes[13]}.${bytes[14]}.${bytes[15]}`;
+		if (isBlockedIpv4(v4)) return true;
+	}
 
 	return false;
 }

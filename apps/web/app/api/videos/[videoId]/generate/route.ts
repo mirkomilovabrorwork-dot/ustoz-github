@@ -84,9 +84,19 @@ export async function POST(
       const metadata = (video.metadata as VideoMetadata) || {};
       const aiStatus = metadata.aiGenerationStatus;
 
-      // AI already done
+      // AI already done — only if real content is present (summary or aiSummary).
+      // If status is COMPLETE but content is missing/empty, fall through to retry.
       if (aiStatus === "COMPLETE") {
-        return Response.json({ alreadyRunning: true });
+        const hasContent =
+          (typeof metadata.summary === "string" && metadata.summary.length > 0) ||
+          (metadata.aiSummary != null &&
+            typeof metadata.aiSummary === "object" &&
+            typeof (metadata.aiSummary as { overview?: unknown }).overview === "string" &&
+            ((metadata.aiSummary as { overview: string }).overview.length > 0));
+        if (hasContent) {
+          return Response.json({ alreadyRunning: true });
+        }
+        // COMPLETE but empty — fall through to startAiGeneration below
       }
 
       // AI in-flight

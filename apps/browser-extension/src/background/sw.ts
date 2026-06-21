@@ -570,6 +570,28 @@ chrome.runtime.onMessageExternal.addListener(
 						sendResponse({ ok: false, error: "untrusted origin" });
 						return;
 					}
+					// Guard against a trusted sender repointing uploads to a different
+					// backend: if the message carries an apiBaseUrl whose origin differs
+					// from the sender's own origin, reject the write.
+					if (apiBaseUrl) {
+						const senderOrigin = originOf(_sender.url);
+						const requestedOrigin = originOf(apiBaseUrl);
+						if (
+							!senderOrigin ||
+							!requestedOrigin ||
+							senderOrigin !== requestedOrigin
+						) {
+							console.warn(
+								"Rejected CAP_EXTENSION_TOKEN: apiBaseUrl origin mismatch",
+								{ senderOrigin, requestedOrigin },
+							);
+							sendResponse({
+								ok: false,
+								error: "apiBaseUrl/origin mismatch",
+							});
+							return;
+						}
+					}
 					setSettings({
 						apiKey: token ?? "",
 						...(apiBaseUrl ? { apiBaseUrl } : {}),

@@ -94,6 +94,8 @@ async function fetchFreshLoomDownloadUrl(loomVideoId: string): Promise<string> {
 	);
 }
 
+const MAX_REDIRECTS = 5;
+
 async function downloadVideoContent(downloadUrl: string): Promise<Buffer> {
 	if (!validateLoomDownloadUrl(downloadUrl)) {
 		throw new FatalError(
@@ -101,32 +103,74 @@ async function downloadVideoContent(downloadUrl: string): Promise<Buffer> {
 		);
 	}
 
-	const loomResponse = await fetch(downloadUrl);
-	if (!loomResponse.ok) {
-		throw new FatalError(
-			`Failed to download from Loom: ${loomResponse.status} ${loomResponse.statusText}`,
-		);
-	}
+	// Manually walk redirects so we can validate each hop BEFORE fetching it,
+	// preventing SSRF via a redirect to an internal/metadata host.
+	let currentUrl = downloadUrl;
+	let redirectCount = 0;
 
-	// `fetch` follows redirects by default; re-validate the final URL so a
-	// redirect cannot send us to an internal/untrusted host (SSRF).
-	if (loomResponse.url && !validateLoomDownloadUrl(loomResponse.url)) {
-		throw new FatalError(
-			"Loom download was redirected to an untrusted host. The import was blocked for security reasons.",
-		);
-	}
+	while (true) {
+		const response = await fetch(currentUrl, { redirect: "manual" });
 
-	const contentType = loomResponse.headers.get("content-type") ?? "";
-	if (
-		contentType.includes("text/html") ||
-		contentType.includes("application/json")
-	) {
-		throw new FatalError(
-			`Loom returned non-video content (${contentType}). The download URL may have expired.`,
-		);
-	}
+		// 3xx — validate the Location before following
+		if (
+			response.status >= 300 &&
+			response.status < 400 &&
+			response.status !== 304
+		) {
+			if (redirectCount >= MAX_REDIRECTS) {
+				throw new FatalError(
+					`Loom download exceeded the maximum redirect limit (${MAX_REDIRECTS}). The import was blocked for security reasons.`,
+				);
+			}
 
-	return Buffer.from(await loomResponse.arrayBuffer());
+			const location = response.headers.get("location");
+			if (!location) {
+				throw new FatalError(
+					"Loom download returned a redirect with no Location header.",
+				);
+			}
+
+			// Resolve the Location URL relative to the current URL, then validate
+			// it against the Loom allow-list BEFORE following the hop.
+			let nextUrl: string;
+			try {
+				nextUrl = new URL(location, currentUrl).toString();
+			} catch {
+				throw new FatalError(
+					"Loom download redirect contained a malformed Location URL.",
+				);
+			}
+
+			if (!validateLoomDownloadUrl(nextUrl)) {
+				throw new FatalError(
+					"Loom download was redirected to an untrusted host. The import was blocked for security reasons.",
+				);
+			}
+
+			currentUrl = nextUrl;
+			redirectCount++;
+			continue;
+		}
+
+		// Final 2xx response — run content checks here
+		if (!response.ok) {
+			throw new FatalError(
+				`Failed to download from Loom: ${response.status} ${response.statusText}`,
+			);
+		}
+
+		const contentType = response.headers.get("content-type") ?? "";
+		if (
+			contentType.includes("text/html") ||
+			contentType.includes("application/json")
+		) {
+			throw new FatalError(
+				`Loom returned non-video content (${contentType}). The download URL may have expired.`,
+			);
+		}
+
+		return Buffer.from(await response.arrayBuffer());
+	}
 }
 
 interface VideoProcessingResult {
