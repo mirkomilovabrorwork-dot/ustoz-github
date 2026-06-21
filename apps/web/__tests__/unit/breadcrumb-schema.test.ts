@@ -143,7 +143,8 @@ const toolPages: Array<{ file: string; breadcrumbItems: string[] }> = [
 	},
 ];
 
-describe("Breadcrumb structured data in tools pages", () => {
+// updated: app/(site)/tools route files removed in self-hosted Ustoz fork
+describe.skip("Breadcrumb structured data in tools pages", () => {
 	for (const { file, breadcrumbItems } of toolPages) {
 		it(`${file} calls createBreadcrumbSchema`, () => {
 			const content = readPage(file);
@@ -163,7 +164,8 @@ describe("Breadcrumb structured data in tools pages", () => {
 		}
 	}
 
-	it("dynamic [conversionPath] route generates breadcrumb from path param", () => {
+	it.skip("dynamic [conversionPath] route generates breadcrumb from path param", () => {
+		// updated: (site)/tools/convert/[conversionPath] removed in self-hosted Ustoz fork
 		const content = readPage("(site)/tools/convert/[conversionPath]/page.tsx");
 		expect(content).toContain("createBreadcrumbSchema");
 		expect(content).toContain(

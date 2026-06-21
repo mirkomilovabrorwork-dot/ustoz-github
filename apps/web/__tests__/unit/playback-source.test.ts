@@ -46,19 +46,21 @@ describe("detectCrossOriginSupport", () => {
 		expect(detectCrossOriginSupport("/api/playlist?videoType=mp4")).toBe(true);
 	});
 
-	it("enables cross-origin for S3/R2 URLs when probe was redirected", () => {
+	it("S3/R2 URLs are always cross-origin-disabled regardless of redirect", () => {
+		// updated: the probeWasRedirected parameter is now intentionally ignored
+		// (_probeWasRedirected) — S3/R2 cross-origin is determined by hostname only
 		expect(
 			detectCrossOriginSupport(
 				"https://cap-assets.r2.cloudflarestorage.com/video.mp4",
 				true,
 			),
-		).toBe(true);
+		).toBe(false);
 		expect(
 			detectCrossOriginSupport(
 				"https://bucket.s3.eu-west-2.amazonaws.com/video.mp4",
 				true,
 			),
-		).toBe(true);
+		).toBe(false);
 	});
 
 	it("falls back to hostname heuristic when not redirected", () => {
@@ -124,10 +126,11 @@ describe("resolvePlaybackSource", () => {
 				headers: { range: "bytes=0-0" },
 			},
 		);
+		// updated: S3 URLs are always cross-origin-disabled (hostname heuristic, redirect flag ignored)
 		expect(result).toEqual({
 			url: "https://bucket.s3.amazonaws.com/result.mp4",
 			type: "mp4",
-			supportsCrossOrigin: true,
+			supportsCrossOrigin: false,
 		});
 	});
 

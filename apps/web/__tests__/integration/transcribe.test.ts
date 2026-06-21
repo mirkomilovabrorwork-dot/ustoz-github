@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@cap/env", () => ({
 	serverEnv: vi.fn(() => ({
-		DEEPGRAM_API_KEY: "test-deepgram-api-key",
+		GEMINI_API_KEY: "test-gemini-api-key",
 		DATABASE_URL: "mysql://test@localhost/test",
 	})),
 }));
@@ -78,10 +78,10 @@ describe("transcribeVideo", () => {
 	});
 
 	describe("input validation", () => {
-		it("requires DEEPGRAM_API_KEY environment variable", async () => {
+		it("requires GEMINI_API_KEY environment variable", async () => {
 			const { serverEnv } = await import("@cap/env");
 			vi.mocked(serverEnv).mockReturnValueOnce({
-				DEEPGRAM_API_KEY: undefined,
+				GEMINI_API_KEY: undefined,
 			} as ReturnType<typeof serverEnv>);
 
 			const result = await transcribeVideo(
@@ -204,15 +204,16 @@ describe("transcribeVideo", () => {
 					orgSettings: { disableTranscript: true },
 				},
 			];
-			mockStart.mockResolvedValue({ id: "run-123" });
-
+			// updated: transcribeVideoWorkflow must return a Promise so .catch() doesn't throw
+			vi.mocked(transcribeVideoWorkflow).mockResolvedValueOnce(undefined as never);
 			const result = await transcribeVideo(
 				"video-123" as Video.VideoId,
 				"user-456",
 			);
 
 			expect(result.success).toBe(true);
-			expect(mockStart).toHaveBeenCalled();
+			// updated: transcribeVideo now calls transcribeVideoWorkflow() inline
+			expect(transcribeVideoWorkflow).toHaveBeenCalled();
 		});
 	});
 
@@ -281,6 +282,8 @@ describe("transcribeVideo", () => {
 				},
 			];
 			mockStart.mockResolvedValue({ id: "workflow-run-123" });
+			// updated: transcribeVideoWorkflow is now called inline (not via start()); must return a Promise
+			vi.mocked(transcribeVideoWorkflow).mockResolvedValue(undefined as never);
 		});
 
 		it("does not trigger while upload is still active", async () => {
@@ -303,44 +306,60 @@ describe("transcribeVideo", () => {
 			);
 
 			expect(result.success).toBe(true);
-			expect(result.message).toBe("Transcription workflow started");
-			expect(mockStart).toHaveBeenCalledTimes(1);
+			// updated: transcribeVideo now calls transcribeVideoWorkflow() inline, not via workflow/api start()
+			expect(result.message).toBe("Transcription started inline");
 		});
 
 		it("passes correct payload to workflow", async () => {
 			await transcribeVideo("video-123" as Video.VideoId, "user-456", true);
 
-			expect(mockStart).toHaveBeenCalledWith(transcribeVideoWorkflow, [
-				{
-					videoId: "video-123",
-					userId: "user-456",
-					aiGenerationEnabled: true,
-				},
-			]);
+			// updated: transcribeVideo now calls transcribeVideoWorkflow() inline, not via workflow/api start()
+			expect(transcribeVideoWorkflow).toHaveBeenCalledWith({
+				videoId: "video-123",
+				userId: "user-456",
+				aiGenerationEnabled: true,
+			});
 		});
 
 		it("defaults aiGenerationEnabled to false", async () => {
 			await transcribeVideo("video-123" as Video.VideoId, "user-456");
 
-			expect(mockStart).toHaveBeenCalledWith(transcribeVideoWorkflow, [
-				{
-					videoId: "video-123",
-					userId: "user-456",
-					aiGenerationEnabled: false,
-				},
-			]);
+			// updated: transcribeVideo now calls transcribeVideoWorkflow() inline, not via workflow/api start()
+			expect(transcribeVideoWorkflow).toHaveBeenCalledWith({
+				videoId: "video-123",
+				userId: "user-456",
+				aiGenerationEnabled: false,
+			});
 		});
 
 		it("handles workflow trigger failure gracefully", async () => {
-			mockStart.mockRejectedValue(new Error("Workflow service unavailable"));
+			// updated: transcribeVideoWorkflow is fire-and-forget with .catch(); an async
+			// rejection does NOT flip success — the function returns "started" immediately.
+			// Only a SYNCHRONOUS throw from the trigger causes success:false.
+			vi.mocked(transcribeVideoWorkflow).mockReturnValueOnce(
+				Promise.reject(new Error("Async workflow failure")),
+			);
 
 			const result = await transcribeVideo(
 				"video-123" as Video.VideoId,
 				"user-456",
 			);
 
-			expect(result.success).toBe(false);
-			expect(result.message).toBe("Failed to start transcription workflow");
+			// async rejection is swallowed by .catch() — callers sees "started"
+			expect(result.success).toBe(true);
+			expect(result.message).toBe("Transcription started inline");
+
+			// Also verify: a synchronous throw (not a rejected promise) causes success:false
+			vi.mocked(transcribeVideoWorkflow).mockImplementationOnce(() => {
+				throw new Error("Sync trigger failure");
+			});
+
+			const syncResult = await transcribeVideo(
+				"video-123" as Video.VideoId,
+				"user-456",
+			);
+			expect(syncResult.success).toBe(false);
+			expect(syncResult.message).toBe("Failed to start transcription workflow");
 		});
 	});
 });

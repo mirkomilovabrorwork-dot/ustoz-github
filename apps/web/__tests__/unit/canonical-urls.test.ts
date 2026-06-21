@@ -111,7 +111,8 @@ const expectedCanonicals: Array<{ file: string; canonical: string }> = [
 	},
 ];
 
-describe("Canonical URLs", () => {
+// updated: app/(site) route files removed in self-hosted Ustoz fork (marketing pages stripped)
+describe.skip("Canonical URLs", () => {
 	for (const { file, canonical } of expectedCanonicals) {
 		it(`${file} contains canonical "${canonical}"`, () => {
 			const content = readPage(file);
@@ -119,7 +120,8 @@ describe("Canonical URLs", () => {
 		});
 	}
 
-	it("dynamic [conversionPath] route generates canonical from path param", () => {
+	it.skip("dynamic [conversionPath] route generates canonical from path param", () => {
+		// updated: (site)/tools/convert/[conversionPath] removed in self-hosted Ustoz fork
 		const content = readPage("(site)/tools/convert/[conversionPath]/page.tsx");
 		expect(content).toContain(
 			`canonical: \`https://cap.so/tools/convert/\${conversionPath}\``,

@@ -3,17 +3,22 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createFAQSchema } from "@/utils/web-schema";
 
-const pageSource = readFileSync(
-	join(process.cwd(), "app/(site)/(seo)/best-screen-recorder/page.tsx"),
-	"utf-8",
-);
+// updated: app/(site) route files removed in self-hosted Ustoz fork — skip if absent
+function tryReadFile(p: string): string {
+	try {
+		return readFileSync(p, "utf-8");
+	} catch {
+		return "";
+	}
+}
+const pageSource = tryReadFile(join(process.cwd(), "app/(site)/(seo)/best-screen-recorder/page.tsx"));
 
 const componentSource = readFileSync(
 	join(process.cwd(), "components/pages/seo/BestScreenRecorderPage.tsx"),
 	"utf-8",
 );
 
-describe("BestScreenRecorderPage metadata", () => {
+describe.skipIf(!pageSource)("BestScreenRecorderPage metadata", () => {
 	it("contains canonical URL", () => {
 		expect(pageSource).toContain(
 			'canonical: "https://cap.so/best-screen-recorder"',

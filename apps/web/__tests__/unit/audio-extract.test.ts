@@ -61,7 +61,8 @@ describe("audio-extract", () => {
 			}, 10);
 
 			const result = await resultPromise;
-			expect(result).toBe(true);
+			// updated: checkHasAudioTrack now returns VideoProbeResult object, not bare boolean
+			expect(result.hasAudio).toBe(true);
 		});
 
 		it("returns false when video has no audio stream", async () => {
@@ -78,7 +79,8 @@ describe("audio-extract", () => {
 			}, 10);
 
 			const result = await resultPromise;
-			expect(result).toBe(false);
+			// updated: checkHasAudioTrack now returns VideoProbeResult object, not bare boolean
+			expect(result.hasAudio).toBe(false);
 		});
 
 		it("returns false when ffmpeg errors", async () => {

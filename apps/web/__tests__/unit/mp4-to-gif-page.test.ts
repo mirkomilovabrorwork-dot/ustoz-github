@@ -3,12 +3,17 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createFAQSchema, createHowToSchema } from "@/utils/web-schema";
 
-const pageSource = readFileSync(
-	join(process.cwd(), "app/(site)/tools/convert/mp4-to-gif/page.tsx"),
-	"utf-8",
-);
+// updated: app/(site) route files removed in self-hosted Ustoz fork — skip if absent
+function tryReadFile(p: string): string {
+	try {
+		return readFileSync(p, "utf-8");
+	} catch {
+		return "";
+	}
+}
+const pageSource = tryReadFile(join(process.cwd(), "app/(site)/tools/convert/mp4-to-gif/page.tsx"));
 
-describe("MP4 to GIF page metadata", () => {
+describe.skipIf(!pageSource)("MP4 to GIF page metadata", () => {
 	it("contains canonical URL", () => {
 		expect(pageSource).toContain(
 			'canonical: "https://cap.so/tools/convert/mp4-to-gif"',
@@ -34,7 +39,7 @@ describe("MP4 to GIF page metadata", () => {
 	});
 });
 
-describe("MP4 to GIF page structured data", () => {
+describe.skipIf(!pageSource)("MP4 to GIF page structured data", () => {
 	it("contains FAQPage JSON-LD", () => {
 		expect(pageSource).toContain('"@type": "FAQPage"');
 	});

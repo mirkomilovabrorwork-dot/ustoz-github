@@ -3,17 +3,22 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createFAQSchema } from "@/utils/web-schema";
 
-const pageSource = readFileSync(
-	join(process.cwd(), "app/(site)/(seo)/async-video-code-reviews/page.tsx"),
-	"utf-8",
-);
+// updated: app/(site) route files removed in self-hosted Ustoz fork — skip if absent
+function tryReadFile(p: string): string {
+	try {
+		return readFileSync(p, "utf-8");
+	} catch {
+		return "";
+	}
+}
+const pageSource = tryReadFile(join(process.cwd(), "app/(site)/(seo)/async-video-code-reviews/page.tsx"));
 
 const componentSource = readFileSync(
 	join(process.cwd(), "components/pages/seo/AsyncVideoCodeReviewsPage.tsx"),
 	"utf-8",
 );
 
-describe("AsyncVideoCodeReviewsPage metadata", () => {
+describe.skipIf(!pageSource)("AsyncVideoCodeReviewsPage metadata", () => {
 	it("contains canonical URL", () => {
 		expect(pageSource).toContain(
 			'canonical: "https://cap.so/async-video-code-reviews"',

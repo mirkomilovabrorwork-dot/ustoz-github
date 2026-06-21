@@ -532,10 +532,12 @@ describe("VideosPolicy.canView", () => {
 	});
 
 	describe("video not found", () => {
-		it("allows access when video does not exist", async () => {
+		it("denies access when video does not exist", async () => {
+			// updated: F028 security fix — non-existent video now denies access
+			// to prevent information leakage about whether a video ID exists
 			const deps = makeDeps({ video: null });
 
-			expect(await runCanView(deps, noUser)).toBe("allowed");
+			expect(await runCanView(deps, noUser)).toBe("denied");
 		});
 	});
 
