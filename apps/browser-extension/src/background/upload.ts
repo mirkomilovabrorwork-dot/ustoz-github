@@ -113,7 +113,7 @@ async function moveToDeadLetter(item: RetryItem): Promise<void> {
 	chrome.notifications.create({
 		type: "basic",
 		iconUrl: "/icons/icon-48.png",
-		title: "Cap upload failed",
+		title: "data365 upload failed",
 		message: "Upload failed — recording saved locally as fallback",
 	});
 }
@@ -306,8 +306,8 @@ export async function initializeUpload(
 	});
 	const name =
 		mode === "meeting" && meetingId
-			? `Cap Meeting — ${meetingId}`
-			: `Cap Recording — ${dateStr}`;
+			? `data365 Meeting — ${meetingId}`
+			: `data365 Recording — ${dateStr}`;
 
 	const { id: videoId } = await api.createVideo({
 		recordingMode: "extensionWeb",

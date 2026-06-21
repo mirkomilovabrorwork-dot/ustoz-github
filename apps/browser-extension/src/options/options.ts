@@ -245,8 +245,8 @@ function buildAccountSection(
 	apiBaseUrlInput.id = "apiBaseUrl";
 	apiBaseUrlInput.className = "text-input";
 	apiBaseUrlInput.value = settings.apiBaseUrl || DEFAULT_API_BASE_URL;
-	apiBaseUrlInput.placeholder = "https://your-cap-instance.com";
-	container.appendChild(fieldGroup("Cap Server URL", apiBaseUrlInput));
+	apiBaseUrlInput.placeholder = "https://your-data365-instance.com";
+	container.appendChild(fieldGroup("data365 Server URL", apiBaseUrlInput));
 
 	const apiKeyWrapper = document.createElement("div");
 	apiKeyWrapper.className = "input-with-button";
@@ -256,7 +256,7 @@ function buildAccountSection(
 	apiKeyInput.id = "apiKey";
 	apiKeyInput.className = "text-input";
 	apiKeyInput.value = settings.apiKey || "";
-	apiKeyInput.placeholder = "Paste your Cap API key";
+	apiKeyInput.placeholder = "Paste your data365 API key";
 
 	const showHideBtn = document.createElement("button");
 	showHideBtn.type = "button";
@@ -379,7 +379,7 @@ function buildAccountSection(
 	const signInBtn = document.createElement("button");
 	signInBtn.type = "button";
 	signInBtn.className = "btn btn--secondary";
-	signInBtn.textContent = "Sign in with Cap";
+	signInBtn.textContent = "Sign in with data365";
 	signInBtn.addEventListener("click", () => {
 		const baseUrl = apiBaseUrlInput.value.trim() || DEFAULT_API_BASE_URL;
 		const extensionId = chrome.runtime.id;
@@ -537,7 +537,7 @@ function buildMeetSection(
 	const warningBox = document.createElement("div");
 	warningBox.className = "warning-box";
 	warningBox.textContent =
-		"Auto-recording will start a 5-second countdown when you join a Google Meet call. Make sure participants have consented to being recorded. Cap will never start recording without showing this countdown. You can cancel during the countdown.";
+		"Auto-recording will start a 5-second countdown when you join a Google Meet call. Make sure participants have consented to being recorded. data365 will never start recording without showing this countdown. You can cancel during the countdown.";
 	warningBox.style.display = settings.autoRecordOnMeet ? "block" : "none";
 	autoRecordGroup.appendChild(warningBox);
 	container.appendChild(autoRecordGroup);
@@ -626,7 +626,7 @@ function buildAboutSection(
 
 	const version = document.createElement("p");
 	version.className = "about-version";
-	version.textContent = "Cap Recorder v0.1.0";
+	version.textContent = "data365 Recorder v0.1.0";
 	container.appendChild(version);
 
 	const links = document.createElement("div");
@@ -636,7 +636,7 @@ function buildAboutSection(
 
 	const linkDefs: Array<{ label: string; href: string }> = [
 		{ label: "Extension page", href: `${baseUrl}/extension/install` },
-		{ label: "Cap Dashboard", href: `${baseUrl}/dashboard` },
+		{ label: "data365 Dashboard", href: `${baseUrl}/dashboard` },
 		{
 			label: "Report an issue",
 			href: "https://github.com/CapSoftware/Cap/issues",
@@ -657,7 +657,7 @@ function buildAboutSection(
 
 	const tagline = document.createElement("p");
 	tagline.className = "about-tagline";
-	tagline.textContent = "Cap is the open-source Loom alternative";
+	tagline.textContent = "data365 — screen recording for instruction";
 	container.appendChild(tagline);
 }
 

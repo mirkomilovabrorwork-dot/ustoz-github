@@ -1,8 +1,8 @@
 {
 	"manifest_version": 3,
-	"name": "Cap Recorder",
+	"name": "data365 Recorder",
 	"version": "0.1.0",
-	"description": "Record your screen and share instantly with Cap — the open-source Loom alternative.",
+	"description": "Record your screen and share instantly with data365.",
 	"action": {
 		"default_popup": "popup.html",
 		"default_icon": {

@@ -238,12 +238,12 @@ function renderIdlePanel(
 	logo.src = "icons/icon-128.png";
 	logo.width = 28;
 	logo.height = 28;
-	logo.alt = "Cap";
+	logo.alt = "data365";
 
 	const logoLabel = el(
 		"span",
 		{ className: "panel-logo-label" },
-		"Cap Recorder",
+		"data365 Recorder",
 	);
 	const logoRow = el("div", { className: "panel-logo-row" }, logo, logoLabel);
 	root.appendChild(logoRow);
@@ -452,16 +452,16 @@ function renderNotSignedIn(
 			src: "icons/icon-128.png",
 			width: 48,
 			height: 48,
-			alt: "Cap",
+			alt: "data365",
 		} as unknown as Partial<HTMLImageElement>),
-		el("h1", {}, "Cap Recorder"),
+		el("h1", {}, "data365 Recorder"),
 	);
 
 	// ── PRIMARY: OAuth button ──────────────────────────────────────────────
 	const signInBtn = el(
 		"button",
 		{ className: "btn btn-primary" },
-		"Sign in with Cap",
+		"Sign in with data365",
 	);
 
 	const oauthMsg = el("p", { className: "inline-msg" });
@@ -519,7 +519,7 @@ function renderNotSignedIn(
 	const keyHint = el(
 		"p",
 		{ className: "inline-msg" },
-		"Find your key at: Cap server → /extension/callback",
+		"Find your key at: data365 server → /extension/callback",
 	);
 	keyHint.style.fontSize = "11px";
 	keyHint.style.color = "#888";
@@ -941,14 +941,14 @@ function renderOnboarding(root: HTMLElement, onDone: () => void): void {
 	logo.src = "icons/icon-128.png";
 	logo.width = 48;
 	logo.height = 48;
-	logo.alt = "Cap";
+	logo.alt = "data365";
 
-	const heading = el("h1", {}, "Welcome to Cap");
+	const heading = el("h1", {}, "Welcome to data365");
 
 	const list = el(
 		"ul",
 		{ className: "onboarding-list" },
-		el("li", {}, "Cap records what you choose — screen, window, or tab"),
+		el("li", {}, "data365 records what you choose — screen, window, or tab"),
 		el(
 			"li",
 			{},

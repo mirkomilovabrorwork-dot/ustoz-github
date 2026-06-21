@@ -124,13 +124,13 @@ function scheduleMeetEnded(): void {
 function friendlyStartError(error: unknown): string {
 	const raw = typeof error === "string" ? error.toLowerCase() : "";
 	if (raw.includes("already")) return "A recording is already running.";
-	if (raw.includes("not signed")) return "Sign in to Cap first.";
+	if (raw.includes("not signed")) return "Sign in to data365 first.";
 	if (
 		raw.includes("not been invoked") ||
 		raw.includes("activetab") ||
 		raw.includes("active tab")
 	) {
-		return "Click the Cap extension icon, then Record Meeting.";
+		return "Click the data365 extension icon, then Record Meeting.";
 	}
 	if (raw.includes("meet tab") || raw.includes("tab")) {
 		return "Open this Meet tab, then try Record now again.";
