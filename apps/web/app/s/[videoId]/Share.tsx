@@ -534,29 +534,25 @@ export const Share = ({
 		>
 			<div className="mt-4">
 				<div className="flex flex-col gap-4 lg:flex-row">
-					<div className="flex-1">
-						<div className="overflow-visible relative bg-white rounded-2xl border aspect-video border-gray-5">
-							<div className="absolute inset-3 w-[calc(100%-1.5rem)] h-[calc(100%-1.5rem)] overflow-visible rounded-xl">
-								<ShareVideo
-									data={{ ...data, transcriptionStatus }}
-									comments={comments}
-									areChaptersDisabled={areChaptersDisabled}
-									areCaptionsDisabled={areCaptionsDisabled}
-									areCommentStampsDisabled={areCommentStampsDisabled}
-									areReactionStampsDisabled={areReactionStampsDisabled}
-									chapters={aiData?.chapters || []}
-									aiGenerationStatus={aiData?.aiGenerationStatus}
-									canRetryProcessing={viewerId === data.owner.id}
-									canFinalizeDesktopSegments={viewerId === data.owner.id}
-									showPlaybackStatusBadge={viewerId === data.owner.id}
-									isEditProcessing={isEditProcessing}
-									recordingStopped={recordingStopped}
-									defaultPlaybackSpeed={defaultPlaybackSpeed}
-									canGenerate={canGenerate}
-									ref={playerRef}
-								/>
-							</div>
-						</div>
+					<div className="flex-1 min-w-0">
+						<ShareVideo
+							data={{ ...data, transcriptionStatus }}
+							comments={comments}
+							areChaptersDisabled={areChaptersDisabled}
+							areCaptionsDisabled={areCaptionsDisabled}
+							areCommentStampsDisabled={areCommentStampsDisabled}
+							areReactionStampsDisabled={areReactionStampsDisabled}
+							chapters={aiData?.chapters || []}
+							aiGenerationStatus={aiData?.aiGenerationStatus}
+							canRetryProcessing={viewerId === data.owner.id}
+							canFinalizeDesktopSegments={viewerId === data.owner.id}
+							showPlaybackStatusBadge={viewerId === data.owner.id}
+							isEditProcessing={isEditProcessing}
+							recordingStopped={recordingStopped}
+							defaultPlaybackSpeed={defaultPlaybackSpeed}
+							canGenerate={canGenerate}
+							ref={playerRef}
+						/>
 					</div>
 
 					{!allSettingsDisabled && (
