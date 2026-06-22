@@ -57,6 +57,43 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "./video/tooltip";
 
 const { circumference } = getProgressCircleConfig();
 
+function RawPlaybackStatusBadge({
+	visible,
+	label,
+	description,
+}: {
+	visible: boolean;
+	label: string;
+	description: string;
+}) {
+	return (
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<button
+					type="button"
+					className={clsx(
+						"absolute top-3 left-3 z-10 inline-flex items-center gap-1 rounded-full border border-white/10 bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white/90 backdrop-blur-sm transition-colors hover:bg-black/70",
+						visible ? "opacity-100" : "pointer-events-none opacity-0",
+					)}
+					aria-hidden={!visible}
+					aria-label={description}
+					tabIndex={visible ? undefined : -1}
+				>
+					<InfoIcon className="size-3" />
+					<span>{label}</span>
+				</button>
+			</TooltipTrigger>
+			<TooltipContent
+				side="bottom"
+				align="start"
+				className="max-w-[260px] border border-white/10 bg-black/90 px-3 py-2 text-xs leading-relaxed text-white shadow-xl"
+			>
+				{description}
+			</TooltipContent>
+		</Tooltip>
+	);
+}
+
 function getProgressStatusText(
 	status: "uploading" | "processing" | "generating_thumbnail",
 ) {
@@ -639,27 +676,11 @@ export function CapVideoPlayer({
 					<LogoSpinner className="w-8 h-auto animate-spin sm:w-10" />
 				</div>
 			</div>
-			{showRawPlaybackBadge && (
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<button
-							type="button"
-							className="absolute top-3 left-3 z-10 inline-flex items-center gap-1 rounded-full border border-white/10 bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white/90 backdrop-blur-sm transition-colors hover:bg-black/70"
-							aria-label={rawPlaybackBadgeDescription}
-						>
-							<InfoIcon className="size-3" />
-							<span>{rawPlaybackBadgeLabel}</span>
-						</button>
-					</TooltipTrigger>
-					<TooltipContent
-						side="bottom"
-						align="start"
-						className="max-w-[260px] border border-white/10 bg-black/90 px-3 py-2 text-xs leading-relaxed text-white shadow-xl"
-					>
-						{rawPlaybackBadgeDescription}
-					</TooltipContent>
-				</Tooltip>
-			)}
+			<RawPlaybackStatusBadge
+				visible={showRawPlaybackBadge}
+				label={rawPlaybackBadgeLabel}
+				description={rawPlaybackBadgeDescription}
+			/>
 			<VideoPreviewGif
 				videoId={videoId}
 				visible={
