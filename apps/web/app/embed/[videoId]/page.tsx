@@ -26,7 +26,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import * as EffectRuntime from "@/lib/server";
-import { EmbedVideo } from "./_components/EmbedVideo";
+import { EmbedVideoIsland } from "./_components/EmbedVideoIsland";
 import { PasswordOverlay } from "./_components/PasswordOverlay";
 
 export async function generateMetadata(
@@ -325,7 +325,7 @@ async function EmbedContent({
 		.limit(1);
 
 	return (
-		<EmbedVideo
+		<EmbedVideoIsland
 			data={video}
 			user={user}
 			comments={commentsQuery}
