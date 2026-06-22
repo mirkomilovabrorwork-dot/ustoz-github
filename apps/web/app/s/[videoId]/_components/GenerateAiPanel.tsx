@@ -1,7 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import type { Video } from "@cap/web-domain";
 
 type TranscriptionStatus =
@@ -28,65 +27,55 @@ interface GenerateAiPanelProps {
   onStarted?: () => void;
 }
 
-/**
- * Derives a deterministic percent [0..100] and a human label from the two
- * pipeline statuses.  The bar itself uses CSS animation to sweep within each
- * phase range so it always appears to be moving, even without finer progress.
- *
- * Mapping:
- *   null / not-started                       →   0 %
- *   transcription PROCESSING                 →  10 – 45 %  (midpoint label 30 %)
- *   transcription COMPLETE + AI QUEUED       →  50 %
- *   transcription COMPLETE + AI PROCESSING   →  55 – 90 %  (midpoint label 72 %)
- *   COMPLETE                                 → 100 %
- */
-function deriveProgress(
+function deriveProgressState(
   transcriptionStatus: TranscriptionStatus | null | undefined,
   aiGenerationStatus: AiGenerationStatus | null | undefined,
 ): {
-  percent: number;
   label: string;
-  eta: string;
-  phase: "idle" | "transcribing" | "generating" | "done";
+  phase: "idle" | "transcribing" | "queued" | "generating" | "done";
 } {
   if (
     transcriptionStatus === "COMPLETE" &&
     (aiGenerationStatus === "COMPLETE" || aiGenerationStatus === "SKIPPED")
   ) {
-    return { percent: 100, label: "Analysis ready", eta: "", phase: "done" };
+    return { label: "Analysis ready", phase: "done" };
   }
 
   if (
     transcriptionStatus === "COMPLETE" &&
-    (aiGenerationStatus === "PROCESSING" || aiGenerationStatus === "QUEUED")
+    aiGenerationStatus === "QUEUED"
   ) {
     return {
-      percent: 72, // midpoint of 55–90 range
-      label: "Generating AI analysis… ~72%",
-      eta: "About 1–2 minutes left",
+      label: "Transcript ready — AI analysis queued…",
+      phase: "queued",
+    };
+  }
+
+  if (
+    transcriptionStatus === "COMPLETE" &&
+    aiGenerationStatus === "PROCESSING"
+  ) {
+    return {
+      label: "Generating AI analysis…",
       phase: "generating",
     };
   }
 
   if (transcriptionStatus === "COMPLETE") {
     return {
-      percent: 50,
       label: "Transcript ready — starting AI…",
-      eta: "About 1–3 minutes left",
-      phase: "generating",
+      phase: "queued",
     };
   }
 
   if (transcriptionStatus === "PROCESSING") {
     return {
-      percent: 30, // midpoint of 10–45 range
-      label: "Transcribing audio… ~30%",
-      eta: "About 1–2 minutes left",
+      label: "Transcribing audio…",
       phase: "transcribing",
     };
   }
 
-  return { percent: 0, label: "Preparing…", eta: "", phase: "idle" };
+  return { label: "Preparing…", phase: "idle" };
 }
 
 export function GenerateAiPanel({
@@ -99,24 +88,6 @@ export function GenerateAiPanel({
 }: GenerateAiPanelProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
-  const prevAiStatus = useRef<AiGenerationStatus | null | undefined>(
-    aiGenerationStatus,
-  );
-
-  // When AI generation transitions to COMPLETE, refresh the route so the
-  // server-rendered tabs (Tasks/Refined, which read metadata.aiSummary)
-  // re-render automatically — no manual page reload needed.
-  useEffect(() => {
-    if (
-      prevAiStatus.current !== "COMPLETE" &&
-      aiGenerationStatus === "COMPLETE"
-    ) {
-      router.refresh();
-    }
-    prevAiStatus.current = aiGenerationStatus;
-  }, [aiGenerationStatus, router]);
-
   const isRunning =
     transcriptionStatus === "PROCESSING" ||
     aiGenerationStatus === "QUEUED" ||
@@ -154,71 +125,64 @@ export function GenerateAiPanel({
     }
   };
 
-  // ── Running state: percent progress bar ──────────────────────────────────
+  // ── Running state: persisted pipeline stage ──────────────────────────────
   if (isRunning) {
-    const { percent, label, eta, phase } = deriveProgress(
+    const { label, phase } = deriveProgressState(
       transcriptionStatus,
       aiGenerationStatus,
     );
-
-    // CSS animation range per phase so the bar visibly moves
-    const animFrom =
-      phase === "transcribing" ? "10%" : phase === "generating" ? "55%" : "0%";
-    const animTo =
-      phase === "transcribing" ? "45%" : phase === "generating" ? "90%" : "5%";
+    const steps = [
+      {
+        key: "transcribing",
+        label: "Transcribing",
+        state:
+          transcriptionStatus === "COMPLETE"
+            ? "done"
+            : phase === "transcribing"
+              ? "current"
+              : "pending",
+      },
+      {
+        key: "generating",
+        label: "AI analysis",
+        state:
+          aiGenerationStatus === "COMPLETE" || aiGenerationStatus === "SKIPPED"
+            ? "done"
+            : phase === "queued" || phase === "generating"
+              ? "current"
+              : "pending",
+      },
+    ] as const;
 
     return (
       <div className="flex flex-col gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-4 dark:border-blue-900 dark:bg-blue-950/40">
         {/* Header row */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <SpinnerIcon />
-            <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
-              Analyzing…
-            </span>
-          </div>
-          <span className="text-sm font-bold tabular-nums text-blue-700 dark:text-blue-300">
-            {percent}%
+        <div className="flex items-center gap-2">
+          <SpinnerIcon />
+          <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+            Analyzing…
           </span>
         </div>
 
-        {/* Progress bar */}
-        <div
-          className="relative h-2.5 w-full overflow-hidden rounded-full bg-blue-200 dark:bg-blue-800"
-          role="progressbar"
-          aria-valuenow={percent}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label="AI analysis progress"
-        >
-          {/* Animated fill */}
-          <div
-            className="absolute inset-y-0 left-0 rounded-full bg-blue-600 dark:bg-blue-400"
-            style={{
-              width: `${percent}%`,
-              // Sweep within the phase range to look alive
-              animation: `progressSweep 3s ease-in-out infinite alternate`,
-              ["--from" as string]: animFrom,
-              ["--to" as string]: animTo,
-            }}
-          />
+        <div className="flex gap-2" aria-label="AI analysis stage">
+          {steps.map((step) => (
+            <div
+              key={step.key}
+              className={`flex-1 rounded-full px-3 py-1.5 text-center text-xs font-medium ${
+                step.state === "done"
+                  ? "bg-blue-600 text-white dark:bg-blue-400 dark:text-blue-950"
+                  : step.state === "current"
+                    ? "bg-blue-100 text-blue-700 ring-1 ring-blue-300 dark:bg-blue-900 dark:text-blue-200 dark:ring-blue-700"
+                    : "bg-blue-100/60 text-blue-400 dark:bg-blue-900/40 dark:text-blue-500"
+              }`}
+            >
+              {step.label}
+            </div>
+          ))}
         </div>
 
         {/* Label */}
         <p className="text-sm text-blue-700 dark:text-blue-300">{label}</p>
-
-        {/* ETA */}
-        {eta && (
-          <p className="text-xs text-blue-400 dark:text-blue-500">{eta}</p>
-        )}
-
-        {/* Inline keyframes — scoped to this panel */}
-        <style>{`
-          @keyframes progressSweep {
-            from { width: var(--from); }
-            to   { width: var(--to); }
-          }
-        `}</style>
       </div>
     );
   }

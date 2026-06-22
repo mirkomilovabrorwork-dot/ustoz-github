@@ -2,7 +2,7 @@
 
 import { db } from "@cap/database";
 import { videos, videoUploads } from "@cap/database/schema";
-import type { VideoMetadata } from "@cap/database/types";
+import type { AiSummary, VideoMetadata } from "@cap/database/types";
 import { provideOptionalAuth, VideosPolicy } from "@cap/web-backend";
 import { Policy, type Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
@@ -34,8 +34,27 @@ export interface VideoStatusResult {
 	aiTitle: string | null;
 	summary: string | null;
 	chapters: { title: string; start: number }[] | null;
+	aiSummary: AiSummary | null;
 	error?: string;
 }
+
+const getAiStatusData = (metadata: VideoMetadata) => {
+	const aiSummary = metadata.aiSummary ?? null;
+	const legacyChapters =
+		aiSummary?.chapters && aiSummary.chapters.length > 0
+			? aiSummary.chapters.map((chapter) => ({
+					title: chapter.title,
+					start: chapter.startSec,
+				}))
+			: metadata.chapters || null;
+
+	return {
+		aiTitle: metadata.aiTitle || null,
+		summary: aiSummary?.overview || metadata.summary || null,
+		chapters: legacyChapters,
+		aiSummary,
+	};
+};
 
 export async function getVideoStatus(
 	videoId: Video.VideoId,
@@ -56,6 +75,7 @@ export async function getVideoStatus(
 	if (!video) throw new Error("Video not found");
 
 	const metadata: VideoMetadata = (video.metadata as VideoMetadata) || {};
+	const aiStatusData = getAiStatusData(metadata);
 
 	if (!video.transcriptionStatus) {
 		const activeUpload = await db()
@@ -94,9 +114,7 @@ export async function getVideoStatus(
 			aiGenerationStatus:
 				(metadata.aiGenerationStatus as AiGenerationStatus) || null,
 			name: video.name,
-			aiTitle: metadata.aiTitle || null,
-			summary: metadata.summary || null,
-			chapters: metadata.chapters || null,
+			...aiStatusData,
 		};
 	}
 
@@ -106,9 +124,7 @@ export async function getVideoStatus(
 			aiGenerationStatus:
 				(metadata.aiGenerationStatus as AiGenerationStatus) || null,
 			name: video.name,
-			aiTitle: metadata.aiTitle || null,
-			summary: metadata.summary || null,
-			chapters: metadata.chapters || null,
+			...aiStatusData,
 			error: "Transcription failed",
 		};
 	}
@@ -121,8 +137,6 @@ export async function getVideoStatus(
 		aiGenerationStatus:
 			(metadata.aiGenerationStatus as AiGenerationStatus) || null,
 		name: video.name,
-		aiTitle: metadata.aiTitle || null,
-		summary: metadata.summary || null,
-		chapters: metadata.chapters || null,
+		...aiStatusData,
 	};
 }

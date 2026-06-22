@@ -1,6 +1,7 @@
 "use client";
 
 import type { comments as commentsSchema } from "@cap/database/schema";
+import type { AiSummary } from "@cap/database/types";
 import type { ViewerSettingKey } from "@cap/web-backend";
 import type { ImageUpload, Video } from "@cap/web-domain";
 import { useQuery } from "@tanstack/react-query";
@@ -162,6 +163,7 @@ interface ShareProps {
 		title?: string | null;
 		summary?: string | null;
 		chapters?: { title: string; start: number }[] | null;
+		aiSummary?: AiSummary | null;
 		aiGenerationStatus?: AiGenerationStatus | null;
 	} | null;
 	aiGenerationAvailable: boolean;
@@ -182,6 +184,7 @@ const useVideoStatus = (
 			title?: string | null;
 			summary?: string | null;
 			chapters?: { title: string; start: number }[] | null;
+			aiSummary?: AiSummary | null;
 			aiGenerationStatus?: AiGenerationStatus | null;
 		} | null;
 	},
@@ -205,6 +208,7 @@ const useVideoStatus = (
 					aiTitle: initialData.aiData?.title || null,
 					summary: initialData.aiData?.summary || null,
 					chapters: initialData.aiData?.chapters || null,
+					aiSummary: initialData.aiData?.aiSummary || null,
 				}
 			: undefined,
 		refetchInterval: (query) => {
@@ -324,9 +328,10 @@ export const Share = ({
 			title: videoStatus?.aiTitle || null,
 			summary: videoStatus?.summary || null,
 			chapters: videoStatus?.chapters || null,
+			aiSummary: videoStatus?.aiSummary ?? data.metadata?.aiSummary ?? null,
 			aiGenerationStatus: videoStatus?.aiGenerationStatus || null,
 		}),
-		[videoStatus],
+		[videoStatus, data.metadata?.aiSummary],
 	);
 
 	useEffect(() => {
@@ -536,7 +541,14 @@ export const Share = ({
 				<div className="flex flex-col gap-4 lg:flex-row">
 					<div className="flex-1 min-w-0">
 						<ShareVideo
-							data={{ ...data, transcriptionStatus }}
+							data={{
+								...data,
+								transcriptionStatus,
+								metadata: {
+									...(data.metadata || {}),
+									aiSummary: aiData.aiSummary,
+								},
+							}}
 							comments={comments}
 							areChaptersDisabled={areChaptersDisabled}
 							areCaptionsDisabled={areCaptionsDisabled}

@@ -24,6 +24,7 @@ const fallbackApiBaseUrl = "https://capweb-production-dd85.up.railway.app";
 
 export const DEFAULT_API_BASE_URL =
 	[
+		extensionEnv?.EXTENSION_API_BASE_URL,
 		extensionEnv?.WEB_URL,
 		extensionEnv?.NEXT_PUBLIC_WEB_URL,
 		fallbackApiBaseUrl,

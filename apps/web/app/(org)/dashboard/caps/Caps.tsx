@@ -4,14 +4,14 @@ import type { videos as videosSchema } from "@cap/database/schema";
 import type { VideoMetadata } from "@cap/database/types";
 import {
 	Button,
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
 } from "@cap/ui";
 import type { SpaceRuleSource, ViewerSettingKey } from "@cap/web-backend";
 import type { ImageUpload, Video } from "@cap/web-domain";
-import { faChevronDown, faFolderPlus, faInfoCircle, faUpload } from "@fortawesome/free-solid-svg-icons";
+import {
+	faFolderPlus,
+	faInfoCircle,
+	faUpload,
+} from "@fortawesome/free-solid-svg-icons";
 import Link from "next/link";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Effect, Exit } from "effect";
@@ -24,7 +24,6 @@ import { useDashboardContext } from "../Contexts";
 import {
 	NewFolderDialog,
 	SelectedCapsBar,
-	UploadCapButton,
 	UploadPlaceholderCard,
 	WebRecorderDialog,
 } from "./components";
@@ -285,26 +284,6 @@ export const Caps = ({
 					<FontAwesomeIcon className="size-3" icon={faFolderPlus} />
 					New Folder
 				</Button>
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<Button
-							size="sm"
-							variant="white"
-							className="flex gap-2 items-center w-fit"
-						>
-							More
-							<FontAwesomeIcon className="size-3" icon={faChevronDown} />
-						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="start" sideOffset={5}>
-						<DropdownMenuItem
-							onSelect={(e) => e.preventDefault()}
-							className="flex gap-2 items-center rounded-lg p-0"
-						>
-							<UploadCapButton size="sm" />
-						</DropdownMenuItem>
-					</DropdownMenuContent>
-				</DropdownMenu>
 			</div>
 			{isEmpty && <EmptyCapState />}
 			{folders.length > 0 && (

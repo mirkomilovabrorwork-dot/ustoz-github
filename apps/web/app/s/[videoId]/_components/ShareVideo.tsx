@@ -1,4 +1,4 @@
-﻿import type { comments as commentsSchema } from "@cap/database/schema";
+import type { comments as commentsSchema } from "@cap/database/schema";
 import { Logo } from "@cap/ui";
 import type { ImageUpload } from "@cap/web-domain";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
@@ -99,20 +99,6 @@ export const ShareVideo = forwardRef<
 		const handleUploadComplete = useCallback(() => {
 			router.refresh();
 		}, [router]);
-
-		// When manual AI generation finishes, refresh the server data once so the
-		// Summary / Tasks / Refined panels (rendered from server metadata) populate
-		// without the viewer having to reload the page.
-		const prevAiStatusRef = useRef(aiGenerationStatus);
-		useEffect(() => {
-			if (
-				prevAiStatusRef.current !== "COMPLETE" &&
-				aiGenerationStatus === "COMPLETE"
-			) {
-				router.refresh();
-			}
-			prevAiStatusRef.current = aiGenerationStatus;
-		}, [aiGenerationStatus, router]);
 
 		const captionContext = useCaptionContext();
 

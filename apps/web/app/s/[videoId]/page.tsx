@@ -577,6 +577,7 @@ async function AuthorizedContent({
 		title: metadata.aiTitle || null,
 		summary: metadata.summary || null,
 		chapters: metadata.chapters || null,
+		aiSummary: metadata.aiSummary || null,
 		aiGenerationStatus,
 	};
 

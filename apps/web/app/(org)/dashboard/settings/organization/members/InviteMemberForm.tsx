@@ -5,7 +5,6 @@ import { formatPlatformDateTime } from "@cap/utils";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { toast } from "sonner";
-import { inviteByEmail } from "@/actions/organization/invite-by-email";
 import { createInviteLink } from "@/actions/organization/invite-by-link";
 
 type Mode = "direct" | "link";
@@ -19,6 +18,7 @@ export function InviteMemberForm() {
 	const [role, setRole] = useState<"admin" | "member">("member");
 	const [loading, setLoading] = useState(false);
 	const [generatedLink, setGeneratedLink] = useState<string | null>(null);
+	const [generatedLinkEmail, setGeneratedLinkEmail] = useState("");
 
 	return (
 		<div className="space-y-3 p-4 border rounded">
@@ -33,6 +33,7 @@ export function InviteMemberForm() {
 					onClick={() => {
 						setMode("direct");
 						setGeneratedLink(null);
+						setGeneratedLinkEmail("");
 					}}
 				>
 					Add by email
@@ -47,6 +48,7 @@ export function InviteMemberForm() {
 					onClick={() => {
 						setMode("link");
 						setGeneratedLink(null);
+						setGeneratedLinkEmail("");
 					}}
 				>
 					Generate one-time link
@@ -58,20 +60,26 @@ export function InviteMemberForm() {
 					if (!email) return;
 					setLoading(true);
 					try {
+						const inviteEmail = email.trim();
 						if (mode === "direct") {
-							await inviteByEmail({ email, role });
+							const { url, expiresAt } = await createInviteLink({
+								email: inviteEmail,
+								role,
+							});
+							setGeneratedLink(url);
+							setGeneratedLinkEmail(inviteEmail);
 							toast.success(
-								`${email} added — they can sign in at /login with this email.`,
-								{ duration: 6000 },
+								`Invite link ready until ${formatPlatformDateTime(expiresAt)}`,
 							);
 							setEmail("");
 							router.refresh();
 						} else {
 							const { url, expiresAt } = await createInviteLink({
-								email,
+								email: inviteEmail,
 								role,
 							});
 							setGeneratedLink(url);
+							setGeneratedLinkEmail(inviteEmail);
 							toast.success(
 								`Link valid until ${formatPlatformDateTime(expiresAt)}`,
 							);
@@ -120,9 +128,13 @@ export function InviteMemberForm() {
 			</form>
 			{generatedLink && (
 				<div className="p-3 bg-gray-2 rounded border space-y-2">
+					<p className="text-sm font-medium text-gray-12">
+						Invite link ready
+					</p>
 					<p className="text-sm text-gray-500">
-						Copy this link and share it with <strong>{email}</strong>. It
-						expires in 72 hours and can only be used once.
+						Email may not send on self-hosted installs. Copy this link and send
+						it to <strong>{generatedLinkEmail}</strong> manually. It expires in
+						72 hours and can only be used once.
 					</p>
 					<div className="flex gap-2">
 						<Input

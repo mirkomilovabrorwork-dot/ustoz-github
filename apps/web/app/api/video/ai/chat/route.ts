@@ -1,10 +1,10 @@
 import { db } from "@cap/database";
 import { decrypt } from "@cap/database/crypto";
-import { users, videos } from "@cap/database/schema";
+import { transcriptChunks, users, videos } from "@cap/database/schema";
 import { serverEnv } from "@cap/env";
 import { provideOptionalAuth, VideosPolicy } from "@cap/web-backend";
 import { Policy, Video } from "@cap/web-domain";
-import { eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 import { Effect } from "effect";
 import type { NextRequest } from "next/server";
 import { BudgetExceededError, withCostGuard } from "@/lib/ai-cost-guard";
@@ -19,6 +19,7 @@ const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_REQUESTS = 20;
 const RATE_LIMIT_MAX_ENTRIES = 10_000;
 const MAX_MESSAGES = 20;
+const RETRIEVAL_K = 10;
 const requestCounts = new Map<string, { count: number; resetAt: number }>();
 let rateLimitRequestCounter = 0;
 
@@ -49,6 +50,45 @@ function isRateLimited(key: string) {
 
 	entry.count++;
 	return entry.count > RATE_LIMIT_MAX_REQUESTS;
+}
+
+function buildVideoOverviewContext(
+	metadata: typeof videos.$inferSelect.metadata,
+): string {
+	const summary =
+		typeof metadata?.aiSummary?.overview === "string" &&
+		metadata.aiSummary.overview.trim()
+			? metadata.aiSummary.overview.trim()
+			: typeof metadata?.summary === "string" && metadata.summary.trim()
+				? metadata.summary.trim()
+				: "";
+
+	const chapters =
+		metadata?.aiSummary?.chapters && metadata.aiSummary.chapters.length > 0
+			? metadata.aiSummary.chapters.map((chapter) => ({
+					title: chapter.title,
+					startMs: chapter.startSec * 1000,
+				}))
+			: (metadata?.chapters ?? []).map((chapter) => ({
+					title: chapter.title,
+					startMs: chapter.start * 1000,
+				}));
+
+	const parts: string[] = [];
+
+	if (summary) {
+		parts.push(`Summary:\n${summary}`);
+	}
+
+	if (chapters.length > 0) {
+		parts.push(
+			`Chapter titles:\n${chapters
+				.map((chapter) => `${msToTimestamp(chapter.startMs)} - ${chapter.title}`)
+				.join("\n")}`,
+		);
+	}
+
+	return parts.join("\n\n");
 }
 
 export async function POST(request: NextRequest) {
@@ -121,7 +161,11 @@ export async function POST(request: NextRequest) {
 	}
 
 	const [video] = await db()
-		.select({ ownerId: videos.ownerId, orgId: videos.orgId })
+		.select({
+			ownerId: videos.ownerId,
+			orgId: videos.orgId,
+			metadata: videos.metadata,
+		})
 		.from(videos)
 		.where(eq(videos.id, Video.VideoId.make(videoId)))
 		.limit(1);
@@ -130,6 +174,26 @@ export async function POST(request: NextRequest) {
 		return new Response(JSON.stringify({ error: "Video not found" }), {
 			status: 404,
 		});
+	}
+
+	const [indexedChunk] = await db()
+		.select({ id: transcriptChunks.id })
+		.from(transcriptChunks)
+		.where(
+			and(
+				eq(transcriptChunks.videoId, Video.VideoId.make(videoId)),
+				isNotNull(transcriptChunks.embedding),
+			),
+		)
+		.limit(1);
+
+	if (!indexedChunk) {
+		return new Response(
+			JSON.stringify({
+				error: "AI index not ready yet. Generate the transcript/AI index first, then try again.",
+			}),
+			{ status: 409 },
+		);
 	}
 
 	const [owner] = await db()
@@ -160,6 +224,7 @@ export async function POST(request: NextRequest) {
 	}
 
 	const resolvedApiKey = apiKey;
+	const videoOverviewContext = buildVideoOverviewContext(video.metadata);
 
 	const stream = new ReadableStream({
 		async start(controller) {
@@ -196,7 +261,7 @@ export async function POST(request: NextRequest) {
 					return;
 				}
 
-				const chunks = await retrieveTopK(videoId, queryEmbedding, 5);
+				const chunks = await retrieveTopK(videoId, queryEmbedding, RETRIEVAL_K);
 
 				const contextLines = chunks
 					.map((c) => {
@@ -205,13 +270,21 @@ export async function POST(request: NextRequest) {
 						return `[${ts}] ${speaker}${c.text}`;
 					})
 					.join("\n");
+				const promptContext = [
+					videoOverviewContext
+						? `Video overview context:\n${videoOverviewContext}`
+						: "",
+					`Transcript context:\n${contextLines}`,
+				]
+					.filter(Boolean)
+					.join("\n\n");
 
 				const geminiMessages = [
 					{
 						role: "user",
 						parts: [
 							{
-								text: `Transcript context:\n${contextLines}\n\nAnswer questions about this meeting recording using ONLY the provided transcript context. Cite timestamps as [mm:ss]. The content may be in Uzbek, Russian, or English — respond in the same language as the user's question.`,
+								text: `${promptContext}\n\nAnswer questions about this meeting recording using ONLY the provided context. Use the overview only to understand broad questions, and cite timestamps as [mm:ss] from transcript lines. The content may be in Uzbek, Russian, or English — respond in the same language as the user's question.`,
 							},
 						],
 					},
@@ -249,7 +322,7 @@ export async function POST(request: NextRequest) {
 								system_instruction: {
 									parts: [
 										{
-											text: "You answer questions about a meeting recording. Use ONLY the provided transcript context. Cite timestamps as [mm:ss]. The content may be in Uzbek, Russian, or English — respond in the same language.",
+											text: "You answer questions about a meeting recording. Use ONLY the provided context. Use the overview for broad questions, and cite timestamps as [mm:ss] from transcript lines. The content may be in Uzbek, Russian, or English — respond in the same language.",
 										},
 									],
 								},
