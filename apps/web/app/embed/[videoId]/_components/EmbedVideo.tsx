@@ -2,7 +2,7 @@
 
 import type { userSelectProps } from "@cap/database/auth/session";
 import type { comments as commentsSchema, videos } from "@cap/database/schema";
-import { Avatar, Logo } from "@cap/ui";
+import { Avatar } from "@cap/ui";
 import type { ViewerSettings } from "@cap/web-backend";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTranscript } from "hooks/use-transcript";
@@ -311,7 +311,9 @@ export const EmbedVideo = forwardRef<
 								<span className="text-xs md:text-sm text-white/80">
 									Powered by
 								</span>
-								<Logo className="w-auto h-4" white={true} />
+								<span className="text-sm font-semibold leading-none text-white">
+									365
+								</span>
 							</motion.button>
 						</div>
 					)}
