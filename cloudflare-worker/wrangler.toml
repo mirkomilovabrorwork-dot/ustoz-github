@@ -1,0 +1,42 @@
+# =============================================================================
+# Ustoz Media CDN — Cloudflare Worker
+# =============================================================================
+# Before deploying:
+#   1. Replace REPLACE_WITH_YOUR_BUCKET below with your actual R2 bucket name.
+#   2. Run:  wrangler secret put SIGNING_SECRET
+#      (never put the secret value inside this file — wrangler.toml is committed)
+#   3. Run:  npm run deploy
+# =============================================================================
+
+name = "ustoz-media-cdn"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+
+# --------------------------------------------------------------------------
+# R2 bucket binding
+# --------------------------------------------------------------------------
+# The Worker accesses your R2 bucket through the "MEDIA" binding name.
+# Replace the bucket_name value with your actual R2 bucket (no quotes needed
+# for pure-ASCII names, but quotes are safe either way).
+[[r2_buckets]]
+binding     = "MEDIA"
+bucket_name = "REPLACE_WITH_YOUR_BUCKET"
+
+# --------------------------------------------------------------------------
+# Environment variables (non-secret)
+# --------------------------------------------------------------------------
+# SIGNING_SECRET is intentionally NOT here — it is a secret and must be
+# set via:  wrangler secret put SIGNING_SECRET
+# The [vars] block below is a placeholder reminder only.
+[vars]
+# SIGNING_SECRET = "DO NOT PUT THE REAL VALUE HERE"
+# Add any future non-secret vars here (e.g. ALLOWED_ORIGINS = "https://app.example.com")
+
+# --------------------------------------------------------------------------
+# Optional: production environment overrides
+# --------------------------------------------------------------------------
+# [env.production]
+# name = "ustoz-media-cdn-prod"
+# [[env.production.r2_buckets]]
+# binding     = "MEDIA"
+# bucket_name = "REPLACE_WITH_YOUR_PRODUCTION_BUCKET"
