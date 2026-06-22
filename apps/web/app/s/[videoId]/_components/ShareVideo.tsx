@@ -348,7 +348,7 @@ export const ShareVideo = forwardRef<
 				: undefined;
 		const enableCrossOrigin = true;
 
-		return (
+		const playerBlock = (
 			<>
 				<div
 					className="relative aspect-video bg-white rounded-2xl border border-gray-5 overflow-hidden"
@@ -494,9 +494,54 @@ export const ShareVideo = forwardRef<
 					open={upgradeModalOpen}
 					onOpenChange={setUpgradeModalOpen}
 				/>
+			</>
+		);
+
+		// Persistently-mounted transcript that lives BESIDE the pinned video on
+		// wide desktops (xl+). It must NOT be lazy-mounted inside BelowVideoTabs, or the
+		// live highlight + auto-scroll would unmount whenever another tab is active.
+		const pinnedTranscript = (
+			<TranscriptPanel
+				transcriptContent={transcriptContent ?? undefined}
+				currentTime={currentTime}
+				onVideoJump={handleSeek}
+			/>
+		);
+
+		return (
+			<>
+				{/*
+				  Loom-style layout:
+				  - Below xl: single column → video on top, transcript reachable via the
+				    BelowVideoTabs "Transcript" tab (unchanged narrow/mobile experience).
+				    Gated at xl (not lg) because the share page also has a 320px comments
+				    rail; engaging the pinned transcript below 1280px would squeeze the
+				    video too narrow (three columns at lg → ~290px video).
+				  - xl+: two columns → LEFT = video pinned (sticky) while you scroll,
+				    RIGHT = transcript scrolls independently. The in-tab Transcript is
+				    hidden at xl+ (hideTranscriptTab) so only ONE live TranscriptPanel
+				    is mounted at a time.
+				*/}
+				<div className="flex flex-col gap-4 xl:flex-row xl:items-start">
+					<div className="min-w-0 xl:flex-1 xl:sticky xl:top-4 xl:self-start">
+						{playerBlock}
+					</div>
+
+					<div className="hidden xl:flex xl:w-[380px] xl:shrink-0 xl:flex-col xl:max-h-[calc(100vh-2rem)] xl:sticky xl:top-4 xl:self-start overflow-hidden rounded-2xl border border-gray-5 bg-white">
+						<div className="flex items-center justify-between border-b border-gray-5 px-4 py-3">
+							<h2 className="text-[11px] font-bold uppercase tracking-[0.07em] text-gray-9">
+								Transcript
+							</h2>
+						</div>
+						<div className="min-h-0 flex-1 overflow-y-auto">
+							{pinnedTranscript}
+						</div>
+					</div>
+				</div>
 
 				<div className="mt-4">
 					<BelowVideoTabs
+						hideTranscriptTab
 						summary={
 							<>
 								<GenerateAiPanel

@@ -200,7 +200,7 @@ export function TranscriptPanel({
 	}
 
 	return (
-		<div ref={containerRef} className="flex flex-col gap-1 overflow-y-auto p-4">
+		<div ref={containerRef} className="flex flex-col gap-1 p-4">
 			{groups.map((group, gi) => {
 				const hue = speakerHue(group.speaker);
 				const initials = speakerInitials(group.speaker);

@@ -17,6 +17,13 @@ interface BelowVideoTabsProps {
 	tasks?: React.ReactNode;
 	transcript?: React.ReactNode;
 	refined?: React.ReactNode;
+	/**
+	 * On wide desktops (xl+) the transcript is shown in the pinned column beside
+	 * the video, so the in-tab "Transcript" tab is hidden there to avoid a
+	 * duplicate (and a second live TranscriptPanel). The tab stays visible below
+	 * xl so phone/tablet/small-laptop users can still read the transcript.
+	 */
+	hideTranscriptTab?: boolean;
 }
 
 export function BelowVideoTabs({
@@ -24,6 +31,7 @@ export function BelowVideoTabs({
 	tasks,
 	transcript,
 	refined,
+	hideTranscriptTab = false,
 }: BelowVideoTabsProps) {
 	const searchParams = useSearchParams();
 	const router = useRouter();
@@ -88,6 +96,8 @@ export function BelowVideoTabs({
 			>
 				{TABS.map((tab) => {
 					const isActive = activeTab === tab.id;
+					const hiddenOnDesktop =
+						hideTranscriptTab && tab.id === "transcript";
 					return (
 						<button
 							key={tab.id}
@@ -97,6 +107,7 @@ export function BelowVideoTabs({
 							aria-controls={`panel-${tab.id}`}
 							id={`tab-${tab.id}`}
 							onClick={() => handleTabClick(tab.id)}
+							className={hiddenOnDesktop ? "xl:!hidden" : undefined}
 							style={{
 								flex: "0 0 auto",
 								minWidth: "80px",
@@ -124,7 +135,13 @@ export function BelowVideoTabs({
 			</div>
 
 			{/* Active panel only */}
-			<div className="mt-3">
+			<div
+				className={
+					hideTranscriptTab && activeTab === "transcript"
+						? "mt-3 xl:hidden"
+						: "mt-3"
+				}
+			>
 				<section
 					key={activeTab}
 					id={`panel-${activeTab}`}

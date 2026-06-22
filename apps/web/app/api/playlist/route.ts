@@ -17,6 +17,7 @@ import {
 import { eq } from "drizzle-orm";
 import { Effect, Layer, Option, Schema } from "effect";
 import { apiToHandler } from "@/lib/server";
+import { signedMediaUrl } from "@/lib/media-cdn";
 import { CACHE_CONTROL_HEADERS } from "@/utils/helpers";
 
 export const dynamic = "force-dynamic";
@@ -296,8 +297,10 @@ const getPlaylistResponse = (
 				}
 			}
 
+			const isMp4Redirect = redirect.endsWith(".mp4");
+			const cdnUrl = isMp4Redirect ? signedMediaUrl(redirect) : null;
 			return HttpServerResponse.redirect(
-				yield* bucket.getSignedObjectUrl(redirect),
+				cdnUrl ?? (yield* bucket.getSignedObjectUrl(redirect)),
 			);
 		}
 
@@ -342,8 +345,13 @@ const getPlaylistResponse = (
 			yield* Effect.log(
 				`Returning path ${`${video.ownerId}/${video.id}/result.mp4`}`,
 			);
+			const mp4Key = `${video.ownerId}/${video.id}/result.mp4`;
+			const cdnUrl = signedMediaUrl(mp4Key);
+			if (cdnUrl !== null) {
+				return HttpServerResponse.redirect(cdnUrl);
+			}
 			return yield* bucket
-				.getSignedObjectUrl(`${video.ownerId}/${video.id}/result.mp4`)
+				.getSignedObjectUrl(mp4Key)
 				.pipe(Effect.map(HttpServerResponse.redirect));
 		}
 

@@ -30,6 +30,7 @@ import {
 	Loader2,
 	Pencil,
 	Scissors,
+	Share2,
 	X,
 } from "lucide-react";
 import Image from "next/image";
@@ -104,11 +105,13 @@ export const ShareHeader = ({
 	const [linkCopied, setLinkCopied] = useState(false);
 	const [isDownloading, setIsDownloading] = useState(false);
 	const [showCopyOptions, setShowCopyOptions] = useState(false);
+	const [showShareOptions, setShowShareOptions] = useState(false);
 	const [capturedTime, setCapturedTime] = useState(0);
 	const [isHidingBranding, setIsHidingBranding] = useState(false);
 	const [isOpeningBrandingSettings, setIsOpeningBrandingSettings] =
 		useState(false);
 	const copyOptionsRef = useRef<HTMLDivElement>(null);
+	const shareOptionsRef = useRef<HTMLDivElement>(null);
 	const suppressTitleRevealRef = useRef(false);
 	const titleSwapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
 		null,
@@ -130,6 +133,20 @@ export const ShareHeader = ({
 		document.addEventListener("mousedown", handler);
 		return () => document.removeEventListener("mousedown", handler);
 	}, [showCopyOptions]);
+
+	useEffect(() => {
+		if (!showShareOptions) return;
+		const handler = (e: MouseEvent) => {
+			if (
+				shareOptionsRef.current &&
+				!shareOptionsRef.current.contains(e.target as Node)
+			) {
+				setShowShareOptions(false);
+			}
+		};
+		document.addEventListener("mousedown", handler);
+		return () => document.removeEventListener("mousedown", handler);
+	}, [showShareOptions]);
 
 	const contextData = useDashboardContext();
 	const contextSharedSpaces = contextData?.sharedSpaces || null;
@@ -610,6 +627,83 @@ export const ShareHeader = ({
 										>
 											<Clock className="w-3.5 h-3.5 shrink-0" />
 											Copy link at {formatTimestamp(capturedTime)}
+										</button>
+									</div>
+								)}
+							</div>
+
+							<div className="relative" ref={shareOptionsRef}>
+								{/* Share trigger — pill on sm+, icon-only on mobile */}
+								<button
+									type="button"
+									onClick={() => setShowShareOptions((v) => !v)}
+									aria-label="Share"
+									title="Share"
+									className="hidden sm:inline-flex items-center gap-2 rounded-full border border-gray-6 bg-gray-3 px-3 py-1.5 text-sm text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12"
+								>
+									<Share2 className="w-3.5 h-3.5 shrink-0" />
+									Share
+								</button>
+								<button
+									type="button"
+									onClick={() => setShowShareOptions((v) => !v)}
+									aria-label="Share"
+									title="Share"
+									className="inline-flex sm:hidden items-center justify-center rounded-full border border-gray-6 bg-gray-3 p-1.5 text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12"
+								>
+									<Share2 className="w-3.5 h-3.5 shrink-0" />
+								</button>
+								{showShareOptions && (
+									<div className="absolute right-0 top-full z-50 mt-1 min-w-full w-max overflow-hidden rounded-lg border border-gray-6 bg-white shadow-lg">
+										<button
+											type="button"
+											className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-12 transition-colors hover:bg-gray-3"
+											onClick={() => {
+												const link = getVideoLink();
+												const title = displayTitle || data.name;
+												window.open(
+													`https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(link)}`,
+													"_blank",
+													"noopener,noreferrer",
+												);
+												setShowShareOptions(false);
+											}}
+										>
+											<Share2 className="w-3.5 h-3.5 shrink-0" />
+											Share on X
+										</button>
+										<button
+											type="button"
+											className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-12 transition-colors hover:bg-gray-3"
+											onClick={() => {
+												const link = getVideoLink();
+												window.open(
+													`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(link)}`,
+													"_blank",
+													"noopener,noreferrer",
+												);
+												setShowShareOptions(false);
+											}}
+										>
+											<Share2 className="w-3.5 h-3.5 shrink-0" />
+											Share on LinkedIn
+										</button>
+										<button
+											type="button"
+											className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-12 transition-colors hover:bg-gray-3"
+											onClick={() => {
+												const link = getVideoLink();
+												const title = displayTitle || data.name;
+												window.open(
+													`https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(title)}&body=${encodeURIComponent(link)}`,
+													"_blank",
+													"noopener,noreferrer",
+												);
+												setShowShareOptions(false);
+											}}
+										>
+											<Share2 className="w-3.5 h-3.5 shrink-0" />
+											Email
 										</button>
 									</div>
 								)}
