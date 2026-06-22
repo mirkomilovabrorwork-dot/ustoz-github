@@ -237,7 +237,7 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 									<div className="flex flex-col flex-1 items-center h-10">
 										<div className="flex justify-between items-center w-full">
 											{!sidebarCollapsed && (
-												<p className="text-sm truncate leading-0 text-gray-12">
+												<p className="text-sm truncate leading-tight text-gray-12">
 													{activeOrg?.organization.name ??
 														"No organization found"}
 												</p>
@@ -268,7 +268,7 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 													icon={isDomainSetupVerified ? faLink : faCircleInfo}
 													className="duration-200 size-3 text-gray-10"
 												/>
-												<p className="w-full text-[11px] flex-1 duration-200 truncate leading-0 text-gray-11">
+												<p className="w-full text-[11px] flex-1 duration-200 truncate leading-tight text-gray-11">
 													{isDomainSetupVerified
 														? activeOrg?.organization.customDomain
 														: "No custom domain set"}
