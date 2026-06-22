@@ -170,6 +170,16 @@ export const Sidebar = forwardRef<{ scrollToBottom: () => void }, SidebarProps>(
 		const user = useCurrentUser();
 		const [showAuthOverlay, setShowAuthOverlay] = useState(false);
 
+		// Guest name — shared localStorage key "365_guest_name" mirrors Comments.tsx.
+		const [guestName, setGuestName] = useState<string>(() => {
+			if (typeof window === "undefined") return "";
+			try {
+				return localStorage.getItem("365_guest_name") ?? "";
+			} catch {
+				return "";
+			}
+		});
+
 		const isOwner = Boolean(user?.id === data.owner.id);
 		const isOwnerOrMember = Boolean(
 			isOwner || (user && data.organizationMembers?.includes(user.id)),
@@ -193,7 +203,54 @@ export const Sidebar = forwardRef<{ scrollToBottom: () => void }, SidebarProps>(
 		const handleEmojiReact = async (emoji: string) => {
 			if (!canReact) return;
 			if (!user) {
-				setShowAuthOverlay(true);
+				let theName = guestName.trim();
+				if (!theName) {
+					const prompted = window.prompt("Enter your name to react");
+					if (!prompted || !prompted.trim()) return;
+					theName = prompted.trim().slice(0, 50);
+					setGuestName(theName);
+					try {
+						localStorage.setItem("365_guest_name", theName);
+					} catch {
+						// ignore
+					}
+				}
+				// Guest reaction path
+				const videoElement = document.querySelector("video") as HTMLVideoElement;
+				const currentTime = videoElement?.currentTime ?? 0;
+				const optimisticComment: CommentType = {
+					id: Comment.CommentId.make(`temp-emoji-${Date.now()}`),
+					authorId: null,
+					authorName: theName,
+					authorImage: null,
+					content: emoji,
+					createdAt: new Date(),
+					videoId: data.id,
+					parentCommentId: Comment.CommentId.make(""),
+					type: "emoji",
+					timestamp: currentTime,
+					updatedAt: new Date(),
+					sending: true,
+				};
+				startTransition(() => {
+					setOptimisticComments(optimisticComment);
+				});
+				try {
+					const result = await newComment({
+						content: emoji,
+						videoId: data.id,
+						authorImage: null,
+						parentCommentId: Comment.CommentId.make(""),
+						type: "emoji",
+						timestamp: currentTime,
+						guestName: theName,
+					});
+					startTransition(() => {
+						handleCommentSuccess(result);
+					});
+				} catch (error) {
+					console.error("Error posting reaction:", error);
+				}
 				return;
 			}
 			const videoElement = document.querySelector("video") as HTMLVideoElement;

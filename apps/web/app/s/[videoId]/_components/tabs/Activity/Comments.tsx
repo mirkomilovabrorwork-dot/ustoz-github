@@ -50,6 +50,26 @@ export const Comments = Object.assign(
 		const replyParams = useSearchParams().get("reply");
 		const user = useCurrentUser();
 
+		// Guest name — only relevant when !user. Seeded from localStorage so a name
+		// entered once persists across page refreshes. Shared key "365_guest_name".
+		const [guestName, setGuestName] = useState<string>(() => {
+			if (typeof window === "undefined") return "";
+			try {
+				return localStorage.getItem("365_guest_name") ?? "";
+			} catch {
+				return "";
+			}
+		});
+
+		const handleGuestNameChange = (v: string) => {
+			setGuestName(v);
+			try {
+				localStorage.setItem("365_guest_name", v);
+			} catch {
+				// localStorage unavailable — ignore
+			}
+		};
+
 		const [replyingTo, setReplyingTo] = useState<Comment.CommentId | null>(
 			null,
 		);
@@ -80,13 +100,15 @@ export const Comments = Object.assign(
 		);
 
 		const handleNewComment = async (content: string) => {
+			if (!user && guestName.trim() === "") return;
+
 			const videoElement = document.querySelector("video") as HTMLVideoElement;
 			const currentTime = videoElement?.currentTime || 0;
 
 			const optimisticComment: CommentType = {
 				id: Comment.CommentId.make(`temp-${Date.now()}`),
 				authorId: User.UserId.make(user ? user.id : "anonymous"),
-				authorName: user ? user.name : "Guest",
+				authorName: user ? user.name : guestName.trim(),
 				authorImage: user ? user.imageUrl : null,
 				content,
 				createdAt: new Date(),
@@ -110,6 +132,7 @@ export const Comments = Object.assign(
 					parentCommentId: Comment.CommentId.make(""),
 					type: "text",
 					timestamp: currentTime,
+					guestName: user ? undefined : guestName.trim(),
 				});
 				handleCommentSuccess(data);
 			} catch (error) {
@@ -210,6 +233,9 @@ export const Comments = Object.assign(
 				commentInputProps={{
 					onSubmit: handleNewComment,
 					disabled: commentsDisabled,
+					showNameInput: !user,
+					name: guestName,
+					onNameChange: handleGuestNameChange,
 				}}
 				setShowAuthOverlay={props.setShowAuthOverlay}
 				commentsContainerRef={commentsContainerRef}

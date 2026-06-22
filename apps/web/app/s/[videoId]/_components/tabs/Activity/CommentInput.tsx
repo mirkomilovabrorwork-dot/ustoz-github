@@ -11,6 +11,9 @@ interface CommentInputProps {
 	autoFocus?: boolean;
 	disabled?: boolean;
 	defaultValue?: string;
+	showNameInput?: boolean;
+	name?: string;
+	onNameChange?: (v: string) => void;
 }
 
 const CommentInput: React.FC<CommentInputProps> = ({
@@ -22,6 +25,9 @@ const CommentInput: React.FC<CommentInputProps> = ({
 	autoFocus = false,
 	disabled,
 	defaultValue = "",
+	showNameInput = false,
+	name = "",
+	onNameChange,
 }) => {
 	const [content, setContent] = useState(defaultValue);
 	const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -32,9 +38,11 @@ const CommentInput: React.FC<CommentInputProps> = ({
 		}
 	}, [autoFocus]);
 
+	const isNameRequired = showNameInput && name.trim() === "";
+
 	const handleSubmit = (e?: React.FormEvent) => {
 		e?.preventDefault();
-		if (content.trim()) {
+		if (content.trim() && !isNameRequired) {
 			onSubmit?.(content);
 			setContent("");
 		}
@@ -50,6 +58,18 @@ const CommentInput: React.FC<CommentInputProps> = ({
 	return (
 		<div className="flex items-start space-x-3">
 			<div className="flex-1">
+				{showNameInput && (
+					<div className="mb-2 p-2 rounded-lg border bg-gray-1 border-gray-5">
+						<input
+							type="text"
+							value={name}
+							onChange={(e) => onNameChange?.(e.target.value)}
+							placeholder="Your name"
+							maxLength={50}
+							className="w-full placeholder:text-gray-8 text-sm leading-[22px] text-gray-12 bg-transparent focus:outline-none"
+						/>
+					</div>
+				)}
 				<div className="p-2 rounded-lg border bg-gray-1 border-gray-5">
 					<textarea
 						ref={inputRef}
@@ -66,7 +86,7 @@ const CommentInput: React.FC<CommentInputProps> = ({
 							size="xs"
 							variant="primary"
 							onClick={() => handleSubmit()}
-							disabled={!content}
+							disabled={!content || isNameRequired}
 						>
 							{buttonLabel}
 						</Button>

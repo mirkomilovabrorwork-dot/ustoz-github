@@ -482,7 +482,13 @@ export const comments = mysqlTable(
 		type: varchar("type", { length: 6, enum: ["emoji", "text"] }).notNull(),
 		content: text("content").notNull(),
 		timestamp: float("timestamp"),
-		authorId: nanoId("authorId").notNull().$type<User.UserId>(),
+		// Nullable so unauthenticated (guest) viewers can comment on a public/
+		// shared video — exactly like Loom. Logged-in comments still set authorId.
+		authorId: nanoIdNullable("authorId").$type<User.UserId>(),
+		// Display name supplied by a guest commenter. Null for logged-in users,
+		// whose name is resolved via the users join. Capped to mirror the
+		// server-side guestName length cap.
+		authorName: varchar("authorName", { length: 50 }),
 		videoId: nanoId("videoId")
 			.notNull()
 			.$type<Video.VideoId>()

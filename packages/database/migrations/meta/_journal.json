@@ -232,6 +232,13 @@
 			"when": 1781545659604,
 			"tag": "0032_goofy_wallow",
 			"breakpoints": true
+		},
+		{
+			"idx": 33,
+			"version": "5",
+			"when": 1781545700000,
+			"tag": "0033_guest_comments",
+			"breakpoints": true
 		}
 	]
 }

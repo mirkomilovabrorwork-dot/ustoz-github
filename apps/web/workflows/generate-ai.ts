@@ -639,13 +639,17 @@ async function generateSingleChunk(
     "topics": [{"title": "Q3 Roadmap", "body": "The team aligned on three key priorities."}],
     "nextSteps": ["Share updated roadmap doc by Friday"],
     "tasks": [{"title": "Update roadmap", "assignee": "Alice", "priority": "high", "deadline": "2024-07-05", "done": false}],
-    "chapters": [{"startSec": 0, "title": "Intro", "body": "Brief intro and agenda."}, {"startSec": 45, "title": "Q3 Roadmap", "body": "Discussion of top priorities."}],
-    "refinedTranscript": {
-      "chapters": [{"startSec": 0, "title": "Intro", "paragraphs": ["Welcome everyone.", "Today we cover roadmap and blockers."]}]
-    }
+    "chapters": [{"startSec": 0, "title": "Intro", "body": "Brief intro and agenda."}, {"startSec": 45, "title": "Q3 Roadmap", "body": "Discussion of top priorities."}]
   }
 }`;
 
+	// NOTE: refinedTranscript is intentionally NOT requested here. The refined
+	// transcript is (near) the FULL raw transcript and on its own can approach or
+	// exceed the 8192 maxOutputTokens cap. Asking for it together with
+	// summary/tasks/chapters in one JSON response caused the combined output to
+	// overflow the cap and TRUNCATE the refined transcript (or invalidate the
+	// whole JSON). It is generated separately below with its own dedicated call,
+	// exactly like the multi-chunk path does.
 	const prompt = `You are analyzing a meeting/video transcript. The content may be in Uzbek, Russian, or English. Respond in the same language as the content.
 
 The video is ${videoDuration} seconds long. ${languageInstruction}
@@ -657,7 +661,6 @@ Rules:
 - All chapter "start" / "startSec" values must be between 0 and ${videoDuration} seconds; derive them from the transcript timestamps
 - tasks[].priority must be "high", "medium", or "low"
 - tasks[].done is always false unless explicitly resolved in the transcript
-- refinedTranscript is the COMPLETE, FULL transcript with ONLY filler words ("uh", "um", "a-a", "er"), exact word-for-word repetitions, false starts, and off-topic jokes removed. It is NOT a summary — every substantive sentence must appear. Keep the original speaker wording and language (uz/ru/en mixed is fine — do NOT translate or paraphrase). The output must cover the ENTIRE transcript from start to finish without compressing or dropping any content.
 - Keep ALL JSON property names exactly as shown
 
 Transcript:
@@ -665,13 +668,97 @@ ${transcriptWithTimestamps}`;
 
 	const apiResult = await callAiApi(prompt, {}, context);
 	const parsed = parseAiResponse(apiResult.content);
+
+	// Dedicated refined-transcript call — never competes with the JSON budget
+	// above, so it can never truncate the cleaned full transcript.
+	const refined = await generateRefinedTranscriptSingle(
+		transcriptWithTimestamps,
+		parsed.chapters ?? [],
+		segments[0]?.start ?? 0,
+		context,
+	);
+	const refinedChapters = refined.chapters;
+
+	// Attach the separately-generated refined transcript. If the summary JSON
+	// failed to parse (aiSummary === null) but we still cleaned the transcript,
+	// build a minimal aiSummary so Refined is never lost.
+	const aiSummaryWithRefined =
+		parsed.aiSummary == null
+			? refinedChapters.length > 0
+				? parseAiSummary({
+						refinedTranscript: { chapters: refinedChapters },
+					})
+				: parsed.aiSummary
+			: {
+					...parsed.aiSummary,
+					refinedTranscript: { chapters: refinedChapters },
+				};
+
 	return {
 		...parsed,
+		aiSummary: aiSummaryWithRefined,
 		_usage: {
 			model: apiResult.model,
-			inputTokens: apiResult.inputTokens,
-			outputTokens: apiResult.outputTokens,
+			inputTokens: apiResult.inputTokens + refined.inputTokens,
+			outputTokens: apiResult.outputTokens + refined.outputTokens,
 		},
+	};
+}
+
+// Produces the cleaned full transcript for the single-chunk path with its own
+// dedicated (non-JSON) model call, mirroring the per-chunk refined prompt used by
+// the multi-chunk path. Because it does not share the summary/tasks/chapters JSON
+// budget, the cleaned text is never truncated regardless of transcript length.
+async function generateRefinedTranscriptSingle(
+	transcriptWithTimestamps: string,
+	chapters: { title: string; start: number }[],
+	startSec: number,
+	context: AiCallContext,
+): Promise<{
+	chapters: { startSec: number; title: string; paragraphs: string[] }[];
+	inputTokens: number;
+	outputTokens: number;
+}> {
+	const chapterTitle = chapters[0]?.title ?? "Transcript";
+	const timeLabel = `${Math.floor(startSec / 60)}:${String(startSec % 60).padStart(2, "0")}`;
+	const refinedPrompt = `You are a transcript editor. Your ONLY job is to produce a clean, complete, full version of the spoken text below — NOT a summary.
+
+RULES (strict):
+- Remove ONLY: filler words ("uh", "um", "a-a", "er", "well", "you know", "like" used as filler), exact word-for-word repetitions, false starts (e.g. "I was — I mean, we should"), and off-topic jokes that add zero informational content.
+- Keep EVERYTHING else: all substantive sentences, explanations, arguments, questions, answers, decisions, names, numbers, details — in the original order.
+- Do NOT translate. Do NOT paraphrase. Do NOT compress into a summary. The output must cover the ENTIRE input from start to finish.
+- Preserve the speaker's original wording and language (Uzbek/Russian/English mixed is fine).
+- Output clean readable paragraphs separated by blank lines. No bullet points, no headers.
+- This is DIFFERENT from a summary: a summary is short; this must be the full cleaned text.
+
+Return ONLY the cleaned text. No JSON. No explanations.
+
+Transcript:
+${transcriptWithTimestamps}`;
+
+	const refinedResult = await callAiApi(refinedPrompt, { json: false }, context);
+	const usage = {
+		inputTokens: refinedResult.inputTokens,
+		outputTokens: refinedResult.outputTokens,
+	};
+
+	const cleanedText = refinedResult.content.trim();
+	if (cleanedText.length === 0) return { chapters: [], ...usage };
+
+	const paragraphs = cleanedText
+		.split(/\n\s*\n/)
+		.map((p) => p.trim())
+		.filter((p) => p.length > 0);
+
+	return {
+		chapters: [
+			{
+				startSec,
+				title: chapterTitle,
+				paragraphs: paragraphs.length > 0 ? paragraphs : [cleanedText],
+			},
+		],
+		...usage,
 	};
 }
 

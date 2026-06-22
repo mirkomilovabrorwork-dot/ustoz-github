@@ -298,7 +298,10 @@ async function EmbedContent({
 			createdAt: comments.createdAt,
 			updatedAt: comments.updatedAt,
 			parentCommentId: comments.parentCommentId,
-			authorName: users.name,
+			// Guests have no users row; fall back to the stored guest display name.
+			authorName: sql<
+				string | null
+			>`COALESCE(${users.name}, ${comments.authorName})`,
 		})
 		.from(comments)
 		.leftJoin(users, eq(comments.authorId, users.id))

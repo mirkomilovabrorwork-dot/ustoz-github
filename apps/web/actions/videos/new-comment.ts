@@ -13,6 +13,24 @@ import { revalidatePath } from "next/cache";
 import { createNotification } from "@/lib/Notification";
 import * as EffectRuntime from "@/lib/server";
 
+// Hard caps to bound unauthenticated input. Guest names are short display
+// labels; content is a comment body.
+const GUEST_NAME_MAX = 50;
+const CONTENT_MAX = 5000;
+
+// Trim, strip control characters (incl. newlines) and clamp a guest-supplied
+// display name. Returns null when the result is empty.
+function sanitizeGuestName(raw: unknown): string | null {
+	if (typeof raw !== "string") return null;
+	const cleaned = raw
+		// biome-ignore lint/suspicious/noControlCharactersInRegex: stripping control chars is the intent
+		.replace(/[\x00-\x1F\x7F]/g, " ")
+		.replace(/\s+/g, " ")
+		.trim();
+	if (!cleaned) return null;
+	return cleaned.slice(0, GUEST_NAME_MAX);
+}
+
 export async function newComment(data: {
 	content: string;
 	videoId: Video.VideoId;
@@ -20,9 +38,18 @@ export async function newComment(data: {
 	authorImage: ImageUpload.ImageUrl | null;
 	parentCommentId: Comment.CommentId;
 	timestamp: number;
+	// Display name for an unauthenticated (guest) commenter. Ignored when the
+	// viewer is logged in.
+	guestName?: string | null;
 }) {
 	const user = await getCurrentUser();
-	if (!user) throw new Error("Unauthorized");
+
+	// Anonymous viewers may comment ONLY when they can VIEW the video (enforced
+	// by the canView policy below) and only after providing a display name.
+	const guestName = user ? null : sanitizeGuestName(data.guestName);
+	if (!user && !guestName) {
+		throw new Error("A name is required to comment");
+	}
 
 	const content = data.content;
 	const videoId = data.videoId;
@@ -37,6 +64,10 @@ export async function newComment(data: {
 
 	if (!content || !videoId) {
 		throw new Error("Content and videoId are required");
+	}
+
+	if (content.length > CONTENT_MAX) {
+		throw new Error("Comment is too long");
 	}
 
 	const [video] = await db()
@@ -69,8 +100,10 @@ export async function newComment(data: {
 	}
 
 	// Gate comment creation behind the same view-authorization the rest of the
-	// app uses.  Any logged-in user who cannot VIEW the video (private, password-
-	// protected, email-restricted) must not be able to POST comments on it.
+	// app uses.  Any viewer (logged-in OR anonymous) who cannot VIEW the video
+	// (private, password-protected, email-restricted) must not be able to POST
+	// comments on it. provideOptionalAuth means an anonymous viewer only passes
+	// canView for public/shared videos.
 	const viewExit = await Effect.gen(function* () {
 		const videosPolicy = yield* VideosPolicy;
 		return yield* Effect.void.pipe(
@@ -78,15 +111,19 @@ export async function newComment(data: {
 		);
 	}).pipe(provideOptionalAuth, EffectRuntime.runPromiseExit);
 
-	if (Exit.isFailure(viewExit)) throw new Error("Unauthorized to view this video");
+	if (Exit.isFailure(viewExit))
+		throw new Error("Unauthorized to view this video");
 
 	const id = Comment.CommentId.make(nanoId());
 
-	const authorId = User.UserId.make(user.id);
+	// Logged-in: attribute to the user (name resolved via the users join on
+	// read). Guest: no authorId, persist the supplied display name in authorName.
+	const authorId = user ? User.UserId.make(user.id) : null;
 
 	const newComment = {
 		id: id,
 		authorId: authorId,
+		authorName: guestName,
 		type: type,
 		content: content,
 		videoId: videoId,
@@ -100,22 +137,25 @@ export async function newComment(data: {
 
 	await db().insert(comments).values(newComment);
 
-	try {
-		await createNotification({
-			type: conditionalType,
-			videoId,
-			authorId: user.id,
-			comment: { id, content },
-			parentCommentId,
-		});
-	} catch (error) {
-		console.error("Failed to create notification:", error);
+	// Notifications are keyed to an authoring user; guests have none, so skip.
+	if (user) {
+		try {
+			await createNotification({
+				type: conditionalType,
+				videoId,
+				authorId: user.id,
+				comment: { id, content },
+				parentCommentId,
+			});
+		} catch (error) {
+			console.error("Failed to create notification:", error);
+		}
 	}
 
 	const commentWithAuthor = {
 		...newComment,
-		authorName: user.name,
-		authorImage: data.authorImage,
+		authorName: user ? user.name : guestName,
+		authorImage: user ? data.authorImage : null,
 		sending: false,
 	};
 

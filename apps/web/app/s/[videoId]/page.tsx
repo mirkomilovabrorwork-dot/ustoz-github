@@ -691,7 +691,11 @@ async function AuthorizedContent({
 						createdAt: comments.createdAt,
 						updatedAt: comments.updatedAt,
 						parentCommentId: comments.parentCommentId,
-						authorName: users.name,
+						// Guests have no users row; fall back to the stored guest
+						// display name (comments.authorName).
+						authorName: sql<
+							string | null
+						>`COALESCE(${users.name}, ${comments.authorName})`,
 						authorImage: users.image,
 					})
 					.from(comments)
