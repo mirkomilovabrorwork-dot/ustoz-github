@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 
 type TabId = "summary" | "tasks" | "transcript" | "refined";
 
@@ -39,62 +39,17 @@ export function BelowVideoTabs({
 
 	const [activeTab, setActiveTab] = useState<TabId>(initialTab);
 
-	const sectionRefs = useRef<Partial<Record<TabId, HTMLElement | null>>>({});
-
-	// Scroll-spy: highlight the tab whose section is most visible
-	useEffect(() => {
-		const observers: IntersectionObserver[] = [];
-
-		TABS.forEach(({ id }) => {
-			const el = sectionRefs.current[id];
-			if (!el) return;
-
-			const observer = new IntersectionObserver(
-				(entries) => {
-					const entry = entries[0];
-					if (entry?.isIntersecting) {
-						setActiveTab(id);
-					}
-				},
-				{ threshold: 0.4 },
-			);
-
-			observer.observe(el);
-			observers.push(observer);
-		});
-
-		return () => {
-			observers.forEach((o) => o.disconnect());
-		};
-	}, []);
-
+	// Click a tab → switch the visible panel instantly (Loom-style), and keep the
+	// URL `?tab=` in sync for shareability. No scroll-spy, no stacked sections.
 	const handleTabClick = useCallback(
 		(id: TabId) => {
-			// Update URL param for shareability
+			setActiveTab(id);
 			const params = new URLSearchParams(searchParams.toString());
 			params.set("tab", id);
 			router.replace(`?${params.toString()}`, { scroll: false });
-
-			// Smooth-scroll to the section
-			const el = sectionRefs.current[id];
-			if (el) {
-				el.scrollIntoView({ behavior: "smooth", block: "start" });
-			}
 		},
 		[router, searchParams],
 	);
-
-	// On initial load, scroll to the tab indicated by the URL param
-	useEffect(() => {
-		if (initialTab !== "summary") {
-			const el = sectionRefs.current[initialTab];
-			if (el) {
-				el.scrollIntoView({ behavior: "smooth", block: "start" });
-			}
-		}
-		// Only run once on mount
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
 
 	const panels: { id: TabId; content: React.ReactNode }[] = [
 		{ id: "summary", content: summary },
@@ -103,12 +58,18 @@ export function BelowVideoTabs({
 		{ id: "refined", content: refined },
 	];
 
+	const activeLabel = TABS.find((t) => t.id === activeTab)?.label;
+	const activeContent = panels.find((p) => p.id === activeTab)?.content;
+
 	return (
 		<div className="flex flex-col w-full">
+			{/* gentle fade when the active panel changes */}
+			<style>{`@keyframes tabPanelFade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}`}</style>
+
 			{/* Tab bar */}
 			<div
-				className=""
 				role="tablist"
+				aria-label="Video details"
 				style={{
 					fontFamily:
 						"-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
@@ -125,77 +86,87 @@ export function BelowVideoTabs({
 					WebkitOverflowScrolling: "touch",
 				}}
 			>
-				{TABS.map((tab) => (
-					<button
-						key={tab.id}
-						type="button"
-						role="tab"
-						aria-selected={activeTab === tab.id}
-						onClick={() => handleTabClick(tab.id)}
-						style={{
-							flex: "0 0 auto",
-							minWidth: "80px",
-							padding: "9px 8px",
-							fontSize: "13.5px",
-							fontWeight: 600,
-							textAlign: "center",
-							cursor: "pointer",
-							color: activeTab === tab.id ? "#1d4ed8" : "#475569",
-							border: "none",
-							borderRadius: "9px",
-							background: activeTab === tab.id ? "#eef4ff" : "none",
-							boxShadow:
-								activeTab === tab.id
+				{TABS.map((tab) => {
+					const isActive = activeTab === tab.id;
+					return (
+						<button
+							key={tab.id}
+							type="button"
+							role="tab"
+							aria-selected={isActive}
+							aria-controls={`panel-${tab.id}`}
+							id={`tab-${tab.id}`}
+							onClick={() => handleTabClick(tab.id)}
+							style={{
+								flex: "0 0 auto",
+								minWidth: "80px",
+								padding: "9px 8px",
+								fontSize: "13.5px",
+								fontWeight: 600,
+								textAlign: "center",
+								cursor: "pointer",
+								color: isActive ? "#1d4ed8" : "#475569",
+								border: "none",
+								borderRadius: "9px",
+								background: isActive ? "#eef4ff" : "none",
+								boxShadow: isActive
 									? "inset 0 0 0 1px rgba(37, 99, 235, .14)"
 									: "none",
-							position: "relative",
-							transition:
-								"color 320ms cubic-bezier(.22,.61,.36,1), background 320ms cubic-bezier(.22,.61,.36,1)",
-						}}
-					>
-						{tab.label}
-					</button>
-				))}
-			</div>
-
-			{/* Stacked panels */}
-			<div className="flex flex-col gap-6 mt-3">
-				{panels.map(({ id, content }) => (
-					<section
-						key={id}
-						id={`panel-${id}`}
-						ref={(el) => {
-							sectionRefs.current[id] = el;
-						}}
-						style={{
-							background: "#fff",
-							border: "1px solid #e9edf3",
-							borderRadius: "16px",
-							boxShadow: "0 1px 2px rgba(15,23,42,.06), 0 2px 6px rgba(15,23,42,.07)",
-							padding: "24px 24px 28px",
-							scrollMarginTop: "210px",
-						}}
-					>
-						<h2
-							style={{
-								fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-								fontSize: "11px",
-								fontWeight: 700,
-								letterSpacing: ".07em",
-								textTransform: "uppercase",
-								color: "#64748b",
-								marginBottom: "12px",
-								display: "flex",
-								alignItems: "center",
-								gap: "8px",
+								position: "relative",
+								transition:
+									"color 320ms cubic-bezier(.22,.61,.36,1), background 320ms cubic-bezier(.22,.61,.36,1)",
 							}}
 						>
-							{TABS.find((t) => t.id === id)?.label}
-							<span style={{ flex: 1, height: "1px", background: "#e9edf3", display: "block" }} />
-						</h2>
-						{content}
-					</section>
-				))}
+							{tab.label}
+						</button>
+					);
+				})}
+			</div>
+
+			{/* Active panel only */}
+			<div className="mt-3">
+				<section
+					key={activeTab}
+					id={`panel-${activeTab}`}
+					role="tabpanel"
+					aria-labelledby={`tab-${activeTab}`}
+					style={{
+						background: "#fff",
+						border: "1px solid #e9edf3",
+						borderRadius: "16px",
+						boxShadow:
+							"0 1px 2px rgba(15,23,42,.06), 0 2px 6px rgba(15,23,42,.07)",
+						padding: "24px 24px 28px",
+						animation: "tabPanelFade .22s ease both",
+					}}
+				>
+					<h2
+						style={{
+							fontFamily:
+								"-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+							fontSize: "11px",
+							fontWeight: 700,
+							letterSpacing: ".07em",
+							textTransform: "uppercase",
+							color: "#64748b",
+							marginBottom: "12px",
+							display: "flex",
+							alignItems: "center",
+							gap: "8px",
+						}}
+					>
+						{activeLabel}
+						<span
+							style={{
+								flex: 1,
+								height: "1px",
+								background: "#e9edf3",
+								display: "block",
+							}}
+						/>
+					</h2>
+					{activeContent}
+				</section>
 			</div>
 		</div>
 	);
