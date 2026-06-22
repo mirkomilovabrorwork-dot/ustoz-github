@@ -375,7 +375,7 @@ const CustomDomainDialog = ({
 				>
 					<DialogHeader
 						icon={<FontAwesomeIcon icon={faGlobe} />}
-						description="Let's get you setup with your custom domain for your caps."
+						description="Let's get you setup with your custom domain."
 					>
 						<DialogTitle className="text-lg text-gray-12">
 							Custom Domain
@@ -467,7 +467,7 @@ const CustomDomainDialog = ({
 											handleClose();
 										}}
 									>
-										Upgrade To Cap Pro
+										Upgrade To Pro
 									</Button>
 								))}
 						</DialogFooter>

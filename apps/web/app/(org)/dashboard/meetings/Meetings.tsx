@@ -1,6 +1,5 @@
 "use client";
 
-import { Button } from "@cap/ui";
 import type { Video } from "@cap/web-domain";
 import { Effect, Exit } from "effect";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -180,18 +179,9 @@ export const Meetings = ({
 								No meeting recordings yet
 							</p>
 							<p className="max-w-md text-gray-10 text-md">
-								Install the Cap browser extension to start recording Google Meet
+								Install the data365 browser extension to start recording Google Meet
 								calls.
 							</p>
-						</div>
-						<div className="flex flex-wrap gap-3 justify-center items-center mt-4">
-							<Button
-								href="/extension/install"
-								className="flex relative gap-2 justify-center items-center"
-								variant="primary"
-							>
-								Install Extension
-							</Button>
 						</div>
 					</div>
 				</div>

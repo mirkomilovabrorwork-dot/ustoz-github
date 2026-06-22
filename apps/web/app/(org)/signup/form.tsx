@@ -40,7 +40,7 @@ export function SignupForm() {
 					layout="position"
 					className="text-2xl font-semibold text-gray-12"
 				>
-					Sign up to Cap
+					Sign up to 365
 				</motion.h1>
 				<motion.p
 					key="subtitle"

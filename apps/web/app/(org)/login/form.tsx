@@ -84,7 +84,7 @@ export function LoginForm() {
 					layout="position"
 					className="text-2xl font-semibold text-gray-12"
 				>
-					Sign in to Cap
+					Sign in to 365
 				</motion.h1>
 				<motion.p
 					key="subtitle"
@@ -155,7 +155,7 @@ export function LoginForm() {
 					className="pt-3 text-xs text-center text-gray-11"
 				>
 					By signing in, you acknowledge that you have both read and agree to
-					Cap's{" "}
+					365's{" "}
 					<Link
 						href="/terms"
 						target="_blank"

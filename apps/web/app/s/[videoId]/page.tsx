@@ -226,7 +226,7 @@ export async function generateMetadata(
 				onNone: () =>
 					awaitRecording
 						? {
-								title: "Cap: Preparing Video",
+								title: "365: Preparing Video",
 								description: "This recording is being made available.",
 								robots: "noindex, nofollow",
 							}

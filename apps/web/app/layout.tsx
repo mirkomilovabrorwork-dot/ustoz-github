@@ -42,7 +42,7 @@ const defaultFont = localFont({
 });
 
 export const metadata: Metadata = {
-	metadataBase: new URL("https://cap.so"),
+	metadataBase: new URL(process.env.NEXT_PUBLIC_WEB_URL ?? process.env.WEB_URL ?? "https://cap.so"),
 	title: "data365",
 	description: "data365 — internal screen recording platform",
 	openGraph: {

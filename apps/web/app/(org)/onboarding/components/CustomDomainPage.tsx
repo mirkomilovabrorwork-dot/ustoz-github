@@ -41,7 +41,7 @@ export function CustomDomainPage() {
 			description={
 				<div>
 					<p className="w-full text-base max-w-[340px] text-gray-10">
-						Pro users can setup a custom domain to access their shareable Cap
+						Pro users can setup a custom domain to access their shareable recording
 						links i.e{" "}
 						<span className="font-medium text-blue-500">
 							cap.yourdomain.com

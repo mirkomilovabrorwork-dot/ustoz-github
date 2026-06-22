@@ -167,7 +167,7 @@ export function DashboardSearch({
 			{
 				id: "import-video",
 				title: "Import Video",
-				subtitle: "Bring an existing video into Cap",
+				subtitle: "Bring an existing video into 365",
 				href: "/dashboard/import",
 				value: "import upload loom video file",
 				icon: Upload,
@@ -238,11 +238,11 @@ export function DashboardSearch({
 						},
 						{
 							id: "organization-preferences",
-							title: "Cap Settings",
+							title: "365 Settings",
 							subtitle: "Default summaries, captions, and viewer options",
 							href: "/dashboard/settings/organization/preferences",
 							value:
-								"cap settings preferences summaries captions chapters comments reactions transcript",
+								"365 settings preferences summaries captions chapters comments reactions transcript",
 							icon: Sparkles,
 						},
 					]

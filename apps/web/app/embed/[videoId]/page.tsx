@@ -40,7 +40,7 @@ export async function generateMetadata(
 				onNone: () => notFound(),
 				onSome: ([video]) => ({
 					title: `${video.name} | data365`,
-					description: "Watch this video on Cap",
+					description: "Watch this video on 365",
 					openGraph: {
 						images: [
 							{
@@ -67,7 +67,7 @@ export async function generateMetadata(
 					twitter: {
 						card: "player",
 						title: `${video.name} | data365`,
-						description: "Watch this video on Cap",
+						description: "Watch this video on 365",
 						images: [
 							new URL(
 								`/api/video/og?videoId=${videoId}`,

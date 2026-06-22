@@ -60,7 +60,6 @@ import {
 	HomeIcon,
 	ImportIcon,
 	LogoutIcon,
-	MessageCircleMoreIcon,
 	ReferIcon,
 	RecordIcon,
 	SettingsGearIcon,
@@ -109,7 +108,7 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 			subNav: [],
 		},
 		{
-			name: "Record a Cap",
+			name: "New Recording",
 			href: `/dashboard/caps/record`,
 			icon: <RecordIcon />,
 			subNav: [],
@@ -355,7 +354,7 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 			</Popover>
 			<MemberAvatars />
 			<nav
-				className="flex flex-col justify-between w-full h-full"
+				className="flex flex-col justify-between w-full min-h-full"
 				aria-label="Sidebar"
 			>
 				<div
@@ -463,7 +462,7 @@ const SidebarUser = () => {
 			{
 				name: "Homepage",
 				icon: <HomeIcon />,
-				href: "/home",
+				href: "/dashboard/caps",
 				onClick: () => setMenuOpen(false),
 				iconClassName: "text-gray-11 group-hover:text-gray-12",
 				showCondition: true,
@@ -485,20 +484,6 @@ const SidebarUser = () => {
 				onClick: () => setMenuOpen(false),
 				iconClassName: "text-gray-11 group-hover:text-gray-12",
 				showCondition: buildEnv.NEXT_PUBLIC_IS_CAP,
-			},
-			{
-				name: "Chat Support",
-				icon: <MessageCircleMoreIcon />,
-				onClick: () => window.open("https://cap.link/discord", "_blank"),
-				iconClassName: "text-gray-11 group-hover:text-gray-12",
-				showCondition: true,
-			},
-			{
-				name: "Download App",
-				icon: <DownloadIcon />,
-				onClick: () => window.open("https://cap.so/download", "_blank"),
-				iconClassName: "text-gray-11 group-hover:text-gray-12",
-				showCondition: true,
 			},
 			{
 				name: themeLabel,

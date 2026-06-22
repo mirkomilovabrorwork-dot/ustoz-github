@@ -303,10 +303,10 @@ export const EmbedVideo = forwardRef<
 								transition={{ duration: 0.3, delay: 0.1 }}
 								onClick={(e) => {
 									e.stopPropagation();
-									window.open("https://cap.so", "_blank");
+									window.open(process.env.NEXT_PUBLIC_WEB_URL ?? "#", "_blank");
 								}}
 								className="flex z-10 gap-2 items-center px-3 py-2 text-sm rounded-full border backdrop-blur-sm transition-colors duration-200 border-white/10 w-fit text-white/80 hover:text-white bg-black/50 pointer-events-auto"
-								aria-label="Powered by Cap"
+								aria-label="Powered by 365"
 							>
 								<span className="text-xs md:text-sm text-white/80">
 									Powered by

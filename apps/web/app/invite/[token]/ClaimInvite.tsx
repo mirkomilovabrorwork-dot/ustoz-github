@@ -129,7 +129,7 @@ export function ClaimInvite({ token }: { token: string }) {
 					Create your account
 				</h1>
 				<p className="text-[16px] text-gray-10">
-					You've been invited to join Cap.
+					You've been invited to join 365.
 				</p>
 			</div>
 			<div className="flex flex-col space-y-3">
@@ -204,7 +204,7 @@ export function ClaimInvite({ token }: { token: string }) {
 				</p>
 				<p className="pt-3 text-xs text-center text-gray-9">
 					By creating an account, you acknowledge that you have both read and
-					agree to Cap's{" "}
+					agree to 365's{" "}
 					<Link
 						href="/terms"
 						target="_blank"

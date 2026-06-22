@@ -138,14 +138,14 @@ export const Caps = ({
 			} else {
 				return yield* Effect.fail(
 					new Error(
-						`Failed to delete ${errorCount} cap${errorCount === 1 ? "" : "s"}`,
+						`Failed to delete ${errorCount} 365${errorCount === 1 ? "" : "s"}`,
 					),
 				);
 			}
 		}),
 		onMutate: (ids: Video.VideoId[]) => {
 			bulkDeleteToastRef.current = toast.loading(
-				`Deleting ${ids.length} cap${ids.length === 1 ? "" : "s"}...`,
+				`Deleting ${ids.length} 365${ids.length === 1 ? "" : "s"}...`,
 			);
 		},
 		onSuccess: (data: { success: number; error?: number }) => {
@@ -155,15 +155,15 @@ export const Caps = ({
 			router.refresh();
 			if (data.error) {
 				toast.success(
-					`Successfully deleted ${data.success} cap${
+					`Successfully deleted ${data.success} 365${
 						data.success === 1 ? "" : "s"
-					}, but failed to delete ${data.error} cap${
+					}, but failed to delete ${data.error} 365${
 						data.error === 1 ? "" : "s"
 					}`,
 				);
 			} else {
 				toast.success(
-					`Successfully deleted ${data.success} cap${
+					`Successfully deleted ${data.success} 365${
 						data.success === 1 ? "" : "s"
 					}`,
 				);
@@ -175,7 +175,7 @@ export const Caps = ({
 			const message =
 				error instanceof Error
 					? error.message
-					: "An error occurred while deleting caps";
+					: "An error occurred while deleting 365s";
 			toast.error(message);
 		},
 	});
@@ -185,10 +185,10 @@ export const Caps = ({
 			yield* rpc.VideoDelete(id);
 		}),
 		onSuccess: () => {
-			toast.success("Cap deleted successfully");
+			toast.success("365 deleted successfully");
 			router.refresh();
 		},
-		onError: (_error: unknown) => toast.error("Failed to delete cap"),
+		onError: (_error: unknown) => toast.error("Failed to delete 365"),
 	});
 
 	useEffect(() => {
