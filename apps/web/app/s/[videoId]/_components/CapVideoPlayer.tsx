@@ -32,6 +32,7 @@ import {
 	resolvePlaybackSource,
 	shouldFallbackToRawPlaybackSource,
 } from "./playback-source";
+import { useThumnailQuery } from "@/components/VideoThumbnail";
 import { VideoPreviewGif } from "./VideoPreviewGif";
 import {
 	MediaPlayer,
@@ -216,6 +217,9 @@ export function CapVideoPlayer({
 	const hasActiveProgress =
 		isUploading || isProcessing || isGeneratingThumbnail;
 	const shouldDeferResolvedSource = shouldDeferPlaybackSource(uploadProgress);
+
+	const thumbnailQuery = useThumnailQuery(videoId);
+	const posterUrl: string | undefined = thumbnailQuery.data ?? undefined;
 
 	const resolvedSrc = useQuery<ResolvedPlaybackSource | null>({
 		queryKey: [
@@ -708,6 +712,7 @@ export function CapVideoPlayer({
 					}
 					playsInline
 					autoPlay={autoplay}
+					poster={posterUrl}
 				>
 					{chaptersSrc && <track default kind="chapters" src={chaptersSrc} />}
 					{captionsSrc && (

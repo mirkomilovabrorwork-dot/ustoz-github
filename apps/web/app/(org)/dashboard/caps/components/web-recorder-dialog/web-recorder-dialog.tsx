@@ -9,7 +9,7 @@ import {
 } from "@cap/ui";
 import type { Folder } from "@cap/web-domain";
 import { AnimatePresence, motion } from "framer-motion";
-import { MonitorIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, MonitorIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDashboardContext } from "../../../Contexts";
@@ -56,6 +56,7 @@ export const WebRecorderDialog = ({
 	const [cameraSelectOpen, setCameraSelectOpen] = useState(false);
 	const [micSelectOpen, setMicSelectOpen] = useState(false);
 	const [pendingSilentConfirm, setPendingSilentConfirm] = useState(false);
+	const [linkCopied, setLinkCopied] = useState(false);
 	const micAutoSelectedRef = useRef(false);
 	const dialogContentRef = useRef<HTMLDivElement>(null);
 	const startSoundRef = useRef<HTMLAudioElement | null>(null);
@@ -200,6 +201,22 @@ export const WebRecorderDialog = ({
 		onRecordingStart: handleRecordingStartSound,
 		onRecordingStop: handleRecordingStopSound,
 	});
+
+	// Best-effort auto-copy when the share URL becomes available after upload.
+	// Browsers may block clipboard writes without a direct user gesture (the
+	// upload callback is async), so this is intentionally non-throwing.
+	useEffect(() => {
+		if (!completedShareUrl) return;
+		setLinkCopied(false);
+		(async () => {
+			try {
+				await navigator.clipboard.writeText(completedShareUrl);
+				setLinkCopied(true);
+			} catch {
+				/* gesture / permission may be absent after async upload — ignore */
+			}
+		})();
+	}, [completedShareUrl]);
 
 	// Warn before a silent recording: the first Record click with no audio shows
 	// a warning and arms a confirm; the second click records without audio.
@@ -408,16 +425,48 @@ export const WebRecorderDialog = ({
 									<div className="rounded-md border border-green-6 bg-green-3/70 px-3 py-3 text-xs text-green-12">
 										<div className="font-medium">Share link ready</div>
 										<div className="mt-1 leading-snug">
-											If it did not open automatically, open it here.
+											{linkCopied
+												? "Link copied to clipboard!"
+												: "If it did not open automatically, open it here."}
 										</div>
-										<Button
-											variant="blue"
-											size="sm"
-											className="mt-3 w-full"
-											onClick={openCompletedShareUrl}
-										>
-											Open Share Link
-										</Button>
+										<div className="mt-3 flex gap-2">
+											<Button
+												variant="blue"
+												size="sm"
+												className="flex-1"
+												onClick={() => {
+													navigator.clipboard
+														.writeText(completedShareUrl)
+														.then(() => {
+															setLinkCopied(true);
+															setTimeout(() => setLinkCopied(false), 2000);
+														})
+														.catch(() => {
+															/* ignore */
+														});
+												}}
+											>
+												{linkCopied ? (
+													<>
+														<CheckIcon className="mr-1.5 h-3.5 w-3.5" />
+														Copied!
+													</>
+												) : (
+													<>
+														<CopyIcon className="mr-1.5 h-3.5 w-3.5" />
+														Copy link
+													</>
+												)}
+											</Button>
+											<Button
+												variant="blue"
+												size="sm"
+												className="flex-1"
+												onClick={openCompletedShareUrl}
+											>
+												Open Share Link
+											</Button>
+										</div>
 									</div>
 								)}
 								{phase === "idle" && recoveredDownloads.length > 0 && (
