@@ -62,6 +62,167 @@ function plainTextToWebVTT(text: string, durationSec: number): string {
 	return vtt;
 }
 
+interface ParsedCue {
+	start: number;
+	end: number | null;
+	text: string;
+}
+
+function parseTimestampToSeconds(raw: string): number | null {
+	// Accept HH:MM:SS(.mmm) or MM:SS(.mmm)
+	const m = raw
+		.trim()
+		.match(/^(?:(\d{1,2}):)?(\d{1,2}):(\d{1,2})(?:[.,](\d{1,3}))?$/);
+	if (!m) return null;
+	const h = m[1] ? parseInt(m[1], 10) : 0;
+	const min = parseInt(m[2] ?? "0", 10);
+	const s = parseInt(m[3] ?? "0", 10);
+	const ms = m[4] ? parseInt(m[4].padEnd(3, "0"), 10) : 0;
+	return h * 3600 + min * 60 + s + ms / 1000;
+}
+
+function cleanCueText(raw: string): string {
+	return raw
+		.replace(/\*\*/g, "")
+		.replace(/^[\s\-–—>]+/, "")
+		.replace(/^\[+/, "")
+		.replace(/\]+$/, "")
+		.trim();
+}
+
+// WebVTT cue settings (align:, line:, position:, size:, vertical:, region:) can
+// appear after the end timestamp on a standard cue line. They are NOT transcript
+// text, so strip them — otherwise a standard cue's settings get mistaken for the
+// cue body and the real next-line text is dropped.
+const CUE_SETTING_TOKEN = /^(?:align|line|position|size|vertical|region):\S+$/i;
+function stripCueSettings(text: string): string {
+	return text
+		.split(/\s+/)
+		.filter((tok) => tok && !CUE_SETTING_TOKEN.test(tok))
+		.join(" ")
+		.trim();
+}
+
+const TS = "\\d{1,2}:\\d{1,2}(?::\\d{1,2})?(?:[.,]\\d{1,3})?";
+
+/**
+ * Normalize Gemini's transcript output into STANDARD WebVTT, regardless of the
+ * exact shape Gemini returns. Handles: inline cues `**[start --> end]** text`,
+ * standard two-line cues (timestamp line then text line(s)), and single-timestamp
+ * cues `**[HH:MM:SS]** text`. Falls back to plainTextToWebVTT if no cues are found.
+ */
+export function normalizeToWebVtt(raw: string, audioDurationSec: number): string {
+	const lines = raw.split(/\r?\n/);
+	const cues: ParsedCue[] = [];
+
+	// Inline range cue: optional **/[ then start --> end ] optional, then text on same line.
+	const inlineRange = new RegExp(
+		`^[\\s*\\[-]*?(${TS})\\s*-->\\s*(${TS})\\s*\\]?\\*?\\*?\\s*(.*)$`,
+	);
+	// Range on its own line (standard) — text (if any) follows.
+	const rangeLine = new RegExp(`(${TS})\\s*-->\\s*(${TS})`);
+	// Single timestamp cue: **[HH:MM:SS]** text  (no end time).
+	const singleStamp = new RegExp(`^[\\s*\\[-]*?(${TS})\\s*\\]?\\*?\\*?\\s*(.*)$`);
+
+	let pendingStart: number | null = null;
+	let pendingEnd: number | null = null;
+	let pendingText: string[] = [];
+
+	const flushPending = () => {
+		if (pendingStart !== null) {
+			const text = cleanCueText(pendingText.join(" "));
+			if (text) cues.push({ start: pendingStart, end: pendingEnd, text });
+		}
+		pendingStart = null;
+		pendingEnd = null;
+		pendingText = [];
+	};
+
+	for (const rawLine of lines) {
+		const line = rawLine.trim();
+		if (!line) {
+			flushPending();
+			continue;
+		}
+		if (/^WEBVTT/i.test(line)) continue;
+		if (/^\d+$/.test(line)) continue; // bare cue index
+
+		if (line.includes("-->")) {
+			flushPending();
+			// Try inline (timestamp + same-line text) first.
+			const im = line.match(inlineRange);
+			if (im) {
+				const start = parseTimestampToSeconds(im[1] ?? "");
+				const end = parseTimestampToSeconds(im[2] ?? "");
+				// Drop any cue-settings tokens; only real transcript text counts as
+				// same-line text. Settings-only => treat as a standard two-line cue.
+				const text = stripCueSettings(cleanCueText(im[3] ?? ""));
+				if (start !== null) {
+					if (text) {
+						cues.push({ start, end, text });
+					} else {
+						// Standard two-line cue: text comes on following line(s).
+						pendingStart = start;
+						pendingEnd = end;
+					}
+					continue;
+				}
+			}
+			const rm = line.match(rangeLine);
+			if (rm) {
+				const start = parseTimestampToSeconds(rm[1] ?? "");
+				if (start !== null) {
+					pendingStart = start;
+					pendingEnd = parseTimestampToSeconds(rm[2] ?? "");
+				}
+			}
+			continue;
+		}
+
+		// Single-timestamp cue (no -->): "**[HH:MM:SS]** text"
+		const sm = line.match(singleStamp);
+		if (sm && parseTimestampToSeconds(sm[1] ?? "") !== null && (sm[2] ?? "").trim()) {
+			flushPending();
+			const start = parseTimestampToSeconds(sm[1] ?? "");
+			if (start !== null) {
+				cues.push({ start, end: null, text: cleanCueText(sm[2] ?? "") });
+				continue;
+			}
+		}
+
+		// Plain text line — accumulate as body of the pending cue.
+		if (pendingStart !== null) {
+			pendingText.push(line);
+		}
+	}
+	flushPending();
+
+	if (cues.length === 0) {
+		return plainTextToWebVTT(raw, audioDurationSec);
+	}
+
+	// Fill missing end times: next cue's start, or start + default for the last cue.
+	const DEFAULT_TAIL = 4;
+	let vtt = "WEBVTT\n\n";
+	for (let i = 0; i < cues.length; i++) {
+		const cue = cues[i];
+		if (!cue) continue;
+		let end = cue.end;
+		if (end === null || end <= cue.start) {
+			const next = cues[i + 1];
+			if (next && next.start > cue.start) {
+				end = next.start;
+			} else {
+				end = Math.min(cue.start + DEFAULT_TAIL, audioDurationSec || cue.start + DEFAULT_TAIL);
+				if (end <= cue.start) end = cue.start + DEFAULT_TAIL;
+			}
+		}
+		vtt += `${i + 1}\n${formatVttTimestamp(cue.start)} --> ${formatVttTimestamp(end)}\n${cue.text}\n\n`;
+	}
+
+	return vtt;
+}
+
 import { isTransientGeminiError, withGeminiRetry } from "@/lib/gemini-retry";
 
 const GEMINI_TRANSCRIBE_MODEL = "gemini-2.5-flash";
@@ -208,15 +369,12 @@ If two people talk over each other and both cannot be clearly separated, write:
 
 4. Add real, accurate timestamps from the audio. Do not use sample, fake, guessed, or template timestamps.
 
-Put timestamps only where they exactly match the audio:
+Put a cue boundary only where it exactly matches the audio:
 - at the beginning,
 - when the speaker changes,
 - when a new discussion topic starts,
 - when decisions, tasks, objections, or important points appear,
 - when there is a meaningful pause or transition.
-
-Timestamp format:
-**[HH:MM:SS]**
 
 5. Clean the transcript professionally:
 - remove filler sounds like "umm", "aa", "eee", "э"
@@ -235,7 +393,7 @@ Timestamp format:
 
 8. Output only the transcript. No intro, no explanation, no table, no numbering.
 
-IMPORTANT: Start your response with "WEBVTT" header and format each line as WebVTT cues with timestamps in HH:MM:SS.mmm --> HH:MM:SS.mmm format. The speaker labels, bold formatting, and content rules above still apply within each cue text.`,
+IMPORTANT: Output STANDARD WebVTT only. Start your response with a "WEBVTT" header line, then a blank line. For each cue, put the timestamp on its OWN line as "HH:MM:SS.mmm --> HH:MM:SS.mmm", then the cue text on the NEXT line(s), then a blank line before the next cue. Do NOT put the timestamp and the text on the same line. Do NOT wrap timestamps in markdown brackets like **[...]**. The speaker labels, bold formatting, and content rules above still apply within each cue's text.`,
 								},
 							],
 						},
@@ -289,15 +447,15 @@ IMPORTANT: Start your response with "WEBVTT" header and format each line as WebV
 		{ method: "DELETE" },
 	).catch(() => {});
 
-	const trimmedRawText = rawText.trimStart();
-	const transcriptVtt = trimmedRawText.startsWith("WEBVTT")
-		? trimmedRawText
-		: (() => {
-				console.warn(
-					"[gemini-transcribe] Gemini did not return WEBVTT timestamps; fabricated approximate timestamps from plain text fallback.",
-				);
-				return plainTextToWebVTT(rawText, audioDurationSec);
-			})();
+	// Always normalize Gemini's raw output into STANDARD WebVTT before saving,
+	// regardless of the shape it returns (inline cues, single timestamps, etc.).
+	// This keeps the AI workflow's parser happy and keeps HTML <track> captions valid.
+	const transcriptVtt = normalizeToWebVtt(rawText, audioDurationSec);
+	if (!transcriptVtt.includes("-->")) {
+		console.warn(
+			"[gemini-transcribe] Gemini did not return usable WEBVTT timestamps; fabricated approximate timestamps from plain text fallback.",
+		);
+	}
 
 	return { transcriptVtt, inputTokens, outputTokens };
 }

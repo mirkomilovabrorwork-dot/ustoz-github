@@ -18,9 +18,9 @@ export const WebRecorderDialogHeader = ({
 						xmlns="http://www.w3.org/2000/svg"
 						fill="none"
 						viewBox="0 0 103 40"
-						aria-label="Cap Logo"
+						aria-label="data365 Logo"
 					>
-						<title>Cap Logo</title>
+						<title>data365 Logo</title>
 						<rect
 							width="39.5"
 							height="39.5"
@@ -61,9 +61,9 @@ export const WebRecorderDialogHeader = ({
 					xmlns="http://www.w3.org/2000/svg"
 					fill="none"
 					viewBox="0 0 103 40"
-					aria-label="Cap Logo"
+					aria-label="data365 Logo"
 				>
-					<title>Cap Logo</title>
+					<title>data365 Logo</title>
 					<rect width="39.5" height="39.5" x="0.25" y="0.25" fill="#1a1d27" rx="7.75"></rect>
 					<rect width="39.5" height="39.5" x="0.25" y="0.25" stroke="#2e3347" strokeWidth="0.5" rx="7.75"></rect>
 					<path fill="#4785FF" d="M20 36c8.837 0 16-7.163 16-16S28.837 4 20 4 4 11.164 4 20s7.164 16 16 16"></path>

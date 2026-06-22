@@ -469,6 +469,19 @@ function parseVttWithTimestamps(vttContent: string): VttSegment[] {
 					parseInt(timeMatch[2] ?? "0", 10) * 60 +
 					parseInt(timeMatch[3] ?? "0", 10);
 			}
+			// Belt-and-suspenders: some VTTs (e.g. Gemini's "**[start --> end]** text")
+			// put the cue text on the SAME line as the timestamp. Capture it so AI never
+			// silently skips on an odd VTT.
+			const afterArrow = line.slice(line.lastIndexOf("-->") + 3);
+			const inlineText = afterArrow
+				.replace(/^[^\]]*\]/, "") // drop trailing end-time + closing bracket(s)
+				.replace(/\*\*/g, "")
+				.replace(/[[\]]/g, "")
+				.replace(/^[\s\-–—:>]+/, "")
+				.trim();
+			if (inlineText && !/^\d{1,2}:\d{2}/.test(inlineText)) {
+				segments.push({ start: currentStart, text: inlineText });
+			}
 		} else if (
 			line &&
 			line !== "WEBVTT" &&

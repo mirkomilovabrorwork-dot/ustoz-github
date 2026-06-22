@@ -56,7 +56,6 @@ import {
 	ChartLineIcon,
 	CodeIcon,
 	CogIcon,
-	DownloadIcon,
 	HomeIcon,
 	ImportIcon,
 	LogoutIcon,
@@ -354,12 +353,12 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 			</Popover>
 			<MemberAvatars />
 			<nav
-				className="flex flex-col justify-between w-full min-h-full"
+				className="flex flex-col w-full min-h-full"
 				aria-label="Sidebar"
 			>
 				<div
 					className={clsx(
-						"mt-5",
+						"mt-5 shrink-0",
 						sidebarCollapsed ? "flex flex-col justify-center items-center" : "",
 					)}
 				>
@@ -406,7 +405,7 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 
 					<SpacesList toggleMobileNav={() => toggleMobileNav?.()} />
 				</div>
-				<div className="pb-4 mt-auto w-full flex flex-col gap-2">
+				<div className="pb-4 mt-auto w-full flex flex-col gap-2 shrink-0">
 					<StorageIndicator />
 					<SidebarUser />
 				</div>
