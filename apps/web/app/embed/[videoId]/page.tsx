@@ -22,7 +22,9 @@ import { type Organisation, Policy, type Video } from "@cap/web-domain";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { Effect, Option } from "effect";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import * as EffectRuntime from "@/lib/server";
 import { EmbedVideo } from "./_components/EmbedVideo";
 import { PasswordOverlay } from "./_components/PasswordOverlay";
@@ -121,12 +123,12 @@ const renderEmbedPolicyDenied = () =>
 			<p className="text-gray-400 mb-6 max-w-xs text-sm leading-relaxed">
 				If you own this video, sign in to manage sharing settings.
 			</p>
-			<a
+			<Link
 				href="/login"
 				className="inline-flex items-center justify-center px-5 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition-colors"
 			>
 				Sign in
-			</a>
+			</Link>
 		</div>,
 	);
 
@@ -198,30 +200,22 @@ export default async function EmbedVideoPage(
 		Effect.catchTag("VerifyVideoPasswordError", () =>
 			Effect.succeed({ needsPassword: true } as const),
 		),
-		// Resolve the embed content (auth + comments + owner) in this SAME async
-		// boundary instead of returning a nested async Server Component. A nested
-		// async RSC streams in as an interleaved Suspense child, which triggers a
-		// production-only Next.js App Router hook-count crash (React #310) on the
-		// owner path (extra getCurrentUser latency widens the race window).
-		// See vercel/next.js#63121. Awaiting here removes the interleaved boundary.
-		Effect.flatMap((data) =>
-			data.needsPassword
-				? Effect.succeed(
-						<div key={videoId} className="min-h-screen bg-black">
-							<PasswordOverlay isOpen={true} videoId={videoId} />
-						</div>,
-					)
-				: Effect.promise(() =>
-						renderEmbedContent({ video: data.video, autoplay }),
-					).pipe(
-						Effect.map((content) => (
-							<div key={videoId} className="min-h-screen bg-black">
-								<PasswordOverlay isOpen={false} videoId={videoId} />
-								{content}
-							</div>
-						)),
-					),
-		),
+		Effect.map((data) => (
+			<div key={videoId} className="min-h-screen bg-black">
+				<PasswordOverlay isOpen={data.needsPassword} videoId={videoId} />
+				{!data.needsPassword && (
+					// Wrap the client subtree in an explicit Suspense boundary. The
+					// embed owner path triggers a React 19 hook-count bug (#310) where
+					// the App Router's useActionQueue use(thenable) suspends during
+					// hydration; with multiple suspends React miscounts hooks and
+					// throws. An explicit Suspense boundary around the suspending
+					// subtree resolves it. See facebook/react#33580, #33556.
+					<Suspense fallback={<div className="min-h-screen bg-black" />}>
+						<EmbedContent video={data.video} autoplay={autoplay} />
+					</Suspense>
+				)}
+			</div>
+		)),
 		Effect.catchTags({
 			PolicyDenied: renderEmbedPolicyDenied,
 			NoSuchElementException: renderNoSuchElement,
@@ -231,7 +225,7 @@ export default async function EmbedVideoPage(
 	);
 }
 
-async function renderEmbedContent({
+async function EmbedContent({
 	video,
 	autoplay,
 }: {
@@ -290,14 +284,14 @@ async function renderEmbedContent({
 				<p className="text-gray-400 mb-6 max-w-xs text-sm leading-relaxed">
 					Screenshots cannot be embedded. View it directly on the share page.
 				</p>
-				<a
+				<Link
 					href={`/s/${video.id}`}
 					target="_blank"
 					rel="noopener noreferrer"
 					className="inline-flex items-center justify-center px-5 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition-colors"
 				>
 					View screenshot
-				</a>
+				</Link>
 			</div>
 		);
 	}
