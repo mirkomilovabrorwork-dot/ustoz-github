@@ -24,8 +24,10 @@ import {
 	Check,
 	Clock,
 	Copy,
+	Download,
 	Ellipsis,
 	Globe2,
+	Loader2,
 	Pencil,
 	Scissors,
 	X,
@@ -100,6 +102,7 @@ export const ShareHeader = ({
 	const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
 	const [isSharingDialogOpen, setIsSharingDialogOpen] = useState(false);
 	const [linkCopied, setLinkCopied] = useState(false);
+	const [isDownloading, setIsDownloading] = useState(false);
 	const [showCopyOptions, setShowCopyOptions] = useState(false);
 	const [capturedTime, setCapturedTime] = useState(0);
 	const [isHidingBranding, setIsHidingBranding] = useState(false);
@@ -280,6 +283,35 @@ export const ShareHeader = ({
 		setShowCopyOptions(false);
 		setLinkCopied(true);
 		setTimeout(() => setLinkCopied(false), 1200);
+	};
+
+	const handleDownload = async () => {
+		if (isDownloading) return;
+		setIsDownloading(true);
+		try {
+			const res = await fetch(
+				`/api/playlist?userId=${data.owner.id}&videoId=${data.id}&videoType=mp4`,
+			);
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			const blob = await res.blob();
+			const objectUrl = URL.createObjectURL(blob);
+			const anchor = document.createElement("a");
+			anchor.href = objectUrl;
+			const safeName =
+				(displayTitle || "video")
+					.trim()
+					.replace(/[^\w.-]+/g, "_")
+					.slice(0, 80) || "video";
+			anchor.download = `${safeName}.mp4`;
+			document.body.appendChild(anchor);
+			anchor.click();
+			anchor.remove();
+			URL.revokeObjectURL(objectUrl);
+		} catch {
+			toast.error("Download failed - please try again.");
+		} finally {
+			setIsDownloading(false);
+		}
 	};
 
 	const handleSharingUpdated = () => {
@@ -582,6 +614,24 @@ export const ShareHeader = ({
 									</div>
 								)}
 							</div>
+
+							<button
+								type="button"
+								onClick={handleDownload}
+								disabled={isDownloading}
+								aria-label="Download video"
+								title="Download video"
+								className="inline-flex items-center justify-center gap-1.5 rounded-full border border-gray-6 bg-gray-3 p-1.5 text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12 disabled:opacity-60 sm:px-3 sm:py-1.5 sm:text-sm"
+							>
+								{isDownloading ? (
+									<Loader2 className="size-3.5 shrink-0 animate-spin" />
+								) : (
+									<Download className="size-3.5 shrink-0" />
+								)}
+								<span className="hidden sm:inline">
+									{isDownloading ? "Preparing…" : "Download"}
+								</span>
+							</button>
 
 							{/* Mobile-only "…" overflow menu (owner only) */}
 							{isOwner && (
