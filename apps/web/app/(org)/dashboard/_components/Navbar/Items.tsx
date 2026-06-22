@@ -226,7 +226,7 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 											)}
 										/>
 									</div>
-									<div className="flex flex-col flex-1 justify-center items-center gap-1 min-h-10">
+									<div className="flex flex-col flex-1 items-center min-h-10">
 										<div className="flex justify-between items-center w-full">
 											{!sidebarCollapsed && (
 												<p className="text-sm truncate leading-tight text-gray-12">
@@ -350,7 +350,7 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 			>
 				<div
 					className={clsx(
-						"mt-5 shrink-0",
+						"mt-8 shrink-0",
 						sidebarCollapsed ? "flex flex-col justify-center items-center" : "",
 					)}
 				>

@@ -133,8 +133,7 @@ async function handleFullRequest(
   }
 
   // R2 returns `null` body when onlyIf condition fails (ETag matched → 304).
-  if (!(object instanceof R2ObjectBody)) {
-    const etag = (object as R2Object).httpEtag;
+  if (!("body" in object) || !(object as R2ObjectBody).body) {
     return new Response(null, {
       status: 304,
       headers: buildBaseHeaders(object as R2Object),
@@ -189,7 +188,7 @@ async function handleRangeRequest(
     range: { offset, length },
   });
 
-  if (!object || !(object instanceof R2ObjectBody)) {
+  if (!object || !("body" in object)) {
     return new Response("Not Found", { status: 404 });
   }
 

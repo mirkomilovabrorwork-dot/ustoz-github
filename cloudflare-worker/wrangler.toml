@@ -20,7 +20,7 @@ compatibility_date = "2024-09-23"
 # for pure-ASCII names, but quotes are safe either way).
 [[r2_buckets]]
 binding     = "MEDIA"
-bucket_name = "REPLACE_WITH_YOUR_BUCKET"
+bucket_name = "ustoz-videos"
 
 # --------------------------------------------------------------------------
 # Environment variables (non-secret)
