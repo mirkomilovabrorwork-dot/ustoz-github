@@ -24,9 +24,8 @@ import { Effect, Option } from "effect";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
 import * as EffectRuntime from "@/lib/server";
-import { EmbedVideoIsland } from "./_components/EmbedVideoIsland";
+import { EmbedVideo } from "./_components/EmbedVideo";
 import { PasswordOverlay } from "./_components/PasswordOverlay";
 
 export async function generateMetadata(
@@ -204,15 +203,7 @@ export default async function EmbedVideoPage(
 			<div key={videoId} className="min-h-screen bg-black">
 				<PasswordOverlay isOpen={data.needsPassword} videoId={videoId} />
 				{!data.needsPassword && (
-					// Wrap the client subtree in an explicit Suspense boundary. The
-					// embed owner path triggers a React 19 hook-count bug (#310) where
-					// the App Router's useActionQueue use(thenable) suspends during
-					// hydration; with multiple suspends React miscounts hooks and
-					// throws. An explicit Suspense boundary around the suspending
-					// subtree resolves it. See facebook/react#33580, #33556.
-					<Suspense fallback={<div className="min-h-screen bg-black" />}>
-						<EmbedContent video={data.video} autoplay={autoplay} />
-					</Suspense>
+					<EmbedContent video={data.video} autoplay={autoplay} />
 				)}
 			</div>
 		)),
@@ -325,7 +316,7 @@ async function EmbedContent({
 		.limit(1);
 
 	return (
-		<EmbedVideoIsland
+		<EmbedVideo
 			data={video}
 			user={user}
 			comments={commentsQuery}
