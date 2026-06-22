@@ -31,10 +31,22 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const { method } = request;
 
+    if (method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+          "Access-Control-Allow-Headers": "Range",
+          "Access-Control-Max-Age": "86400",
+        },
+      });
+    }
+
     if (method !== "GET" && method !== "HEAD") {
       return new Response("Method Not Allowed", {
         status: 405,
-        headers: { Allow: "GET, HEAD" },
+        headers: { Allow: "GET, HEAD, OPTIONS" },
       });
     }
 
@@ -310,5 +322,12 @@ function buildBaseHeaders(object: R2Object): Headers {
   headers.set("ETag", object.httpEtag);
   headers.set("Accept-Ranges", "bytes");
   headers.set("Last-Modified", object.uploaded.toUTCString());
+  // CORS — the player fetches cross-origin (<video crossOrigin>); R2 sent these
+  // before, so the Worker must too or browsers block the media response.
+  headers.set("Access-Control-Allow-Origin", "*");
+  headers.set(
+    "Access-Control-Expose-Headers",
+    "Content-Length, Content-Range, Accept-Ranges, ETag",
+  );
   return headers;
 }
