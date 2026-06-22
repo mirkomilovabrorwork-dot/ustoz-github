@@ -25,9 +25,13 @@ export function MemberAvatars() {
 	});
 	const canInviteMembers = canManageOrganizationMembers(currentRole);
 
-	if (sidebarCollapsed) return null;
-
 	const members = activeOrganization?.members ?? [];
+
+	// Keep the sidebar top clean & simple (Loom-like): for a solo organization
+	// there is nothing to show but empty invite slots, which only add clutter and
+	// crowd the org switcher. Invites are still available in Organization Settings.
+	if (sidebarCollapsed || members.length <= 1) return null;
+
 	const visibleMembers = members.slice(0, MAX_VISIBLE);
 	const extraCount = members.length - MAX_VISIBLE;
 	const emptySlots = Math.max(0, MAX_VISIBLE - members.length);

@@ -234,7 +234,7 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 											)}
 										/>
 									</div>
-									<div className="flex flex-col flex-1 items-center h-10">
+									<div className="flex flex-col flex-1 items-center min-h-10">
 										<div className="flex justify-between items-center w-full">
 											{!sidebarCollapsed && (
 												<p className="text-sm truncate leading-tight text-gray-12">
