@@ -351,7 +351,7 @@ export const ShareVideo = forwardRef<
 		return (
 			<>
 				<div
-					className="relative aspect-video sticky top-0 z-10 max-h-[38vh] bg-white rounded-2xl border border-gray-5 overflow-hidden"
+					className="relative aspect-video bg-white rounded-2xl border border-gray-5 overflow-hidden"
 					style={{ viewTransitionName: "cap-edit-video" }}
 				>
 					{isActivelyRecording ? (
