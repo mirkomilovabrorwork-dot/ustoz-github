@@ -276,6 +276,15 @@ export const Caps = ({
 						Import video
 					</Button>
 				</Link>
+				<Button
+					size="sm"
+					variant="white"
+					className="flex gap-2 items-center w-fit"
+					onClick={() => setOpenNewFolderDialog(true)}
+				>
+					<FontAwesomeIcon className="size-3" icon={faFolderPlus} />
+					New Folder
+				</Button>
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
 						<Button
@@ -288,13 +297,6 @@ export const Caps = ({
 						</Button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="start" sideOffset={5}>
-						<DropdownMenuItem
-							onClick={() => setOpenNewFolderDialog(true)}
-							className="flex gap-2 items-center rounded-lg"
-						>
-							<FontAwesomeIcon className="size-3" icon={faFolderPlus} />
-							<p className="text-sm text-gray-12">New Folder</p>
-						</DropdownMenuItem>
 						<DropdownMenuItem
 							onSelect={(e) => e.preventDefault()}
 							className="flex gap-2 items-center rounded-lg p-0"

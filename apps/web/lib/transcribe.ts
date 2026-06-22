@@ -1,5 +1,11 @@
 import { db } from "@cap/database";
-import { organizations, videos, videoUploads } from "@cap/database/schema";
+import { decrypt } from "@cap/database/crypto";
+import {
+	organizations,
+	users,
+	videos,
+	videoUploads,
+} from "@cap/database/schema";
 import { serverEnv } from "@cap/env";
 import type { Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
@@ -21,13 +27,6 @@ export async function transcribeVideo(
 	aiGenerationEnabled = false,
 	_isRetry = false,
 ): Promise<TranscribeResult> {
-	if (!serverEnv().GEMINI_API_KEY) {
-		return {
-			success: false,
-			message: "Missing necessary environment variables",
-		};
-	}
-
 	if (!userId || !videoId) {
 		return {
 			success: false,
@@ -58,6 +57,32 @@ export async function transcribeVideo(
 
 	if (!video) {
 		return { success: false, message: "Video information is missing" };
+	}
+
+	// Resolve a usable Gemini key: prefer the video owner's saved key (encrypted),
+	// fall back to the server env key. Fail only if NEITHER exists, so users who
+	// rely solely on their own saved key are not rejected at the gate.
+	const [owner] = await db()
+		.select({ geminiApiKey: users.geminiApiKey })
+		.from(users)
+		.where(eq(users.id, video.ownerId))
+		.limit(1);
+
+	let hasUsableGeminiKey = Boolean(serverEnv().GEMINI_API_KEY);
+	if (!hasUsableGeminiKey && owner?.geminiApiKey) {
+		try {
+			hasUsableGeminiKey = Boolean(await decrypt(owner.geminiApiKey));
+		} catch {
+			hasUsableGeminiKey = false;
+		}
+	}
+
+	if (!hasUsableGeminiKey) {
+		return {
+			success: false,
+			message:
+				"No Gemini API key configured. Set one in Settings → Account → Transcription API Keys, or ask your admin to set GEMINI_API_KEY.",
+		};
 	}
 
 	if (isTranscriptionDisabled(video.settings, result.orgSettings)) {

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import type { Video } from "@cap/web-domain";
 
 type TranscriptionStatus =
@@ -98,6 +99,23 @@ export function GenerateAiPanel({
 }: GenerateAiPanelProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const prevAiStatus = useRef<AiGenerationStatus | null | undefined>(
+    aiGenerationStatus,
+  );
+
+  // When AI generation transitions to COMPLETE, refresh the route so the
+  // server-rendered tabs (Tasks/Refined, which read metadata.aiSummary)
+  // re-render automatically — no manual page reload needed.
+  useEffect(() => {
+    if (
+      prevAiStatus.current !== "COMPLETE" &&
+      aiGenerationStatus === "COMPLETE"
+    ) {
+      router.refresh();
+    }
+    prevAiStatus.current = aiGenerationStatus;
+  }, [aiGenerationStatus, router]);
 
   const isRunning =
     transcriptionStatus === "PROCESSING" ||

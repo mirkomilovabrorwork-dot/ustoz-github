@@ -1,12 +1,10 @@
 import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
-import { users, videos } from "@cap/database/schema";
+import { videos } from "@cap/database/schema";
 import type { VideoMetadata } from "@cap/database/types";
 import type { Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
-import { startAiGeneration } from "@/lib/generate-ai";
-import { isAiGenerationEnabled } from "@/utils/flags";
 
 export const dynamic = "force-dynamic";
 
@@ -81,93 +79,19 @@ export async function GET(request: NextRequest) {
 			);
 		}
 
-		const canRetry =
-			metadata.aiGenerationStatus === "ERROR" ||
-			metadata.aiGenerationStatus === "SKIPPED";
-
-		if (!canRetry) {
-			return Response.json(
-				{
-					processing: false,
-					// AI generation is MANUAL: an admin / video owner starts the full
-					// pipeline from the Generate button (see app/api/videos/[videoId]/generate
-					// and _components/GenerateAiPanel.tsx). It is NOT auto-triggered on
-					// transcription completion. This GET endpoint only retries a generation
-					// that previously failed (aiGenerationStatus ERROR or SKIPPED).
-					message:
-						"AI generation is started manually by an admin or the video owner from the Generate button; this endpoint only retries a previously failed (ERROR/SKIPPED) generation.",
-					aiGenerationStatus: metadata.aiGenerationStatus ?? null,
-				},
-				{ status: 200 },
-			);
-		}
-
-		if (video.transcriptionStatus !== "COMPLETE") {
-			return Response.json(
-				{
-					processing: false,
-					message: `Cannot generate AI metadata - transcription status: ${video.transcriptionStatus || "unknown"}`,
-					aiGenerationStatus: metadata.aiGenerationStatus ?? null,
-				},
-				{ status: 200 },
-			);
-		}
-
-		const videoOwnerQuery = await db()
-			.select({
-				email: users.email,
-				stripeSubscriptionStatus: users.stripeSubscriptionStatus,
-				thirdPartyStripeSubscriptionId: users.thirdPartyStripeSubscriptionId,
-			})
-			.from(users)
-			.where(eq(users.id, video.ownerId))
-			.limit(1);
-
-		if (
-			videoOwnerQuery.length === 0 ||
-			!videoOwnerQuery[0] ||
-			!(await isAiGenerationEnabled(videoOwnerQuery[0]))
-		) {
-			return Response.json(
-				{
-					processing: false,
-					message: "AI generation feature is not available for this user",
-				},
-				{ status: 403 },
-			);
-		}
-
-		try {
-			const aiResult = await startAiGeneration(videoId, video.ownerId);
-
-			if (!aiResult.success) {
-				return Response.json(
-					{
-						processing: false,
-						error: aiResult.message,
-					},
-					{ status: 500 },
-				);
-			}
-
-			return Response.json(
-				{
-					processing: true,
-					message: aiResult.message,
-					aiGenerationStatus: "QUEUED",
-				},
-				{ status: 200 },
-			);
-		} catch (error) {
-			console.error("[AI API] Error starting AI generation workflow:", error);
-			return Response.json(
-				{
-					processing: false,
-					error: "Failed to start AI generation workflow",
-				},
-				{ status: 500 },
-			);
-		}
+		// GET is strictly READ-ONLY. AI generation is MANUAL: an admin / video
+		// owner starts (or retries) the pipeline only via the explicit POST
+		// /api/videos/[videoId]/generate path (see _components/GenerateAiPanel.tsx).
+		// This endpoint NEVER starts or restarts generation — doing so on a GET
+		// (e.g. for ERROR/SKIPPED status) would silently waste tokens. It only
+		// reports the current status so the client can show the right UI.
+		return Response.json(
+			{
+				processing: false,
+				aiGenerationStatus: metadata.aiGenerationStatus ?? null,
+			},
+			{ status: 200 },
+		);
 	} catch (error) {
 		console.error("[AI API] Unexpected error:", error);
 		return Response.json(

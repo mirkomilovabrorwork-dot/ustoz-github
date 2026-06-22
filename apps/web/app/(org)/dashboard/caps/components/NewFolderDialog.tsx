@@ -41,8 +41,8 @@ export const NewFolderDialog: React.FC<Props> = ({
 	spaceId,
 }) => {
 	const [selectedColor, setSelectedColor] = useState<
-		(typeof FolderOptions)[number]["value"] | null
-	>(null);
+		(typeof FolderOptions)[number]["value"]
+	>("normal");
 	const [folderName, setFolderName] = useState<string>("");
 	const [publicEnabled, setPublicEnabled] = useState(false);
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -51,7 +51,7 @@ export const NewFolderDialog: React.FC<Props> = ({
 
 	useEffect(() => {
 		if (!open) {
-			setSelectedColor(null);
+			setSelectedColor("normal");
 			setPublicEnabled(false);
 		}
 	}, [open]);
@@ -128,7 +128,7 @@ export const NewFolderDialog: React.FC<Props> = ({
 									key={`folder-${option.value}`}
 									onClick={() => {
 										if (selectedColor === option.value) {
-											setSelectedColor(null);
+											setSelectedColor("normal");
 											return;
 										}
 										setSelectedColor(option.value);
@@ -162,14 +162,7 @@ export const NewFolderDialog: React.FC<Props> = ({
 						Cancel
 					</Button>
 					<Button
-						onClick={() => {
-							if (selectedColor === null) return;
-							createFolder.mutate({
-								name: folderName,
-								color: selectedColor,
-								public: publicEnabled,
-							});
-						}}
+						onClick={handleSubmit}
 						size="sm"
 						spinner={createFolder.isPending}
 						variant="dark"

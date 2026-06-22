@@ -128,10 +128,14 @@ async function startCapture(msg: StartCaptureMsg): Promise<void> {
 		}
 
 		let micStream: MediaStream | null = null;
-		if (msg.micEnabled !== false && msg.micDeviceId) {
+		if (msg.micEnabled !== false) {
 			try {
+				// Use the specific device when one was chosen; otherwise capture the
+				// system default mic so an enabled mic is never silently dropped.
 				micStream = await navigator.mediaDevices.getUserMedia({
-					audio: { deviceId: { exact: msg.micDeviceId } },
+					audio: msg.micDeviceId
+						? { deviceId: { exact: msg.micDeviceId } }
+						: true,
 				});
 			} catch {
 				try {

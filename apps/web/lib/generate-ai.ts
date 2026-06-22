@@ -1,5 +1,6 @@
 import { db } from "@cap/database";
-import { videos } from "@cap/database/schema";
+import { decrypt } from "@cap/database/crypto";
+import { users, videos } from "@cap/database/schema";
 import type { VideoMetadata } from "@cap/database/types";
 import { serverEnv } from "@cap/env";
 import type { Video } from "@cap/web-domain";
@@ -16,13 +17,6 @@ export async function startAiGeneration(
 	videoId: Video.VideoId,
 	userId: string,
 ): Promise<GenerateAiResult> {
-	if (!serverEnv().GEMINI_API_KEY) {
-		return {
-			success: false,
-			message: "Missing GEMINI_API_KEY",
-		};
-	}
-
 	if (!userId || !videoId) {
 		return {
 			success: false,
@@ -40,6 +34,32 @@ export async function startAiGeneration(
 	}
 
 	const { video } = query[0];
+
+	// Resolve a usable Gemini key: prefer the video owner's saved key (encrypted),
+	// fall back to the server env key. Fail only if NEITHER exists, so users who
+	// rely solely on their own saved key are not rejected at the gate.
+	const [owner] = await db()
+		.select({ geminiApiKey: users.geminiApiKey })
+		.from(users)
+		.where(eq(users.id, video.ownerId))
+		.limit(1);
+
+	let hasUsableGeminiKey = Boolean(serverEnv().GEMINI_API_KEY);
+	if (!hasUsableGeminiKey && owner?.geminiApiKey) {
+		try {
+			hasUsableGeminiKey = Boolean(await decrypt(owner.geminiApiKey));
+		} catch {
+			hasUsableGeminiKey = false;
+		}
+	}
+
+	if (!hasUsableGeminiKey) {
+		return {
+			success: false,
+			message:
+				"No Gemini API key configured. Set one in Settings → Account → Transcription API Keys, or ask your admin to set GEMINI_API_KEY.",
+		};
+	}
 
 	if (video.transcriptionStatus !== "COMPLETE") {
 		return {

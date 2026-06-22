@@ -51,9 +51,22 @@ export async function newComment(data: {
 
 	if (!video) throw new Error("Video not found");
 
-	const commentsDisabled =
-		video.settings?.disableComments ?? video.orgSettings?.disableComments ?? false;
-	if (commentsDisabled) throw new Error("Comments are disabled");
+	// Gate text comments and emoji reactions independently: a "text" item is a
+	// comment (governed by disableComments), an "emoji" item is a reaction
+	// (governed by disableReactions). Previously disableComments blocked both.
+	if (type === "emoji") {
+		const reactionsDisabled =
+			video.settings?.disableReactions ??
+			video.orgSettings?.disableReactions ??
+			false;
+		if (reactionsDisabled) throw new Error("Reactions are disabled");
+	} else {
+		const commentsDisabled =
+			video.settings?.disableComments ??
+			video.orgSettings?.disableComments ??
+			false;
+		if (commentsDisabled) throw new Error("Comments are disabled");
+	}
 
 	// Gate comment creation behind the same view-authorization the rest of the
 	// app uses.  Any logged-in user who cannot VIEW the video (private, password-

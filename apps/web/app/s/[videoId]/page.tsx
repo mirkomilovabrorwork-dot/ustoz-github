@@ -247,7 +247,7 @@ export async function generateMetadata(
 
 					return {
 						title: `${video.name} | data365`,
-						description: "Watch this video on Cap",
+						description: "Watch this video on 365.",
 						openGraph: {
 							images: [
 								{
@@ -274,7 +274,7 @@ export async function generateMetadata(
 						twitter: {
 							card: "player",
 							title: `${video.name} | data365`,
-							description: "Watch this video on Cap",
+							description: "Watch this video on 365.",
 							images: [
 								{
 									url: previewImageUrl,

@@ -334,8 +334,26 @@ export function AIChatPopup({
 						if (payload === "[DONE]") break;
 
 						try {
-							const parsed = JSON.parse(payload) as { token?: string };
-							if (parsed.token) {
+							const parsed = JSON.parse(payload) as {
+								token?: string;
+								error?: string;
+							};
+							if (parsed.error) {
+								// Surface the server's error as the assistant reply instead
+								// of leaving a blank/empty message.
+								assistantContent = `Sorry — I couldn't answer: ${parsed.error}`;
+								setMessages((prev) => {
+									const updated = [...prev];
+									const last = updated[updated.length - 1];
+									if (last?.role === "assistant") {
+										updated[updated.length - 1] = {
+											...last,
+											content: assistantContent,
+										};
+									}
+									return updated;
+								});
+							} else if (parsed.token) {
 								assistantContent += parsed.token;
 								setMessages((prev) => {
 									const updated = [...prev];
