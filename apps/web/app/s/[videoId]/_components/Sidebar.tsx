@@ -127,7 +127,7 @@ const ReactionsBlock = ({
 	reactions: Record<string, number>;
 	onReact: (emoji: string) => void;
 }) => (
-	<div className="flex flex-wrap gap-2 p-4"
+	<div className="grid grid-cols-6 gap-1.5 p-4"
 		style={{ borderTop: "1px solid #e9edf3" }}>
 		{REACTIONS.map(({ emoji, label }) => (
 			<button
@@ -135,8 +135,8 @@ const ReactionsBlock = ({
 				type="button"
 				aria-label={label}
 				onClick={() => onReact(emoji)}
-				className="inline-flex items-center gap-1.5 rounded-full transition-colors text-sm font-emoji"
-				style={{ padding: "6px 12px", background: "#f7f9fc", border: "1px solid #e9edf3", borderRadius: "999px" }}
+				className="flex items-center justify-center gap-1 rounded-full transition-colors text-sm font-emoji"
+				style={{ padding: "6px 4px", background: "#f7f9fc", border: "1px solid #e9edf3", borderRadius: "999px" }}
 			>
 				<span role="img" aria-label={label}>
 					{emoji}
