@@ -25,7 +25,7 @@ What follows is what stands between "now" and a fully polished, Loom-grade produ
 | # | Item | What it does | Size |
 |---|------|--------------|------|
 | B1 | ~~Reaction emoji row even out~~ | ✅ DONE (`8c71cb4`) — grid-cols-6, single clean row. | — |
-| B2 | **Animated hover-preview** | Loom shows a moving preview when you hover a video; our `VideoPreviewGif` is stubbed (returns null) though a preview gif IS generated. Re-enable IF safe. | Small-med (investigate first) |
+| B2 | ~~Animated hover-preview~~ | ⏭️ SKIPPED (smart): no animated gif is actually generated (`/api/video/preview?fallback=og` returns the static thumbnail), and the `VideoPreviewGif` "before first play" slot is now covered by the new player **poster**. Re-enabling would be redundant. | — |
 | B3 | **Social share buttons** | One-click share to LinkedIn/Twitter/Gmail from the share modal (lower value for a teacher use-case). | Small-med |
 | B4 | **Proper pinned video + transcript layout** | Loom-style: video stays pinned beside a scrolling transcript; click a line to seek while watching. Replaces the removed sticky (A7). | Medium layout project |
 
