@@ -22,7 +22,6 @@ import { type Organisation, Policy, type Video } from "@cap/web-domain";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { Effect, Option } from "effect";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import * as EffectRuntime from "@/lib/server";
 import { EmbedVideo } from "./_components/EmbedVideo";
@@ -122,12 +121,12 @@ const renderEmbedPolicyDenied = () =>
 			<p className="text-gray-400 mb-6 max-w-xs text-sm leading-relaxed">
 				If you own this video, sign in to manage sharing settings.
 			</p>
-			<Link
+			<a
 				href="/login"
 				className="inline-flex items-center justify-center px-5 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition-colors"
 			>
 				Sign in
-			</Link>
+			</a>
 		</div>,
 	);
 
@@ -199,14 +198,30 @@ export default async function EmbedVideoPage(
 		Effect.catchTag("VerifyVideoPasswordError", () =>
 			Effect.succeed({ needsPassword: true } as const),
 		),
-		Effect.map((data) => (
-			<div key={videoId} className="min-h-screen bg-black">
-				<PasswordOverlay isOpen={data.needsPassword} videoId={videoId} />
-				{!data.needsPassword && (
-					<EmbedContent video={data.video} autoplay={autoplay} />
-				)}
-			</div>
-		)),
+		// Resolve the embed content (auth + comments + owner) in this SAME async
+		// boundary instead of returning a nested async Server Component. A nested
+		// async RSC streams in as an interleaved Suspense child, which triggers a
+		// production-only Next.js App Router hook-count crash (React #310) on the
+		// owner path (extra getCurrentUser latency widens the race window).
+		// See vercel/next.js#63121. Awaiting here removes the interleaved boundary.
+		Effect.flatMap((data) =>
+			data.needsPassword
+				? Effect.succeed(
+						<div key={videoId} className="min-h-screen bg-black">
+							<PasswordOverlay isOpen={true} videoId={videoId} />
+						</div>,
+					)
+				: Effect.promise(() =>
+						renderEmbedContent({ video: data.video, autoplay }),
+					).pipe(
+						Effect.map((content) => (
+							<div key={videoId} className="min-h-screen bg-black">
+								<PasswordOverlay isOpen={false} videoId={videoId} />
+								{content}
+							</div>
+						)),
+					),
+		),
 		Effect.catchTags({
 			PolicyDenied: renderEmbedPolicyDenied,
 			NoSuchElementException: renderNoSuchElement,
@@ -216,7 +231,7 @@ export default async function EmbedVideoPage(
 	);
 }
 
-async function EmbedContent({
+async function renderEmbedContent({
 	video,
 	autoplay,
 }: {
@@ -275,14 +290,14 @@ async function EmbedContent({
 				<p className="text-gray-400 mb-6 max-w-xs text-sm leading-relaxed">
 					Screenshots cannot be embedded. View it directly on the share page.
 				</p>
-				<Link
+				<a
 					href={`/s/${video.id}`}
 					target="_blank"
 					rel="noopener noreferrer"
 					className="inline-flex items-center justify-center px-5 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition-colors"
 				>
 					View screenshot
-				</Link>
+				</a>
 			</div>
 		);
 	}
