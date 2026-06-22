@@ -44,7 +44,7 @@ export function AIFab({ onClick, isOpen }: AIFabProps) {
       type="button"
       className={`ai-fab${isOpen ? " is-open" : ""}`}
       onClick={onClick}
-      aria-label={isOpen ? "Close AI assistant" : "Ask AI about this meeting"}
+      aria-label={isOpen ? "Close AI assistant" : "Ask AI about this video"}
     >
       {isOpen ? (
         <svg

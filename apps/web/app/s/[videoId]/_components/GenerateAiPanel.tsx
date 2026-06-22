@@ -52,7 +52,7 @@ function deriveProgress(
     transcriptionStatus === "COMPLETE" &&
     (aiGenerationStatus === "COMPLETE" || aiGenerationStatus === "SKIPPED")
   ) {
-    return { percent: 100, label: "Tahlil tayyor", eta: "", phase: "done" };
+    return { percent: 100, label: "Analysis ready", eta: "", phase: "done" };
   }
 
   if (
@@ -61,8 +61,8 @@ function deriveProgress(
   ) {
     return {
       percent: 72, // midpoint of 55–90 range
-      label: "AI tahlil yaratilmoqda… ~72%",
-      eta: "Taxminan 1–2 daqiqa qoldi",
+      label: "Generating AI analysis… ~72%",
+      eta: "About 1–2 minutes left",
       phase: "generating",
     };
   }
@@ -70,8 +70,8 @@ function deriveProgress(
   if (transcriptionStatus === "COMPLETE") {
     return {
       percent: 50,
-      label: "Transkripsiya tayyor — AI boshlanyapti…",
-      eta: "Taxminan 1–3 daqiqa qoldi",
+      label: "Transcript ready — starting AI…",
+      eta: "About 1–3 minutes left",
       phase: "generating",
     };
   }
@@ -79,13 +79,13 @@ function deriveProgress(
   if (transcriptionStatus === "PROCESSING") {
     return {
       percent: 30, // midpoint of 10–45 range
-      label: "Ovozdan matn olinmoqda… ~30%",
-      eta: "Taxminan 1–2 daqiqa qoldi",
+      label: "Transcribing audio… ~30%",
+      eta: "About 1–2 minutes left",
       phase: "transcribing",
     };
   }
 
-  return { percent: 0, label: "Tayyorlanmoqda…", eta: "", phase: "idle" };
+  return { percent: 0, label: "Preparing…", eta: "", phase: "idle" };
 }
 
 export function GenerateAiPanel({
@@ -125,12 +125,12 @@ export function GenerateAiPanel({
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        setError((body as { error?: string }).error ?? "Xatolik yuz berdi");
+        setError((body as { error?: string }).error ?? "An error occurred");
       } else {
         onStarted?.();
       }
     } catch {
-      setError("Xatolik yuz berdi");
+      setError("An error occurred");
     } finally {
       setLoading(false);
     }
@@ -156,7 +156,7 @@ export function GenerateAiPanel({
           <div className="flex items-center gap-2">
             <SpinnerIcon />
             <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
-              AI tahlil ishlamoqda
+              Analyzing…
             </span>
           </div>
           <span className="text-sm font-bold tabular-nums text-blue-700 dark:text-blue-300">
@@ -171,7 +171,7 @@ export function GenerateAiPanel({
           aria-valuenow={percent}
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-label="AI tahlil jarayoni"
+          aria-label="AI analysis progress"
         >
           {/* Animated fill */}
           <div
@@ -210,10 +210,10 @@ export function GenerateAiPanel({
     return (
       <div className="flex flex-col gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-4 dark:border-red-900 dark:bg-red-950/40">
         <p className="text-sm text-red-700 dark:text-red-300">
-          AI tahlil xato bilan tugadi.{" "}
+          AI analysis failed.{" "}
           {transcriptionStatus === "ERROR"
-            ? "Transkripsiya amalga oshmadi."
-            : "AI generatsiya xatosi."}
+            ? "Transcription failed."
+            : "AI generation error."}
         </p>
         {error && (
           <p className="text-xs text-red-500 dark:text-red-400">{error}</p>
@@ -224,7 +224,7 @@ export function GenerateAiPanel({
           onClick={handleStart}
           className="self-start rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-60"
         >
-          {loading ? "Boshlanmoqda…" : "Qayta urinish"}
+          {loading ? "Starting…" : "Retry"}
         </button>
       </div>
     );
@@ -240,7 +240,7 @@ export function GenerateAiPanel({
     return (
       <div className="flex flex-col gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-4 dark:border-blue-900 dark:bg-blue-950/40">
         <p className="text-sm text-gray-700 dark:text-gray-300">
-          Bu video uchun AI tahlil hali boshlanmagan.
+          AI analysis hasn't been run for this video yet.
         </p>
         {error && (
           <p className="text-xs text-red-500 dark:text-red-400">{error}</p>
@@ -251,7 +251,7 @@ export function GenerateAiPanel({
           onClick={handleStart}
           className="self-start rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
         >
-          {loading ? "Boshlanmoqda…" : "AI tahlilni boshlash"}
+          {loading ? "Starting…" : "Start AI analysis"}
         </button>
       </div>
     );
@@ -262,7 +262,7 @@ export function GenerateAiPanel({
     return (
       <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-6 text-center dark:border-gray-700 dark:bg-gray-900/40">
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          AI tahlil mavjud emas.
+          AI analysis not available.
         </p>
       </div>
     );

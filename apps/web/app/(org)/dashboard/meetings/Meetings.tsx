@@ -2,6 +2,7 @@
 
 import type { Video } from "@cap/web-domain";
 import { Effect, Exit } from "effect";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -183,6 +184,12 @@ export const Meetings = ({
 								calls.
 							</p>
 						</div>
+						<Link
+							href="/dashboard/extension"
+							className="mt-2 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+						>
+							Install Extension
+						</Link>
 					</div>
 				</div>
 			)}

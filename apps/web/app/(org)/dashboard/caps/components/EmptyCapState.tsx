@@ -22,7 +22,7 @@ export const EmptyCapState: React.FC<EmptyCapStateProps> = ({ userName }) => {
 				</div>
 				<div className="flex flex-col items-center px-5">
 					<p className="mb-1 text-xl font-semibold text-gray-12">
-						Hey{userName ? ` ${userName}` : ""}! Record your first 365
+						Hey{userName ? ` ${userName}` : ""}! Record your first video
 					</p>
 					<p className="max-w-md text-gray-10 text-md">
 						Craft your narrative — get projects done quicker.

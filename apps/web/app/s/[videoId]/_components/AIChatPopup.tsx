@@ -27,20 +27,20 @@ interface AIChatPopupProps {
 
 const QUICK_ACTIONS = [
 	{
-		label: "Qisqacha xulosa",
-		query: "Uchrashuvni qisqacha xulosalab bering",
+		label: "Summary",
+		query: "Give me a concise summary of this video.",
 	},
 	{
-		label: "Vazifalar ro'yxati",
-		query: "Asosiy vazifalar va mas'ullar kimlar?",
+		label: "Action items",
+		query: "What are the main action items and who is responsible?",
 	},
 	{
-		label: "Follow-up xat",
-		query: "Keyingi qadamlar bo'yicha follow-up xat tayyorlab bering",
+		label: "Follow-up email",
+		query: "Draft a follow-up email about the next steps.",
 	},
 	{
-		label: "Asosiy qarorlar",
-		query: "Qanaqa asosiy qarorlar qabul qilindi?",
+		label: "Key points",
+		query: "What were the key decisions or points made?",
 	},
 ];
 
@@ -434,10 +434,10 @@ export function AIChatPopup({
 					<OrbIcon />
 				</div>
 				<div className="htxt">
-					<div className="t">Meeting AI</div>
+					<div className="t">365 AI</div>
 					<div className="s">
 						<span className="live" />
-						Ushbu uchrashuv konteksti yuklandi
+						Video context loaded
 					</div>
 				</div>
 				<button
@@ -465,12 +465,11 @@ export function AIChatPopup({
 					<>
 						<div className="ai-welcome">
 							<div className="wt">
-								Salom! Men bu uchrashuv haqida{" "}
-								<span className="grad">hamma narsani</span> bilaman.
+								Hi! I know{" "}
+								<span className="grad">everything</span> about this video.
 							</div>
 							<div className="ws">
-								Transkript, vazifalar va qarorlar bo&apos;yicha savol bering —
-								yoki quyidagilardan birini tanlang.
+								Ask me anything — or pick one below.
 							</div>
 						</div>
 						<div className="ai-chips">
@@ -528,7 +527,7 @@ export function AIChatPopup({
 					<textarea
 						ref={textareaRef}
 						rows={1}
-						placeholder="Uchrashuv haqida so'rang..."
+						placeholder="Ask about this video…"
 						value={input}
 						onChange={(e) => {
 							setInput(e.target.value);
@@ -559,7 +558,7 @@ export function AIChatPopup({
 					</button>
 				</div>
 				<div className="ai-disclaimer">
-					AI javoblari tekshirilishi kerak bo&apos;lishi mumkin
+					AI answers may need verification
 				</div>
 			</div>
 		</div>

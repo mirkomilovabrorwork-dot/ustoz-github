@@ -268,7 +268,7 @@ export const Sidebar = forwardRef<{ scrollToBottom: () => void }, SidebarProps>(
 				}}>
 					<div className="flex items-center px-4 py-3"
 						style={{ borderBottom: "1px solid #e9edf3" }}>
-						<span className="text-sm font-semibold text-gray-12">Comments</span>
+						<span className="text-sm font-semibold text-gray-12">Activity</span>
 					</div>
 
 					{user && isOwnerOrMember && (

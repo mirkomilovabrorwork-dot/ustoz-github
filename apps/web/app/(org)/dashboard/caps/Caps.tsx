@@ -11,7 +11,8 @@ import {
 } from "@cap/ui";
 import type { SpaceRuleSource, ViewerSettingKey } from "@cap/web-backend";
 import type { ImageUpload, Video } from "@cap/web-domain";
-import { faChevronDown, faFolderPlus, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
+import { faChevronDown, faFolderPlus, faInfoCircle, faUpload } from "@fortawesome/free-solid-svg-icons";
+import Link from "next/link";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Effect, Exit } from "effect";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -265,6 +266,16 @@ export const Caps = ({
 			/>
 			<div className="flex flex-wrap gap-3 items-center mb-10 w-full">
 				<WebRecorderDialog />
+				<Link href="/dashboard/import">
+					<Button
+						size="sm"
+						variant="white"
+						className="flex gap-2 items-center w-fit"
+					>
+						<FontAwesomeIcon className="size-3" icon={faUpload} />
+						Import video
+					</Button>
+				</Link>
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
 						<Button

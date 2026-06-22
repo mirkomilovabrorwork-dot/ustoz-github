@@ -85,8 +85,6 @@ function cleanCueText(raw: string): string {
 	return raw
 		.replace(/\*\*/g, "")
 		.replace(/^[\s\-–—>]+/, "")
-		.replace(/^\[+/, "")
-		.replace(/\]+$/, "")
 		.trim();
 }
 
@@ -138,14 +136,24 @@ export function normalizeToWebVtt(raw: string, audioDurationSec: number): string
 		pendingText = [];
 	};
 
-	for (const rawLine of lines) {
-		const line = rawLine.trim();
+	for (let i = 0; i < lines.length; i++) {
+		const line = (lines[i] ?? "").trim();
 		if (!line) {
 			flushPending();
 			continue;
 		}
 		if (/^WEBVTT/i.test(line)) continue;
-		if (/^\d+$/.test(line)) continue; // bare cue index
+		// Only skip a bare numeric line as a cue index when the next non-empty
+		// line is a timestamp line; otherwise treat it as cue text.
+		if (/^\d+$/.test(line)) {
+			let nextNonEmpty = "";
+			for (let j = i + 1; j < lines.length; j++) {
+				const peek = (lines[j] ?? "").trim();
+				if (peek) { nextNonEmpty = peek; break; }
+			}
+			if (nextNonEmpty.includes("-->")) continue; // it IS a cue index
+			// else fall through — treat this number as cue text below
+		}
 
 		if (line.includes("-->")) {
 			flushPending();

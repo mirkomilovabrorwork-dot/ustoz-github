@@ -7,9 +7,9 @@ type TabId = "summary" | "tasks" | "transcript" | "refined";
 
 const TABS: { id: TabId; label: string }[] = [
 	{ id: "summary", label: "Summary" },
-	{ id: "tasks", label: "Tasks" },
+	{ id: "tasks", label: "Action Items" },
 	{ id: "transcript", label: "Transcript" },
-	{ id: "refined", label: "Refined" },
+	{ id: "refined", label: "Clean Transcript" },
 ];
 
 interface BelowVideoTabsProps {
