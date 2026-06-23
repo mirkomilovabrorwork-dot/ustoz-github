@@ -241,7 +241,7 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 												/>
 											)}
 										</div>
-										{!sidebarCollapsed && (
+										{!sidebarCollapsed && isDomainSetupVerified && (
 											<Link
 												href={
 													isDomainSetupVerified

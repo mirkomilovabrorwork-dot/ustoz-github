@@ -68,6 +68,7 @@ export async function getTranscript(
 		}).pipe(runPromise);
 
 		if (Option.isNone(vttContent)) {
+			console.warn("[getTranscript] VTT missing at expected key", { videoId, ownerId: video.ownerId });
 			return { success: false, message: "Transcript file not found" };
 		}
 

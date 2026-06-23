@@ -127,7 +127,9 @@ async function handleFullRequest(
 
   // Cache key: strip the signed query params so all tokens for the same object
   // share one cache entry. We key on origin + path only.
-  const cacheKey = new Request(new URL(request.url).origin + "/media/" + encodeURIComponent(key));
+  // `cv` = cache version: bump to invalidate stale edge-cached objects (e.g. ones
+  // cached before CORS headers were added) without waiting for the 1y TTL.
+  const cacheKey = new Request(new URL(request.url).origin + "/media/" + encodeURIComponent(key) + "?cv=2");
 
   const cached = await cache.match(cacheKey);
   if (cached) {

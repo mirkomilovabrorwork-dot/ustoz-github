@@ -255,7 +255,7 @@ async function resolveVideoSourceUrl(
 		.limit(1);
 
 	const candidateKeys = [
-		`${userId}/${videoId}/result.mp4`,
+		`${video.ownerId}/${videoId}/result.mp4`,
 		upload[0]?.rawFileKey,
 	].filter(
 		(value, index, values): value is string =>
@@ -345,7 +345,7 @@ async function saveTranscription(
 	const [bucket] = await getStorageAccessForVideo(video).pipe(runPromise);
 
 	await bucket
-		.putObject(`${userId}/${videoId}/transcription.vtt`, transcription, {
+		.putObject(`${video.ownerId}/${videoId}/transcription.vtt`, transcription, {
 			contentType: "text/vtt",
 		})
 		.pipe(runPromise);

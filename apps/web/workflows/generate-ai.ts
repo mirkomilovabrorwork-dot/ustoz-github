@@ -227,7 +227,7 @@ async function fetchTranscript(
 
 	const vtt = await Effect.gen(function* () {
 		const [bucket] = yield* getStorageAccessForVideo(video);
-		return yield* bucket.getObject(`${userId}/${videoId}/transcription.vtt`);
+		return yield* bucket.getObject(`${video.ownerId}/${videoId}/transcription.vtt`);
 	}).pipe(runPromise);
 
 	if (Option.isNone(vtt)) {

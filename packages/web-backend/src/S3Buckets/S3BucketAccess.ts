@@ -123,11 +123,25 @@ export const createS3BucketAccess = Effect.gen(function* () {
 		headObject: (key: string) =>
 			wrapS3Promise(
 				provider.getInternal.pipe(
-					Effect.map((client) =>
-						client.send(
-							new S3.HeadObjectCommand({ Bucket: provider.bucket, Key: key }),
-						),
-					),
+					Effect.map(async (client) => {
+						return client
+							.send(
+								new S3.HeadObjectCommand({ Bucket: provider.bucket, Key: key }),
+							)
+							.catch((e) => {
+								if (
+									e instanceof S3.NotFound ||
+									e instanceof S3.NoSuchKey ||
+									(e as { name?: string }).name === "NotFound" ||
+									(e as { name?: string }).name === "NoSuchKey"
+								) {
+									throw Object.assign(new Error("Object not found"), {
+										name: "NoSuchKey",
+									});
+								}
+								throw e;
+							});
+					}),
 				),
 			),
 		putObject: <E>(
