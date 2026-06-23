@@ -28,8 +28,10 @@ import {
 	Ellipsis,
 	Globe2,
 	Loader2,
+	MessageCircle,
 	Pencil,
 	Scissors,
+	Send,
 	Share2,
 	X,
 } from "lucide-react";
@@ -662,31 +664,32 @@ export const ShareHeader = ({
 												const link = getVideoLink();
 												const title = displayTitle || data.name;
 												window.open(
-													`https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(link)}`,
+													`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(title)}`,
 													"_blank",
 													"noopener,noreferrer",
 												);
 												setShowShareOptions(false);
 											}}
 										>
-											<Share2 className="w-3.5 h-3.5 shrink-0" />
-											Share on X
+											<Send className="w-3.5 h-3.5 shrink-0" />
+											Share on Telegram
 										</button>
 										<button
 											type="button"
 											className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-12 transition-colors hover:bg-gray-3"
 											onClick={() => {
 												const link = getVideoLink();
+												const title = displayTitle || data.name;
 												window.open(
-													`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(link)}`,
+													`https://wa.me/?text=${encodeURIComponent(`${title} ${link}`)}`,
 													"_blank",
 													"noopener,noreferrer",
 												);
 												setShowShareOptions(false);
 											}}
 										>
-											<Share2 className="w-3.5 h-3.5 shrink-0" />
-											Share on LinkedIn
+											<MessageCircle className="w-3.5 h-3.5 shrink-0" />
+											Share on WhatsApp
 										</button>
 										<button
 											type="button"
