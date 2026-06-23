@@ -265,6 +265,27 @@ export const WebRecorderDialog = ({
 		isBusy,
 	});
 
+	// When the dialog closes while a recording is active (recording or paused),
+	// we minimize instead of stopping: set open=false so the big panel hides,
+	// but do NOT call resetState() — the MediaRecorder and tracks stay alive
+	// inside the always-mounted useWebRecorder hook, and InProgressRecordingBar
+	// remains the user's control surface.
+	//
+	// When a true upload/finalize is in flight (creating/converting/uploading) we
+	// keep the guard toast and block close entirely — same as before.
+	//
+	// When the phase transitions to "completed" while the dialog is hidden, a
+	// useEffect below re-opens the dialog so the share UI is never lost.
+	const isActiveRecording = phase === "recording" || phase === "paused";
+	const isUploadInFlight =
+		phase === "creating" || phase === "converting" || phase === "uploading";
+	// True only after the user minimized during an active recording, so the
+	// re-open effect surfaces the share UI exactly ONCE on completion and never
+	// re-opens when the user closes the completed panel (resetState sets
+	// phase=idle only after an await, so without this guard the completed panel
+	// would re-open in a loop and trap the user).
+	const wasMinimizedRef = useRef(false);
+
 	const handleOpenChange = (next: boolean) => {
 		if (next && supportCheckCompleted && !isBrowserSupported) {
 			toast.error(
@@ -273,11 +294,20 @@ export const WebRecorderDialog = ({
 			return;
 		}
 
-		if (!next && isBusy) {
+		// Guard: keep dialog open while an upload/finalize is in progress.
+		if (!next && isUploadInFlight) {
 			toast.info("Keep this dialog open while your upload finishes.");
 			return;
 		}
 
+		// Minimize: hide the panel but keep the recording running.
+		if (!next && isActiveRecording) {
+			wasMinimizedRef.current = true;
+			setOpen(false);
+			return;
+		}
+
+		// Genuine close from idle/completed/error — reset state.
 		if (!next) {
 			void resetState();
 			setSelectedCameraId(null);
@@ -288,16 +318,31 @@ export const WebRecorderDialog = ({
 		setOpen(next);
 	};
 
+	// Re-open the dialog when recording finishes and moves to the completed (or
+	// error) phase while the panel is minimized, so the share link is never lost.
+	useEffect(() => {
+		if (
+			wasMinimizedRef.current &&
+			(phase === "completed" || phase === "error") &&
+			!open
+		) {
+			wasMinimizedRef.current = false;
+			setOpen(true);
+		}
+	}, [phase, open]);
+
 	const handleStopClick = () => {
 		stopRecording().catch((err: unknown) => {
 			console.error("Stop recording error", err);
 		});
 	};
 
+	// handleClose: called by the X button and Escape key (via WebRecorderDialogHeader).
+	// During an active recording → minimize (handleOpenChange handles it above).
+	// During upload/finalize → also delegate to handleOpenChange (guard toast fires).
+	// In any other state → close normally.
 	const handleClose = () => {
-		if (!isBusy) {
-			handleOpenChange(false);
-		}
+		handleOpenChange(false);
 	};
 
 	const handleSettingsOpen = () => {
