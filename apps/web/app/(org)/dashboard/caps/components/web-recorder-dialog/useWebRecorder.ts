@@ -258,6 +258,9 @@ export const useWebRecorder = ({
 	const recordingSpoolWarningShownRef = useRef(false);
 	const recoveredDownloadUrlsRef = useRef(new Map<string, string>());
 	const micTracksRef = useRef<MediaStreamTrack[]>([]);
+	// Show the calm "system sound isn't included" note at most once per session
+	// so a teacher who records many full-screen lessons isn't nagged every time.
+	const systemAudioNoticeShownRef = useRef(false);
 
 	const isStreamingPipelineActive = useCallback(
 		() => recordingPipelineRef.current?.mode === "streaming-webm",
@@ -877,18 +880,6 @@ export const useWebRecorder = ({
 					? (videoStream?.getAudioTracks() ?? [])
 					: [];
 
-			if (
-				systemAudioEnabled &&
-				recordingMode !== "camera" &&
-				systemAudioTracks.length === 0
-			) {
-				toast.warning(
-					recordingMode === "tab"
-						? 'System audio wasn\'t captured. Make sure "Share tab audio" is checked in the browser picker.'
-						: "System audio wasn't captured. Your browser or OS may not support it for screen sharing. Try sharing a browser tab instead.",
-				);
-			}
-
 			let micStream: MediaStream | null = null;
 			if (micEnabled && selectedMicId) {
 				try {
@@ -918,6 +909,28 @@ export const useWebRecorder = ({
 			let audioTracks: MediaStreamTrack[] = [];
 			const hasSystemAudio = systemAudioTracks.length > 0;
 			const hasMicAudio = micStream !== null;
+
+			// System audio is best-effort: on Windows/full-screen, Chrome usually
+			// can't capture it. Only ALARM when the whole recording would be silent
+			// (no mic AND no system audio). When the mic is recording the narration,
+			// a missing system/app sound is expected — show a calm, once-per-session
+			// note instead of a scary warning so a narrating teacher isn't alarmed.
+			if (systemAudioEnabled && recordingMode !== "camera" && !hasSystemAudio) {
+				if (!hasMicAudio) {
+					toast.warning(
+						recordingMode === "tab"
+							? 'No audio is being recorded. Turn on your microphone, or check "Share tab audio" in the browser picker.'
+							: "No audio is being recorded. Turn on your microphone to narrate, or share a browser tab to capture system sound.",
+					);
+				} else if (!systemAudioNoticeShownRef.current) {
+					systemAudioNoticeShownRef.current = true;
+					toast.info(
+						recordingMode === "tab"
+							? 'Your mic is recording. To also include the tab\'s sound, check "Share tab audio" in the picker.'
+							: "Your mic is recording your narration. System/app sound isn't included - share a browser tab if you need it.",
+					);
+				}
+			}
 
 			if (hasSystemAudio && hasMicAudio) {
 				const audioCtx = new AudioContext();
