@@ -124,7 +124,7 @@ function scheduleMeetEnded(): void {
 function friendlyStartError(error: unknown): string {
 	const raw = typeof error === "string" ? error.toLowerCase() : "";
 	if (raw.includes("already")) return "A recording is already running.";
-	if (raw.includes("not signed")) return "Sign in to data365 first.";
+	if (raw.includes("not signed")) return "Connect the 365 extension first — click the extension icon, then Connect account.";
 	if (
 		raw.includes("not been invoked") ||
 		raw.includes("activetab") ||

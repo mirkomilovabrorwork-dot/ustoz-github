@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const REMEMBER_DEVICES_KEY = "cap-web-recorder-remember-devices";
 const PREFERRED_CAMERA_KEY = "cap-web-recorder-preferred-camera";
@@ -23,7 +23,9 @@ export const useDevicePreferences = ({
 	const [selectedMicId, setSelectedMicId] = useState<string | null>(null);
 	// Default system audio ON so screen recordings capture audio and stay
 	// transcribable — a silent recording later fails with NO_AUDIO. Users can
-	// still toggle it off. (Mic stays off by default to avoid echo.)
+	// still toggle it off. The MIC also auto-selects the first device on open
+	// (see the effect below) so a teacher narrating a lesson never records a
+	// silent video by forgetting to pick a mic.
 	const [systemAudioEnabled, setSystemAudioEnabled] = useState(true);
 
 	useEffect(() => {
@@ -86,6 +88,23 @@ export const useDevicePreferences = ({
 		selectedCameraId,
 		selectedMicId,
 	]);
+
+	// Default the microphone ON (Loom-style narration): auto-select the first
+	// available mic once when the dialog opens, if nothing is selected yet (and
+	// no remembered device restored one). The user can still pick "No
+	// microphone" afterward — we only auto-select once per open.
+	const didAutoSelectMic = useRef(false);
+	useEffect(() => {
+		if (!open) {
+			didAutoSelectMic.current = false;
+			return;
+		}
+		const firstMic = availableMics[0];
+		if (!didAutoSelectMic.current && selectedMicId === null && firstMic) {
+			didAutoSelectMic.current = true;
+			setSelectedMicId(firstMic.deviceId);
+		}
+	}, [open, availableMics, selectedMicId]);
 
 	const handleCameraChange = (cameraId: string | null) => {
 		setSelectedCameraId(cameraId);
