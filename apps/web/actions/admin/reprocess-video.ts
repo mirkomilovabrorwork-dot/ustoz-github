@@ -6,7 +6,6 @@ import { videos, videoUploads } from "@cap/database/schema";
 import { serverEnv } from "@cap/env";
 import { Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
-import { start } from "workflow/api";
 import { MESSENGER_ADMIN_EMAIL } from "@/lib/messenger/constants";
 import { adminReprocessVideoWorkflow } from "@/workflows/admin-reprocess-video";
 
@@ -85,7 +84,9 @@ export async function adminReprocessVideo(input: string) {
 			},
 		});
 
-	await start(adminReprocessVideoWorkflow, [{ videoId }]);
+	adminReprocessVideoWorkflow({ videoId }).catch((err) => {
+		console.error("[adminReprocessVideo] Inline workflow failed", err);
+	});
 
 	return {
 		videoId,

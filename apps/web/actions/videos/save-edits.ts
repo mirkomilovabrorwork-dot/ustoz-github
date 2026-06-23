@@ -10,7 +10,6 @@ import type { Video } from "@cap/web-domain";
 import { and, eq, gt, inArray, sql } from "drizzle-orm";
 import { Effect } from "effect";
 import { revalidatePath } from "next/cache";
-import { start } from "workflow/api";
 import { runPromise } from "@/lib/server";
 import { getEditSourceKey } from "@/lib/video-edit-processing";
 import {
@@ -239,30 +238,17 @@ export async function saveVideoEdits(
 
 	await markEditProcessing({ videoId, sourceKey });
 
-	try {
-		await start(editVideoWorkflow, [
-			{
-				videoId,
-				userId: user.id,
-				sourceKey,
-				previousSpec,
-				editSpec: normalizedEditSpec,
-				keepRanges: normalizedEditSpec.keepRanges,
-				aiGenerationEnabled,
-			},
-		]);
-	} catch (error) {
-		await db().delete(videoUploads).where(eq(videoUploads.videoId, videoId));
-		console.error("[saveVideoEdits] workflow start failed", {
-			videoId,
-			err: error instanceof Error ? error.message : String(error),
-		});
-		return {
-			ok: false,
-			error:
-				"Couldn't start the edit job. The processing service may be unavailable — try again in a few minutes.",
-		};
-	}
+	editVideoWorkflow({
+		videoId,
+		userId: user.id,
+		sourceKey,
+		previousSpec,
+		editSpec: normalizedEditSpec,
+		keepRanges: normalizedEditSpec.keepRanges,
+		aiGenerationEnabled,
+	}).catch((err) => {
+		console.error("[saveVideoEdits] Inline workflow failed", err);
+	});
 
 	revalidatePath(`/s/${videoId}`);
 	revalidatePath(`/s/${videoId}/edit`);

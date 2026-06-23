@@ -2,7 +2,6 @@ import { db } from "@cap/database";
 import { videoUploads } from "@cap/database/schema";
 import type { User, Video } from "@cap/web-domain";
 import { and, eq, notInArray } from "drizzle-orm";
-import { start } from "workflow/api";
 import { finalizeDesktopRecordingWorkflow } from "@/workflows/finalize-desktop-recording";
 
 export { isRetryableDesktopSegmentsFinalizationError } from "@/lib/desktop-segments-retryable-errors";
@@ -66,26 +65,11 @@ export async function queueDesktopSegmentsFinalization({
 		}
 	}
 
-	try {
-		await start(finalizeDesktopRecordingWorkflow, [
-			{
-				videoId,
-				userId,
-			},
-		]);
-		return "queued";
-	} catch (error) {
-		await db()
-			.update(videoUploads)
-			.set({
-				phase: "error",
-				processingProgress: 0,
-				processingMessage: "Failed to queue segment muxing",
-				processingError: error instanceof Error ? error.message : String(error),
-				updatedAt: new Date(),
-			})
-			.where(eq(videoUploads.videoId, videoId));
-
-		throw error;
-	}
+	finalizeDesktopRecordingWorkflow({
+		videoId,
+		userId,
+	}).catch((err) => {
+		console.error("[queueDesktopSegmentsFinalization] Inline workflow failed", err);
+	});
+	return "queued";
 }

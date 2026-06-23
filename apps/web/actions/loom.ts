@@ -30,7 +30,6 @@ import { and, eq, isNull } from "drizzle-orm";
 import { Option } from "effect";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { start } from "workflow/api";
 import { requireOrganizationAccess } from "@/actions/organization/authorization";
 import { runPromise } from "@/lib/server";
 import { importLoomVideoWorkflow } from "@/workflows/import-loom-video";
@@ -405,16 +404,16 @@ async function importLoomVideoForOwner({
 			.catch(() => {});
 	}
 
-	await start(importLoomVideoWorkflow, [
-		{
-			videoId,
-			userId: ownerId,
-			rawFileKey,
-			bucketId: Option.getOrNull(writable.bucketId),
-			loomDownloadUrl: downloadUrl,
-			loomVideoId,
-		},
-	]);
+	importLoomVideoWorkflow({
+		videoId,
+		userId: ownerId,
+		rawFileKey,
+		bucketId: Option.getOrNull(writable.bucketId),
+		loomDownloadUrl: downloadUrl,
+		loomVideoId,
+	}).catch((err) => {
+		console.error("[importLoomVideo] Inline workflow failed", err);
+	});
 
 	revalidatePath("/dashboard/caps");
 
