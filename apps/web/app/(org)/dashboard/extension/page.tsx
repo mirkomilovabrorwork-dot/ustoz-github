@@ -42,7 +42,11 @@ export default function ExtensionPage() {
 
 				<ol className="mt-8 flex flex-col gap-4">
 					{[
-						"Download and unzip the file.",
+						<>
+							Download the file, then{" "}
+							<span className="font-semibold text-gray-12">unzip it first</span>{" "}
+							— Chrome loads an unzipped folder, not the .zip.
+						</>,
 						<>
 							Open{" "}
 							<code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-mono text-gray-12 dark:bg-gray-800">

@@ -165,6 +165,9 @@ export const WebRecorderDialog = ({
 		phase,
 		durationMs,
 		hasAudioTrack,
+		isMicMuted,
+		toggleMicMute,
+		canToggleMic,
 		chunkUploads,
 		errorDownload,
 		completedShareUrl,
@@ -530,6 +533,9 @@ export const WebRecorderDialog = ({
 					phase={phase}
 					durationMs={recordingTimerDisplayMs}
 					hasAudioTrack={hasAudioTrack}
+					isMicMuted={isMicMuted}
+					toggleMicMute={toggleMicMute}
+					canToggleMic={canToggleMic}
 					chunkUploads={chunkUploads}
 					errorDownload={errorDownload}
 					onStop={handleStopClick}

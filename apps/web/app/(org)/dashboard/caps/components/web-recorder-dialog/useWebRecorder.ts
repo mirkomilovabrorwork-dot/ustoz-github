@@ -144,6 +144,7 @@ export const useWebRecorder = ({
 	const [phase, setPhase] = useState<RecorderPhase>("idle");
 	const [videoId, setVideoId] = useState<VideoId | null>(null);
 	const [hasAudioTrack, setHasAudioTrack] = useState(false);
+	const [isMicMuted, setIsMicMuted] = useState(false);
 	const [isSettingUp, setIsSettingUp] = useState(false);
 	const [isRestarting, setIsRestarting] = useState(false);
 	const [chunkUploads, setChunkUploads] = useState<ChunkUploadState[]>([]);
@@ -256,6 +257,7 @@ export const useWebRecorder = ({
 	const recordingSpoolDegradingRef = useRef(false);
 	const recordingSpoolWarningShownRef = useRef(false);
 	const recoveredDownloadUrlsRef = useRef(new Map<string, string>());
+	const micTracksRef = useRef<MediaStreamTrack[]>([]);
 
 	const isStreamingPipelineActive = useCallback(
 		() => recordingPipelineRef.current?.mode === "streaming-webm",
@@ -594,6 +596,8 @@ export const useWebRecorder = ({
 		setUploadStatus(undefined);
 		setChunkUploads([]);
 		setHasAudioTrack(false);
+		micTracksRef.current = [];
+		setIsMicMuted(false);
 		replaceErrorDownload(null);
 		setCompletedShareUrl(null);
 		shareUrlOpenedRef.current = false;
@@ -905,7 +909,11 @@ export const useWebRecorder = ({
 
 			if (micStream) {
 				micStreamRef.current = micStream;
+				micTracksRef.current = micStream.getAudioTracks();
+			} else {
+				micTracksRef.current = [];
 			}
+			setIsMicMuted(false);
 
 			let audioTracks: MediaStreamTrack[] = [];
 			const hasSystemAudio = systemAudioTracks.length > 0;
@@ -1512,6 +1520,19 @@ export const useWebRecorder = ({
 		!isSettingUp &&
 		!isRestarting &&
 		isBrowserSupported;
+
+	const canToggleMic = micTracksRef.current.length > 0;
+
+	const toggleMicMute = useCallback(() => {
+		const tracks = micTracksRef.current;
+		if (tracks.length === 0) return;
+		const nextMuted = !isMicMuted;
+		for (const track of tracks) {
+			track.enabled = !nextMuted;
+		}
+		setIsMicMuted(nextMuted);
+	}, [isMicMuted]);
+
 	const isPaused = phase === "paused";
 	const isRecordingActive = phase === "recording" || isPaused;
 	const isBusyPhase =
@@ -1542,6 +1563,9 @@ export const useWebRecorder = ({
 		durationMs,
 		videoId,
 		hasAudioTrack,
+		isMicMuted,
+		toggleMicMute,
+		canToggleMic,
 		chunkUploads,
 		errorDownload,
 		completedShareUrl,

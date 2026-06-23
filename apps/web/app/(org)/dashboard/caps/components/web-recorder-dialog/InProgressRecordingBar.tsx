@@ -55,6 +55,9 @@ interface InProgressRecordingBarProps {
 	phase: RecorderPhase;
 	durationMs: number;
 	hasAudioTrack: boolean;
+	isMicMuted?: boolean;
+	toggleMicMute?: () => void;
+	canToggleMic?: boolean;
 	chunkUploads: ChunkUploadState[];
 	onStop: () => void | Promise<void>;
 	onPause?: () => void | Promise<void>;
@@ -79,6 +82,9 @@ export const InProgressRecordingBar = ({
 	phase,
 	durationMs,
 	hasAudioTrack,
+	isMicMuted = false,
+	toggleMicMute,
+	canToggleMic = false,
 	chunkUploads,
 	onStop,
 	onPause,
@@ -368,25 +374,19 @@ export const InProgressRecordingBar = ({
 
 						<div className="flex gap-3 items-center" data-no-drag>
 							<InlineChunkProgress chunkUploads={chunkUploads} />
-							<div className="flex relative justify-center items-center w-8 h-8">
-								{hasAudioTrack ? (
-									<>
-										<Mic className="size-5 text-gray-12" />
-										<div className="absolute bottom-1 left-1 right-1 h-0.5 bg-gray-10 overflow-hidden rounded-full">
-											<div
-												className="absolute inset-0 bg-blue-9 transition-transform duration-200"
-												style={{
-													transform: hasAudioTrack
-														? "translateX(0%)"
-														: "translateX(-100%)",
-												}}
-											/>
-										</div>
-									</>
+							<ActionButton
+								data-no-drag
+								onClick={toggleMicMute}
+								disabled={!canToggleMic || !toggleMicMute}
+								aria-label={isMicMuted ? "Unmute microphone" : "Mute microphone"}
+								aria-pressed={isMicMuted}
+							>
+								{isMicMuted || !hasAudioTrack ? (
+									<MicOff className={hasAudioTrack ? "size-5" : "text-gray-7 size-5"} />
 								) : (
-									<MicOff className="text-gray-7 size-5" />
+									<Mic className="size-5 text-gray-12" />
 								)}
-							</div>
+							</ActionButton>
 
 							<ActionButton
 								data-no-drag
