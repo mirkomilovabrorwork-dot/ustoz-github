@@ -4,13 +4,13 @@
  * The runtime value can always be overridden by the user in the Options page
  * (saved to chrome.storage under capExtSettings.apiBaseUrl).
  *
- * externally_connectable in manifest.json already covers:
- *   https://*.up.railway.app/*   ← any Railway subdomain (new deploy = just update apiBaseUrl)
- *   http://localhost:3000/*      ← local dev (API)
- *   http://localhost:3001/*      ← local dev (web app / OAuth callback)
- *
- * If a fully custom domain is ever used it must also be added to
- * externally_connectable in manifest.json (Chrome requirement).
+ * externally_connectable in manifest.json must list EACH allowed web origin
+ * explicitly. IMPORTANT: railway.app is on the Public Suffix List, so Chrome
+ * REJECTS a wildcard like `https://*.up.railway.app/*` (wildcard subdomain of a
+ * public suffix) and silently ignores it — which previously broke sign-in. So
+ * every Railway subdomain (and any custom domain) must be added by its FULL
+ * host, e.g. https://capweb-production-dd85.up.railway.app/*. A new deploy with
+ * a different subdomain must be added there too, not just to apiBaseUrl.
  */
 const extensionEnv = (
 	globalThis as {
