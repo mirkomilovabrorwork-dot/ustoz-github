@@ -49,7 +49,7 @@ export default function ExtensionPage() {
 						</>,
 						<>
 							Open{" "}
-							<code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-mono text-gray-12 dark:bg-gray-800">
+							<code className="rounded border border-gray-5 bg-gray-3 px-1.5 py-0.5 text-xs font-mono text-gray-12">
 								chrome://extensions
 							</code>{" "}
 							in Chrome.
