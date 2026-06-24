@@ -1,7 +1,16 @@
 # QA_FLOWS.md — Ustoz / Cap fork — Full Flow Inventory
 
-**Generated:** 2026-06-20  
+**Generated:** 2026-06-20 · **Re-verified:** 2026-06-24
 **Areas covered:** AUTH · REC · SHARE · AI · DASH
+
+## ⚡ 2026-06-24 DELTA (this QA run)
+The 132-flow map below is still structurally valid. Changes since 2026-06-20:
+- **Open signup is LIVE** (`actions/auth/signup.ts`) — Table-A "/signup = invite-only message" is STALE; the real signup form now creates a `member` (dup/race-guarded, never admin). → Flow #3.
+- **Onboarding download 404 FIXED** → CTA now `/dashboard/extension` (was `/download/{platform}`, which 404s — no desktop app here).
+- **Delete toasts FIXED** ("365"/"cap" used as the recording noun → "recording(s)" in Caps.tsx + Meetings.tsx).
+- **Recordings ~half size** (720p / 600 kbps) · **sidebar org-switcher polish** · **~40 user-visible "Cap"→data365** · **CDN Worker hang fixed in code** (not deployed).
+- **OPEN ISSUE:** `/terms` + `/privacy` 404 on auth footers (flagged to owner — legal-content decision).
+- **Out-of-scope for this self-host** (Pro gating effectively off): billing/Stripe, developer-API apps, SSO, custom domains, referrals, auto-topup. Step-3 priority = the **Critical** teacher-core rows (auth, record, upload, share/watch, AI).
 
 ## Totals
 

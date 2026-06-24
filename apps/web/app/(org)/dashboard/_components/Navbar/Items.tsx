@@ -56,6 +56,7 @@ import {
 	ChartLineIcon,
 	CodeIcon,
 	CogIcon,
+	DownloadIcon,
 	HomeIcon,
 	LogoutIcon,
 	ReferIcon,
@@ -109,6 +110,13 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 			name: "New Recording",
 			href: `/dashboard/caps/record`,
 			icon: <RecordIcon />,
+			subNav: [],
+		},
+		{
+			name: "Install Extension",
+			href: `/dashboard/extension`,
+			matchChildren: true,
+			icon: <DownloadIcon />,
 			subNav: [],
 		},
 		{
