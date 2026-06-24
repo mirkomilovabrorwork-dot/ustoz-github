@@ -65,7 +65,6 @@ import {
 } from "../AnimatedIcons";
 import type { CogIconHandle } from "../AnimatedIcons/Cog";
 import type { DownloadIconHandle } from "../AnimatedIcons/Download";
-import SpacesList from "./SpacesList";
 import { updateActiveOrganization } from "./server";
 
 interface Props {
@@ -403,8 +402,6 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 								/>
 							</div>
 						))}
-
-					<SpacesList toggleMobileNav={() => toggleMobileNav?.()} />
 				</div>
 				<div className="pb-4 mt-auto w-full flex flex-col gap-2 shrink-0">
 					<StorageIndicator />
