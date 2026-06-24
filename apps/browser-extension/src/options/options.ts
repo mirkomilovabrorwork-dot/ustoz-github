@@ -381,10 +381,21 @@ function buildAccountSection(
 	signInBtn.className = "btn btn--secondary";
 	signInBtn.textContent = "Sign in with data365";
 	signInBtn.addEventListener("click", () => {
-		const baseUrl = apiBaseUrlInput.value.trim() || DEFAULT_API_BASE_URL;
-		const extensionId = chrome.runtime.id;
-		chrome.tabs.create({
-			url: `${baseUrl}/extension/callback?extensionId=${extensionId}`,
+		signInBtn.disabled = true;
+		showToast("Opening sign-in…");
+		chrome.runtime.sendMessage({ type: "START_SIGNIN" }, (resp) => {
+			signInBtn.disabled = false;
+			if (chrome.runtime.lastError) {
+				showToast("Sign-in error — try again");
+				return;
+			}
+			const r = (resp ?? {}) as { ok?: boolean; error?: string };
+			if (r.ok) {
+				showToast("Connected ✓");
+				location.reload();
+			} else {
+				showToast(r.error ? `Sign-in failed: ${r.error}` : "Sign-in failed — paste key below");
+			}
 		});
 	});
 

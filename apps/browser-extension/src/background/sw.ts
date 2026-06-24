@@ -806,6 +806,54 @@ async function handleMessage(
 			return { ok: true };
 		}
 
+		// ── Popup/Options: sign in via Chrome identity (robust OAuth) ──────
+		// Runs launchWebAuthFlow in the SERVICE WORKER (not the popup, which can
+		// close mid-flow). The web callback redirects to chrome.identity's
+		// redirect URL with the freshly-minted token in the URL fragment; we
+		// extract and persist it. No reliance on externally_connectable or any
+		// web→extension messaging, so it works on any deploy URL and for any user.
+		case "START_SIGNIN": {
+			const settings = await getSettings();
+			const baseUrl = settings.apiBaseUrl || DEFAULT_API_BASE_URL;
+			const redirectUri = chrome.identity.getRedirectURL();
+			const url = `${baseUrl}/extension/callback?redirect=${encodeURIComponent(
+				redirectUri,
+			)}`;
+			let responseUrl: string | undefined;
+			try {
+				responseUrl = await new Promise<string | undefined>(
+					(resolve, reject) => {
+						chrome.identity.launchWebAuthFlow(
+							{ url, interactive: true },
+							(r) => {
+								if (chrome.runtime.lastError) {
+									reject(new Error(chrome.runtime.lastError.message));
+								} else {
+									resolve(r ?? undefined);
+								}
+							},
+						);
+					},
+				);
+			} catch (err) {
+				return {
+					ok: false,
+					error: err instanceof Error ? err.message : "sign-in failed",
+				};
+			}
+			if (!responseUrl) return { ok: false, error: "sign-in cancelled" };
+			let signInToken: string | undefined;
+			try {
+				const hash = new URL(responseUrl).hash.replace(/^#/, "");
+				signInToken = new URLSearchParams(hash).get("token") ?? undefined;
+			} catch {
+				signInToken = undefined;
+			}
+			if (!signInToken) return { ok: false, error: "no token returned" };
+			await setSettings({ apiKey: signInToken, apiBaseUrl: baseUrl });
+			return { ok: true };
+		}
+
 		default:
 			return { ok: false, error: `unknown message type: ${type}` };
 	}

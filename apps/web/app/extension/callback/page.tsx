@@ -12,9 +12,14 @@ export default async function ExtensionCallbackPage(props: {
 			? searchParams.extensionId
 			: undefined;
 
+	const redirect =
+		typeof searchParams.redirect === "string"
+			? searchParams.redirect
+			: undefined;
+
 	return (
 		<div className="flex justify-center items-center min-h-screen bg-gray-2">
-			<CallbackClient extensionId={extensionId} />
+			<CallbackClient extensionId={extensionId} redirect={redirect} />
 		</div>
 	);
 }

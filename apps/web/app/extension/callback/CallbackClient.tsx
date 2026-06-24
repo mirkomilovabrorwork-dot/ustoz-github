@@ -7,10 +7,26 @@ type Status =
 	| { kind: "success"; email: string; fallbackToken?: string }
 	| { kind: "error"; message: string; token: string };
 
+// Only hand the token to Chrome's official extension redirect host. This guards
+// against an open-redirect that would leak the token to an arbitrary site.
+function isValidExtensionRedirect(url: string): boolean {
+	try {
+		const parsed = new URL(url);
+		return (
+			parsed.protocol === "https:" &&
+			parsed.hostname.endsWith(".chromiumapp.org")
+		);
+	} catch {
+		return false;
+	}
+}
+
 export function CallbackClient({
 	extensionId,
+	redirect,
 }: {
 	extensionId: string | undefined;
+	redirect: string | undefined;
 }) {
 	const [status, setStatus] = useState<Status>({ kind: "loading" });
 	const [copied, setCopied] = useState(false);
@@ -41,6 +57,20 @@ export function CallbackClient({
 				};
 
 				if (cancelled) return;
+
+				// Chrome identity flow: the extension opened this page inside
+				// launchWebAuthFlow with a chrome.identity redirect URL. Hand the
+				// token back via the URL fragment (never sent to any server) and
+				// let Chrome capture it. Validated above to be *.chromiumapp.org.
+				if (redirect && isValidExtensionRedirect(redirect)) {
+					const sep = redirect.includes("#") ? "&" : "#";
+					window.location.replace(
+						`${redirect}${sep}token=${encodeURIComponent(
+							token,
+						)}&email=${encodeURIComponent(email)}`,
+					);
+					return;
+				}
 
 				const chromeRuntime =
 					typeof globalThis !== "undefined" &&
@@ -126,7 +156,7 @@ export function CallbackClient({
 		return () => {
 			cancelled = true;
 		};
-	}, [extensionId]);
+	}, [extensionId, redirect]);
 
 	if (status.kind === "loading") {
 		return (

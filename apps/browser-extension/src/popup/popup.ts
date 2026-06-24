@@ -465,45 +465,20 @@ function renderNotSignedIn(
 	);
 
 	const oauthMsg = el("p", { className: "inline-msg" });
-	let oauthTimeoutId: ReturnType<typeof setTimeout> | null = null;
-
-	// Listen for the token from the callback page.
-	// If it arrives we just reload — the render loop will switch to the signed-in view.
-	const tokenListener = (message: unknown): void => {
-		if (
-			typeof message === "object" &&
-			message !== null &&
-			(message as Record<string, unknown>).type === "CAP_EXTENSION_TOKEN"
-		) {
-			if (oauthTimeoutId !== null) clearTimeout(oauthTimeoutId);
-			chrome.runtime.onMessage.removeListener(tokenListener);
-			location.reload();
-		}
-	};
 
 	signInBtn.addEventListener("click", () => {
-		// Fix #1: idempotent re-arm — cancel any previous pending timeout/listener
-		// so an older timeout can't fire and remove a newer listener.
-		if (oauthTimeoutId !== null) {
-			clearTimeout(oauthTimeoutId);
-			oauthTimeoutId = null;
-		}
-		chrome.runtime.onMessage.removeListener(tokenListener);
-
-		const url = `${settings.apiBaseUrl}/extension/callback?extensionId=${chrome.runtime.id}`;
-		chrome.tabs.create({ url });
-		oauthMsg.textContent = "Waiting for sign-in… (the page will auto-update)";
+		oauthMsg.textContent = "Opening sign-in…";
 		oauthMsg.style.color = "";
-
-		chrome.runtime.onMessage.addListener(tokenListener);
-
-		// After 20 s with no token, prompt user to paste the key manually
-		oauthTimeoutId = setTimeout(() => {
-			chrome.runtime.onMessage.removeListener(tokenListener);
-			oauthMsg.textContent =
-				"Couldn't sign in automatically — paste your key below instead";
-			oauthMsg.style.color = "#e53e3e";
-		}, 20000);
+		chrome.runtime.sendMessage({ type: "START_SIGNIN" }, (resp) => {
+			if (chrome.runtime.lastError) return; // popup may have closed; SW still finishes
+			const ok = typeof resp === "object" && resp !== null && (resp as { ok?: boolean }).ok === true;
+			if (ok) {
+				location.reload();
+			} else {
+				oauthMsg.textContent = "Couldn't sign in automatically — paste your key below instead";
+				oauthMsg.style.color = "#e53e3e";
+			}
+		});
 	});
 
 	// ── SECONDARY: API-key paste (always visible) ─────────────────────────

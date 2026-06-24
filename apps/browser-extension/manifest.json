@@ -27,7 +27,8 @@
 		"tabs",
 		"offscreen",
 		"notifications",
-		"tabCapture"
+		"tabCapture",
+		"identity"
 	],
 	"host_permissions": ["https://*/*", "http://localhost:3001/*"],
 	"content_scripts": [
