@@ -3,6 +3,7 @@
 import { Button, Input, LogoBadge } from "@cap/ui";
 import { motion } from "framer-motion";
 import Cookies from "js-cookie";
+import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
@@ -22,6 +23,8 @@ export function SignupForm() {
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
+	const [showPassword, setShowPassword] = useState(false);
+	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 	const [submitting, setSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
@@ -142,30 +145,62 @@ export function SignupForm() {
 						disabled={submitting}
 						onChange={(e) => setEmail(e.target.value.toLowerCase())}
 					/>
-					<MotionInput
-						id={passwordInputId}
-						name="password"
-						type="password"
-						placeholder="Password (min 8 characters)"
-						autoComplete="new-password"
-						required
-						minLength={8}
-						value={password}
-						disabled={submitting}
-						onChange={(e) => setPassword(e.target.value)}
-					/>
-					<MotionInput
-						id={confirmPasswordInputId}
-						name="confirmPassword"
-						type="password"
-						placeholder="Confirm password"
-						autoComplete="new-password"
-						required
-						minLength={8}
-						value={confirmPassword}
-						disabled={submitting}
-						onChange={(e) => setConfirmPassword(e.target.value)}
-					/>
+					<div className="relative">
+						<MotionInput
+							id={passwordInputId}
+							name="password"
+							type={showPassword ? "text" : "password"}
+							placeholder="Password (min 8 characters)"
+							autoComplete="new-password"
+							required
+							minLength={8}
+							value={password}
+							disabled={submitting}
+							onChange={(e) => setPassword(e.target.value)}
+							className="pr-10"
+						/>
+						<button
+							type="button"
+							onClick={() => setShowPassword((v) => !v)}
+							aria-label={showPassword ? "Hide password" : "Show password"}
+							tabIndex={-1}
+							className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-10 hover:text-gray-12 transition-colors"
+						>
+							{showPassword ? (
+								<EyeOff className="size-4" />
+							) : (
+								<Eye className="size-4" />
+							)}
+						</button>
+					</div>
+					<div className="relative">
+						<MotionInput
+							id={confirmPasswordInputId}
+							name="confirmPassword"
+							type={showConfirmPassword ? "text" : "password"}
+							placeholder="Confirm password"
+							autoComplete="new-password"
+							required
+							minLength={8}
+							value={confirmPassword}
+							disabled={submitting}
+							onChange={(e) => setConfirmPassword(e.target.value)}
+							className="pr-10"
+						/>
+						<button
+							type="button"
+							onClick={() => setShowConfirmPassword((v) => !v)}
+							aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+							tabIndex={-1}
+							className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-10 hover:text-gray-12 transition-colors"
+						>
+							{showConfirmPassword ? (
+								<EyeOff className="size-4" />
+							) : (
+								<Eye className="size-4" />
+							)}
+						</button>
+					</div>
 					{error && (
 						<div
 							role="alert"

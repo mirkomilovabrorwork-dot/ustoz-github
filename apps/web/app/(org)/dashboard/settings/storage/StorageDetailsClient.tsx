@@ -36,7 +36,7 @@ export function StorageDetailsClient({ data }: { data: Data }) {
 	return (
 		<div className="p-6 max-w-5xl mx-auto space-y-8">
 			<section>
-				<h1 className="text-2xl font-semibold mb-2">Storage</h1>
+				<h1 className="text-2xl font-semibold mb-2 text-gray-12">Storage</h1>
 				<p className="text-gray-10 mb-4">
 					{fmtBytes(data.usedBytes)} used of {fmtBytes(data.quotaBytes)} (
 					{pct.toFixed(1)}%)
@@ -63,12 +63,12 @@ export function StorageDetailsClient({ data }: { data: Data }) {
 			)}
 
 			<section>
-				<h2 className="text-lg font-medium mb-3">By Folder</h2>
+				<h2 className="text-lg font-medium mb-3 text-gray-12">By Folder</h2>
 				<div className="space-y-2">
 					{data.byFolder.map((f) => (
 						<div
 							key={f.folderId ?? "root"}
-							className="flex justify-between items-center p-3 border rounded"
+							className="flex justify-between items-center p-3 border border-gray-4 rounded"
 						>
 							<span>{f.folderName}</span>
 							<span className="text-sm text-gray-10">{fmtBytes(f.bytes)}</span>
@@ -78,7 +78,7 @@ export function StorageDetailsClient({ data }: { data: Data }) {
 			</section>
 
 			<section>
-				<h2 className="text-lg font-medium mb-3">
+				<h2 className="text-lg font-medium mb-3 text-gray-12">
 					By User
 					{data.userQuotaBytes != null && data.userQuotaBytes > 0 && (
 						<span className="ml-2 text-xs font-normal text-gray-10">
@@ -98,12 +98,12 @@ export function StorageDetailsClient({ data }: { data: Data }) {
 								className={`p-3 border rounded ${
 									u.overQuota
 										? "border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-700"
-										: "border-gray-5 bg-gray-1"
+										: "border-gray-4 bg-gray-1"
 								}`}
 							>
 								<div className="flex justify-between items-center">
 									<div>
-										<div>{u.name ?? u.email}</div>
+										<div className="text-gray-12">{u.name ?? u.email}</div>
 										<div className="text-xs text-gray-9">{u.email}</div>
 									</div>
 									<div className="text-right">
@@ -147,12 +147,12 @@ export function StorageDetailsClient({ data }: { data: Data }) {
 			</section>
 
 			<section>
-				<h2 className="text-lg font-medium mb-3">Top Videos by Size</h2>
+				<h2 className="text-lg font-medium mb-3 text-gray-12">Top Videos by Size</h2>
 				<div className="space-y-2">
 					{data.byVideo.map((v) => (
 						<div
 							key={v.videoId}
-							className="flex justify-between items-center p-3 border rounded"
+							className="flex justify-between items-center p-3 border border-gray-4 rounded"
 						>
 							<span className="truncate">{v.name}</span>
 							<span className="text-sm text-gray-10 shrink-0 ml-3">
@@ -198,7 +198,7 @@ function QuotaSettingsForm({
 	return (
 		<section className="p-4 border rounded-lg bg-gray-2 space-y-4">
 			<div>
-				<h2 className="text-lg font-medium">Storage limits</h2>
+				<h2 className="text-lg font-medium text-gray-12">Storage limits</h2>
 				<p className="text-xs text-gray-10">
 					Only the workspace owner can change these.
 				</p>

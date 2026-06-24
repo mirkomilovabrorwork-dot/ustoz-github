@@ -21,7 +21,7 @@ export function InviteMemberForm() {
 	const [generatedLinkEmail, setGeneratedLinkEmail] = useState("");
 
 	return (
-		<div className="space-y-3 p-4 border rounded">
+		<div className="space-y-3 p-4 border border-gray-4 rounded">
 			<div className="inline-flex items-center gap-0.5 rounded-lg bg-gray-3 p-0.5">
 				<button
 					type="button"
@@ -93,7 +93,7 @@ export function InviteMemberForm() {
 				className="flex flex-col gap-2 sm:flex-row sm:items-end"
 			>
 				<div className="flex-1">
-					<label htmlFor={emailId} className="text-sm">
+					<label htmlFor={emailId} className="text-sm text-gray-12">
 						Email
 					</label>
 					<Input
@@ -105,12 +105,12 @@ export function InviteMemberForm() {
 					/>
 				</div>
 				<div>
-					<label htmlFor={roleId} className="text-sm">
+					<label htmlFor={roleId} className="text-sm text-gray-12">
 						Role
 					</label>
 					<select
 						id={roleId}
-						className="block border rounded px-2 py-1"
+						className="block border border-gray-4 rounded px-2 py-1 bg-gray-1 text-gray-12"
 						value={role}
 						onChange={(e) => setRole(e.target.value as "admin" | "member")}
 					>
@@ -127,11 +127,11 @@ export function InviteMemberForm() {
 				</Button>
 			</form>
 			{generatedLink && (
-				<div className="p-3 bg-gray-2 rounded border space-y-2">
+				<div className="p-3 bg-gray-2 rounded border border-gray-4 space-y-2">
 					<p className="text-sm font-medium text-gray-12">
 						Invite link ready
 					</p>
-					<p className="text-sm text-gray-500">
+					<p className="text-sm text-gray-10">
 						Email may not send on self-hosted installs. Copy this link and send
 						it to <strong>{generatedLinkEmail}</strong> manually. It expires in
 						72 hours and can only be used once.

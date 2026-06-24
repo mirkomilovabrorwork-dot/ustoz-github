@@ -65,7 +65,7 @@ export default async function MembersPage() {
 
 	return (
 		<div className="p-6 space-y-8">
-			<h1 className="text-2xl font-semibold">Team Members</h1>
+			<h1 className="text-2xl font-semibold text-gray-12">Team Members</h1>
 			<InviteMemberForm />
 			<MembersTable
 				members={members}

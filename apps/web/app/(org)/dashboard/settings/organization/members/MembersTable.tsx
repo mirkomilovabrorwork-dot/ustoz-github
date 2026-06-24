@@ -120,7 +120,7 @@ export function MembersTable({
 
 	if (members.length === 0 && pendingInvites.length === 0) {
 		return (
-			<div className="flex flex-col items-center gap-3 py-12 text-center border rounded-lg">
+			<div className="flex flex-col items-center gap-3 py-12 text-center border border-gray-4 rounded-lg">
 				<div className="flex items-center justify-center size-12 rounded-full bg-gray-2">
 					<svg
 						className="size-6 text-gray-9"
@@ -150,8 +150,8 @@ export function MembersTable({
 	return (
 		<div className="space-y-8">
 			<section>
-				<h2 className="text-lg font-medium mb-3">Current Members</h2>
-				<div className="border rounded divide-y">
+				<h2 className="text-lg font-medium mb-3 text-gray-12">Current Members</h2>
+				<div className="border border-gray-4 rounded divide-y divide-gray-4">
 					{members.map((m) => {
 						const isOwner = m.userId === ownerId;
 						const isMe = m.userId === currentUserId;
@@ -161,17 +161,17 @@ export function MembersTable({
 								className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between"
 							>
 								<div>
-									<div className="font-medium">{m.name ?? m.email}</div>
-									<div className="text-sm text-gray-600">{m.email}</div>
+									<div className="font-medium text-gray-12">{m.name ?? m.email}</div>
+									<div className="text-sm text-gray-10">{m.email}</div>
 								</div>
 								<div className="flex flex-wrap items-center gap-3">
 									{isOwner || isMe ? (
-										<span className="text-sm text-gray-600 capitalize">
+										<span className="text-sm text-gray-10 capitalize">
 											{isOwner ? "Owner" : m.role}
 										</span>
 									) : (
 										<select
-											className="text-sm text-gray-600 capitalize bg-gray-1 border border-gray-4 rounded px-2 py-1 dark:bg-gray-2 dark:text-gray-12"
+											className="text-sm text-gray-12 capitalize bg-gray-1 border border-gray-4 rounded px-2 py-1"
 											value={m.role}
 											disabled={actionInFlight === `role-${m.memberId}`}
 											onChange={(e) =>
@@ -185,7 +185,7 @@ export function MembersTable({
 											<option value="member">Member</option>
 										</select>
 									)}
-									<span className="hidden text-xs text-gray-600 sm:inline">
+									<span className="hidden text-xs text-gray-10 sm:inline">
 										{formatPlatformDate(m.joinedAt)}
 									</span>
 									{!isOwner && !isMe && (
@@ -208,16 +208,16 @@ export function MembersTable({
 
 			{pendingInvites.length > 0 && (
 				<section>
-					<h2 className="text-lg font-medium mb-3">Pending Invites</h2>
-					<div className="border rounded divide-y">
+					<h2 className="text-lg font-medium mb-3 text-gray-12">Pending Invites</h2>
+					<div className="border border-gray-4 rounded divide-y divide-gray-4">
 						{pendingInvites.map((invite) => (
 							<div
 								key={invite.id}
 								className="flex items-center justify-between p-3"
 							>
 								<div>
-									<div className="font-medium">{invite.invitedEmail}</div>
-									<div className="text-xs text-gray-600">
+									<div className="font-medium text-gray-12">{invite.invitedEmail}</div>
+									<div className="text-xs text-gray-10">
 										Invited {formatPlatformDate(invite.createdAt)} ·{" "}
 										{invite.role}
 									</div>

@@ -3,6 +3,7 @@
 import { Button, Input, LogoBadge } from "@cap/ui";
 import { motion } from "framer-motion";
 import Cookies from "js-cookie";
+import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
@@ -24,6 +25,7 @@ export function LoginForm() {
 	const next = searchParams?.get("next");
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
+	const [showPassword, setShowPassword] = useState(false);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const emailInputId = useId();
@@ -108,17 +110,33 @@ export function LoginForm() {
 						disabled={loading}
 						onChange={(e) => setEmail(e.target.value.toLowerCase())}
 					/>
-					<MotionInput
-						id={passwordInputId}
-						name="password"
-						type="password"
-						placeholder="Password"
-						autoComplete="current-password"
-						required
-						value={password}
-						disabled={loading}
-						onChange={(e) => setPassword(e.target.value)}
-					/>
+					<div className="relative">
+						<MotionInput
+							id={passwordInputId}
+							name="password"
+							type={showPassword ? "text" : "password"}
+							placeholder="Password"
+							autoComplete="current-password"
+							required
+							value={password}
+							disabled={loading}
+							onChange={(e) => setPassword(e.target.value)}
+							className="pr-10"
+						/>
+						<button
+							type="button"
+							onClick={() => setShowPassword((v) => !v)}
+							aria-label={showPassword ? "Hide password" : "Show password"}
+							tabIndex={-1}
+							className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-10 hover:text-gray-12 transition-colors"
+						>
+							{showPassword ? (
+								<EyeOff className="size-4" />
+							) : (
+								<Eye className="size-4" />
+							)}
+						</button>
+					</div>
 					{error && (
 						<div
 							role="alert"
