@@ -100,7 +100,7 @@ const UpgradeModalImpl = ({
 		},
 		{
 			icon: <Sparkles className={iconStyling} />,
-			title: "365 AI",
+			title: "data365 AI",
 			description: "Automatic video chapters, summaries & more",
 		},
 		{

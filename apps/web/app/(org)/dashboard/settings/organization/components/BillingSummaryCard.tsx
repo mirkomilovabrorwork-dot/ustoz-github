@@ -75,7 +75,7 @@ export function BillingSummaryCard() {
 				<CardHeader>
 					<CardTitle>Upgrade to Pro</CardTitle>
 					<CardDescription>
-						Get unlimited sharing, custom domains, 365 AI, and more.
+						Get unlimited sharing, custom domains, data365 AI, and more.
 					</CardDescription>
 				</CardHeader>
 				<Button

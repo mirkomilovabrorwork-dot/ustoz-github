@@ -452,7 +452,7 @@ export function AIChatPopup({
 					<OrbIcon />
 				</div>
 				<div className="htxt">
-					<div className="t">365 AI</div>
+					<div className="t">data365 AI</div>
 					<div className="s">
 						<span className="live" />
 						Video context loaded

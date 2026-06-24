@@ -79,11 +79,8 @@ export function StorageIndicator() {
 	const pct = Math.min(100, data.percentUsed);
 	const barColor =
 		pct >= 90 ? "bg-red-500" : pct > 75 ? "bg-amber-500" : "bg-blue-500";
-	const freeStr = (() => {
-		const f = 100 - pct;
-		const s = f.toFixed(1);
-		return s.endsWith(".0") ? f.toFixed(0) : s;
-	})();
+	const usedPct = pct < 0.5 ? 0 : pct;
+	const usedStr = pct < 0.5 ? "0" : Math.round(pct).toString();
 
 	return (
 		<Link
@@ -99,11 +96,11 @@ export function StorageIndicator() {
 			<div className="h-1.5 w-full rounded-full bg-gray-5 overflow-hidden">
 				<div
 					className={`h-full rounded-full transition-all ${barColor}`}
-					style={{ width: `${Math.max(pct, 1)}%` }}
+					style={{ width: `${usedPct}%` }}
 				/>
 			</div>
 			<p className="mt-1.5 text-[11px] text-gray-10">
-				{pct >= 99 ? "Quota full" : `${freeStr}% free`}
+				{pct >= 99 ? "Quota full" : `${usedStr}% used`}
 			</p>
 		</Link>
 	);

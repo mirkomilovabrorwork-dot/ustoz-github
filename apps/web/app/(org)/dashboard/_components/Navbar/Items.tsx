@@ -52,16 +52,17 @@ import {
 import { useDashboardContext, useTheme } from "../../Contexts";
 import {
 	ArrowUpIcon,
-	CapIcon,
 	ChartLineIcon,
 	CodeIcon,
 	CogIcon,
 	DownloadIcon,
+	GraduationCapIcon,
 	HomeIcon,
 	LogoutIcon,
 	ReferIcon,
 	RecordIcon,
 	SettingsGearIcon,
+	UsersIcon,
 } from "../AnimatedIcons";
 import type { CogIconHandle } from "../AnimatedIcons/Cog";
 import type { DownloadIconHandle } from "../AnimatedIcons/Download";
@@ -87,14 +88,14 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 			name: "Lessons",
 			href: `/dashboard/caps`,
 			extraText: userCapsCount,
-			icon: <CapIcon />,
+			icon: <GraduationCapIcon />,
 			subNav: [],
 		},
 		{
 			name: "Meeting Recordings",
 			href: `/dashboard/meetings`,
 			matchChildren: true,
-			icon: <CapIcon />,
+			icon: <UsersIcon />,
 			subNav: [],
 		},
 		{

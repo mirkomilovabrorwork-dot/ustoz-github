@@ -167,7 +167,7 @@ export function DashboardSearch({
 			{
 				id: "import-video",
 				title: "Import Video",
-				subtitle: "Bring an existing video into 365",
+				subtitle: "Bring an existing video into data365",
 				href: "/dashboard/import",
 				value: "import upload loom video file",
 				icon: Upload,
@@ -238,11 +238,11 @@ export function DashboardSearch({
 						},
 						{
 							id: "organization-preferences",
-							title: "365 Settings",
+							title: "Recording Settings",
 							subtitle: "Default summaries, captions, and viewer options",
 							href: "/dashboard/settings/organization/preferences",
 							value:
-								"365 settings preferences summaries captions chapters comments reactions transcript",
+								"recording settings preferences summaries captions chapters comments reactions transcript",
 							icon: Sparkles,
 						},
 					]

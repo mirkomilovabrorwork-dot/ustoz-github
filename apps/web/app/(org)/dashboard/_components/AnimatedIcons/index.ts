@@ -1,5 +1,7 @@
 import ArrowUpIcon from "./ArrowUp";
 import CapIcon from "./Cap";
+import GraduationCapIcon from "./GraduationCap";
+import UsersIcon from "./Users";
 import ChartLineIcon from "./ChartLine";
 import MessageCircleMoreIcon from "./Chat";
 import ChatIcon from "./Chat";
@@ -19,6 +21,8 @@ import SettingsGearIcon from "./Settings";
 export {
 	ArrowUpIcon,
 	CapIcon,
+	GraduationCapIcon,
+	UsersIcon,
 	MessageCircleMoreIcon,
 	CodeIcon,
 	CogIcon,

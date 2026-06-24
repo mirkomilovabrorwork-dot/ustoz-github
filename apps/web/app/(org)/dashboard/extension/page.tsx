@@ -10,7 +10,7 @@ export default function ExtensionPage() {
 			<div className="flex flex-wrap gap-3 items-center mb-10 w-full">
 				<div>
 					<h1 className="text-2xl font-medium text-gray-12">
-						365 Browser Extension
+						data365 Browser Extension
 					</h1>
 					<p className="mt-1 text-gray-10 text-md">
 						Record Google Meet calls and instructional videos right from Chrome.

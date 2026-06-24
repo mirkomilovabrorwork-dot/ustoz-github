@@ -306,13 +306,13 @@ export const EmbedVideo = forwardRef<
 									window.open(process.env.NEXT_PUBLIC_WEB_URL ?? "#", "_blank");
 								}}
 								className="flex z-10 gap-2 items-center px-3 py-2 text-sm rounded-full border backdrop-blur-sm transition-colors duration-200 border-white/10 w-fit text-white/80 hover:text-white bg-black/50 pointer-events-auto"
-								aria-label="Powered by 365"
+								aria-label="Powered by data365"
 							>
 								<span className="text-xs md:text-sm text-white/80">
 									Powered by
 								</span>
 								<span className="text-sm font-semibold leading-none text-white">
-									365
+									data365
 								</span>
 							</motion.button>
 						</div>

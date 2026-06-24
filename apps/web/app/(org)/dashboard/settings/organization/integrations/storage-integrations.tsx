@@ -746,7 +746,7 @@ export function OrganizationStorageIntegrations({
 						) : (
 							<div className="flex items-center justify-between gap-3">
 								<p className="text-[12px] text-gray-10">
-									Link your Google account to store uploads in a "365" folder in
+									Link your Google account to store uploads in a "data365" folder in
 									your Drive. You can change the location after connecting.
 								</p>
 								<Button

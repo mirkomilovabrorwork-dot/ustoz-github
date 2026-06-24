@@ -155,7 +155,7 @@ export function LoginForm() {
 					className="pt-3 text-xs text-center text-gray-11"
 				>
 					By signing in, you acknowledge that you have both read and agree to
-					365's{" "}
+					data365's{" "}
 					<Link
 						href="/terms"
 						target="_blank"

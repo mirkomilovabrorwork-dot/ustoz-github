@@ -43,10 +43,10 @@ export async function generateMetadata(
 	const description =
 		collection.publicPage.subtitle.trim() ||
 		collection.description?.trim() ||
-		`View public videos in ${title} on 365.`;
+		`View public videos in ${title} on data365.`;
 
 	return {
-		title: `${title} | 365 Collection`,
+		title: `${title} | data365 Collection`,
 		description,
 		robots: "noindex, nofollow",
 	};

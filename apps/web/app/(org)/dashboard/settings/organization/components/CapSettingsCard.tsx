@@ -76,9 +76,9 @@ const options: Array<{
 		pro: true,
 	},
 	{
-		label: "Show 365 logo",
+		label: "Show data365 logo",
 		value: "hideShareableLinkCapLogo",
-		description: "Show 365 branding at the top of shareable links",
+		description: "Show data365 branding at the top of shareable links",
 		pro: true,
 	},
 ];
@@ -181,8 +181,8 @@ const CapSettingsCard = () => {
 						if (changedKey === "hideShareableLinkCapLogo") {
 							toast.success(
 								debouncedUpdateSettings[changedKey]
-									? "365 logo hidden"
-									: "365 logo shown",
+									? "data365 logo hidden"
+									: "data365 logo shown",
 							);
 						} else {
 							const isDisabled = Boolean(debouncedUpdateSettings[changedKey]);
@@ -250,7 +250,7 @@ const CapSettingsCard = () => {
 	return (
 		<Card className="flex relative flex-col flex-1 gap-6 w-full min-h-fit">
 			<CardHeader>
-				<CardTitle>365 Settings</CardTitle>
+				<CardTitle>Recording Settings</CardTitle>
 				<CardDescription>
 					Enable or disable specific settings for your organization. These
 					settings will be applied as defaults for new caps.

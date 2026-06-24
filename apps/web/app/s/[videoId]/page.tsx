@@ -226,7 +226,7 @@ export async function generateMetadata(
 				onNone: () =>
 					awaitRecording
 						? {
-								title: "365: Preparing Video",
+								title: "data365: Preparing Video",
 								description: "This recording is being made available.",
 								robots: "noindex, nofollow",
 							}
@@ -247,7 +247,7 @@ export async function generateMetadata(
 
 					return {
 						title: `${video.name} | data365`,
-						description: "Watch this video on 365.",
+						description: "Watch this video on data365.",
 						openGraph: {
 							images: [
 								{
@@ -274,7 +274,7 @@ export async function generateMetadata(
 						twitter: {
 							card: "player",
 							title: `${video.name} | data365`,
-							description: "Watch this video on 365.",
+							description: "Watch this video on data365.",
 							images: [
 								{
 									url: previewImageUrl,

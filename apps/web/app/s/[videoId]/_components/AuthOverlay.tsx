@@ -89,7 +89,7 @@ export const AuthOverlay: React.FC<AuthOverlayProps> = ({
 						)}
 						<p className="mt-6 text-xs text-center text-gray-9">
 							By entering your email, you acknowledge that you have both read
-							and agree to 365's{" "}
+							and agree to data365's{" "}
 							<Link
 								href="/terms"
 								target="_blank"
