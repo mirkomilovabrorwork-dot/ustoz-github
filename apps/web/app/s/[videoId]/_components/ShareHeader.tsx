@@ -730,14 +730,14 @@ export const ShareHeader = ({
 								</span>
 							</button>
 
-							{/* Mobile-only "…" overflow menu (owner only) */}
+							{/* Overflow menu (owner only) */}
 							{isOwner && (
 								<DropdownMenu>
 									<DropdownMenuTrigger asChild>
 										<button
 											type="button"
 											aria-label="More actions"
-											className="inline-flex sm:hidden items-center justify-center rounded-full border border-gray-6 bg-gray-3 p-1.5 text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12"
+											className="inline-flex items-center justify-center rounded-full border border-gray-6 bg-gray-3 p-1.5 text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12"
 										>
 											<Ellipsis className="w-3.5 h-3.5 shrink-0" />
 										</button>
@@ -825,44 +825,6 @@ export const ShareHeader = ({
 							)}
 						</div>
 
-						{isOwner && (
-							<div className="hidden sm:flex flex-wrap items-center gap-2 sm:justify-end">
-								{canEditVideo && (
-									<Button
-										variant="gray"
-										size="xs"
-										className="h-8 gap-1.5 rounded-full px-2.5 text-xs"
-										onClick={handleEditVideo}
-									>
-										<Scissors className="size-3.5 text-gray-12" />
-										Edit video
-									</Button>
-								)}
-								<Button
-									variant="gray"
-									size="xs"
-									className="h-8 gap-1.5 rounded-full px-2.5 text-xs"
-									onClick={() => {
-										push(`/dashboard/analytics?capId=${data.id}`);
-									}}
-								>
-									<FontAwesomeIcon
-										className="size-3.5 text-gray-12"
-										icon={faChartSimple}
-									/>
-									View analytics
-								</Button>
-								<Button
-									size="xs"
-									className="h-8 rounded-full px-2.5 text-xs"
-									onClick={() => {
-										push("/dashboard/caps?page=1");
-									}}
-								>
-									Go to dashboard
-								</Button>
-							</div>
-						)}
 					</div>
 				</div>
 			</div>

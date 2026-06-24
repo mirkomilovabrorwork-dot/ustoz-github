@@ -85,7 +85,7 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 
 	const manageNavigation = [
 		{
-			name: "Lessons",
+			name: "Instructions",
 			href: `/dashboard/caps`,
 			extraText: userCapsCount,
 			icon: <GraduationCapIcon />,
@@ -231,12 +231,12 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 												sidebarCollapsed ? "text-sm" : "text-[13px]",
 											)}
 											className={clsx(
-												"relative flex-shrink-0 mx-auto",
+												"relative flex-shrink-0",
 												sidebarCollapsed ? "size-6" : "size-7",
 											)}
 										/>
 									</div>
-									<div className="flex flex-col flex-1 items-center min-h-10">
+									<div className="flex flex-col flex-1 min-w-0">
 										<div className="flex justify-between items-center w-full">
 											{!sidebarCollapsed && (
 												<p className="text-sm truncate leading-tight text-gray-12">

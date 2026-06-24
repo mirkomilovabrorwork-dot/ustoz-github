@@ -1,7 +1,6 @@
 "use client";
 
 import "./ai-chat.css";
-import { useEffect, useRef } from "react";
 
 interface AIFabProps {
   onClick: () => void;
@@ -9,38 +8,8 @@ interface AIFabProps {
 }
 
 export function AIFab({ onClick, isOpen }: AIFabProps) {
-  const btnRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    const onFocusIn = (e: FocusEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === "INPUT" || target.tagName === "TEXTAREA")
-      ) {
-        btnRef.current?.classList.add("input-focused");
-      }
-    };
-    const onFocusOut = (e: FocusEvent) => {
-      const target = e.relatedTarget as HTMLElement | null;
-      if (
-        !target ||
-        (target.tagName !== "INPUT" && target.tagName !== "TEXTAREA")
-      ) {
-        btnRef.current?.classList.remove("input-focused");
-      }
-    };
-    document.addEventListener("focusin", onFocusIn);
-    document.addEventListener("focusout", onFocusOut);
-    return () => {
-      document.removeEventListener("focusin", onFocusIn);
-      document.removeEventListener("focusout", onFocusOut);
-    };
-  }, []);
-
   return (
     <button
-      ref={btnRef}
       type="button"
       className={`ai-fab${isOpen ? " is-open" : ""}`}
       onClick={onClick}

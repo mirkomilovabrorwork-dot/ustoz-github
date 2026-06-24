@@ -35,8 +35,8 @@ const Top = () => {
 	const params = useParams();
 
 	const titles: Record<string, string> = {
-		"/dashboard/caps": "Lessons",
-		"/dashboard/folder": "Lessons",
+		"/dashboard/caps": "Instructions",
+		"/dashboard/folder": "Instructions",
 		"/dashboard/shared-caps": "Shared recordings",
 		"/dashboard/caps/record": "Record",
 		"/dashboard/settings/organization": "Organization Settings",

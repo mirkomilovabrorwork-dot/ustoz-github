@@ -305,7 +305,7 @@ export const Comments = Object.assign(
 				<>
 					<div
 						ref={props.commentsContainerRef}
-						className="overflow-y-auto flex-1 min-h-0"
+						className="overflow-y-auto flex-1 min-h-0 pb-16"
 					>
 						{props.children}
 					</div>
