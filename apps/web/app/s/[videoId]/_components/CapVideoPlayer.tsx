@@ -625,7 +625,7 @@ export function CapVideoPlayer({
 	const rawPlaybackBadgeDescription =
 		uploadProgressRaw?.status === "error"
 			? "The processed version is unavailable right now, so this page is playing the original uploaded file instead."
-			: "This page is temporarily playing the original uploaded file while Cap finishes processing the optimized version for smoother playback and broader compatibility.";
+			: "This page is temporarily playing the original uploaded file while data365 finishes processing the optimized version for smoother playback and broader compatibility.";
 	const blockPlaybackControls =
 		((blockPlaybackDuringProcessing || !videoLoaded) && hasActiveProgress) ||
 		showUploadFailureOverlay;

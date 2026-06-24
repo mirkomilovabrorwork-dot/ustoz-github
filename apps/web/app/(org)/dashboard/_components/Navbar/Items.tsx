@@ -65,7 +65,6 @@ import {
 } from "../AnimatedIcons";
 import type { CogIconHandle } from "../AnimatedIcons/Cog";
 import type { DownloadIconHandle } from "../AnimatedIcons/Download";
-import { MemberAvatars } from "./MemberAvatars";
 import SpacesList from "./SpacesList";
 import { updateActiveOrganization } from "./server";
 
@@ -86,7 +85,7 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 
 	const manageNavigation = [
 		{
-			name: "Instructional recordings",
+			name: "Lessons",
 			href: `/dashboard/caps`,
 			extraText: userCapsCount,
 			icon: <CapIcon />,
@@ -354,7 +353,6 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 					</PopoverTrigger>
 				</Tooltip>
 			</Popover>
-			<MemberAvatars />
 			<nav
 				className="flex flex-col w-full min-h-full"
 				aria-label="Sidebar"
