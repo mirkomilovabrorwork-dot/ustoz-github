@@ -424,12 +424,10 @@ function CollectionFooter({ showPoweredBy }: { showPoweredBy: boolean }) {
 		<footer className="mt-16 border-t border-gray-4">
 			<div className="flex justify-center items-center px-4 mx-auto max-w-7xl h-16 sm:px-6 lg:px-8">
 				<a
-					href="https://cap.so/?ref=collection"
-					target="_blank"
-					rel="noreferrer"
+					href="/"
 					className="inline-flex gap-1.5 items-center text-xs transition-colors text-gray-9 hover:text-gray-11"
 				>
-					Powered by
+					Powered by data365
 					<Logo className="w-auto h-3.5" />
 				</a>
 			</div>

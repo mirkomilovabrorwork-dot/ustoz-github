@@ -6,7 +6,7 @@ test.describe("Authentication", () => {
 
 		// The heading must be visible
 		await expect(
-			page.getByRole("heading", { name: "Sign in to Cap" }),
+			page.getByRole("heading", { name: "Sign in to data365" }),
 		).toBeVisible();
 
 		// Both inputs must be present

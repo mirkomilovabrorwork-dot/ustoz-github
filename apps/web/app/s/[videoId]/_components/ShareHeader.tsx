@@ -353,11 +353,11 @@ export const ShareHeader = ({
 
 		try {
 			await hideShareableLinkCapLogo(data.orgId);
-			toast.success("Cap logo hidden");
+			toast.success("365 logo hidden");
 			refresh();
 		} catch (error) {
 			toast.error(
-				error instanceof Error ? error.message : "Failed to hide Cap logo",
+				error instanceof Error ? error.message : "Failed to hide 365 logo",
 			);
 		} finally {
 			setIsHidingBranding(false);
@@ -450,7 +450,7 @@ export const ShareHeader = ({
 							<Button
 								variant="gray"
 								size="xs"
-								aria-label="Hide Cap logo"
+								aria-label="Hide 365 logo"
 								className="h-7 gap-1 whitespace-nowrap rounded-full px-2 text-[11px]"
 								disabled={isHidingBranding}
 								onClick={handleHideBranding}

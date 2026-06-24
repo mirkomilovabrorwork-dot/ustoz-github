@@ -75,14 +75,14 @@ export const Meetings = ({
 			} else {
 				return yield* Effect.fail(
 					new Error(
-						`Failed to delete ${errorCount} cap${errorCount === 1 ? "" : "s"}`,
+						`Failed to delete ${errorCount} recording${errorCount === 1 ? "" : "s"}`,
 					),
 				);
 			}
 		}),
 		onMutate: (ids: Video.VideoId[]) => {
 			bulkDeleteToastRef.current = toast.loading(
-				`Deleting ${ids.length} cap${ids.length === 1 ? "" : "s"}...`,
+				`Deleting ${ids.length} recording${ids.length === 1 ? "" : "s"}...`,
 			);
 		},
 		onSuccess: (result: { success: number; error?: number }) => {
@@ -92,11 +92,11 @@ export const Meetings = ({
 			router.refresh();
 			if (result.error) {
 				toast.success(
-					`Successfully deleted ${result.success} cap${result.success === 1 ? "" : "s"}, but failed to delete ${result.error} cap${result.error === 1 ? "" : "s"}`,
+					`Successfully deleted ${result.success} recording${result.success === 1 ? "" : "s"}, but failed to delete ${result.error} recording${result.error === 1 ? "" : "s"}`,
 				);
 			} else {
 				toast.success(
-					`Successfully deleted ${result.success} cap${result.success === 1 ? "" : "s"}`,
+					`Successfully deleted ${result.success} recording${result.success === 1 ? "" : "s"}`,
 				);
 			}
 		},
@@ -106,7 +106,7 @@ export const Meetings = ({
 			const message =
 				error instanceof Error
 					? error.message
-					: "An error occurred while deleting caps";
+					: "An error occurred while deleting recordings";
 			toast.error(message);
 		},
 	});

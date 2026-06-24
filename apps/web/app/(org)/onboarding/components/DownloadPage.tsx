@@ -1,14 +1,8 @@
 "use client";
 
 import { Button, LogoBadge } from "@cap/ui";
-import { useDetectPlatform } from "hooks/useDetectPlatform";
 import { Clapperboard, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
-import {
-	getDownloadButtonText,
-	getDownloadUrl,
-	getPlatformIcon,
-} from "@/utils/platform";
 
 const recordingModes = [
 	{
@@ -32,8 +26,6 @@ const recordingModes = [
 ];
 
 export function DownloadPage() {
-	const { platform, isIntel } = useDetectPlatform();
-	const loading = platform === null;
 	const router = useRouter();
 
 	return (
@@ -42,7 +34,7 @@ export function DownloadPage() {
 				<div className="flex flex-col gap-6 justify-center items-center">
 					<LogoBadge className="mx-auto w-auto h-12" />
 					<div className="space-y-1 text-center">
-						<h1 className="text-3xl font-medium text-gray-12">Download 365</h1>
+						<h1 className="text-3xl font-medium text-gray-12">Install 365</h1>
 						<p className="text-lg text-center text-gray-11 text-pretty">
 							Start recording beautiful screen recordings today
 						</p>
@@ -69,11 +61,10 @@ export function DownloadPage() {
 				<Button
 					variant="blue"
 					size="lg"
-					href={getDownloadUrl(platform, isIntel)}
+					href="/dashboard/extension"
 					className="flex justify-center items-center py-6 font-medium text-white"
 				>
-					{!loading && getPlatformIcon(platform)}
-					{getDownloadButtonText(platform, loading, isIntel)}
+					Install the browser extension
 				</Button>
 				<Button
 					onClick={() => router.push("/dashboard/caps")}

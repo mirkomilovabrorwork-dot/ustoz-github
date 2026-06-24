@@ -429,7 +429,7 @@ export const Settings = () => {
 						<div className="space-y-1">
 							<CardTitle>Contact email address</CardTitle>
 							<CardDescription>
-								This is the email address you used to sign up to Cap with.
+								This is the email address you used to sign up to data365 with.
 							</CardDescription>
 						</div>
 						<Input
@@ -445,7 +445,7 @@ export const Settings = () => {
 						<div className="space-y-1">
 							<CardTitle>Default organization</CardTitle>
 							<CardDescription>
-								This is the default organization
+								This is the organization you're taken to when you sign in.
 							</CardDescription>
 						</div>
 
@@ -502,7 +502,7 @@ export const Settings = () => {
 				<div className="space-y-1">
 					<CardTitle>Sign out of all devices</CardTitle>
 					<CardDescription>
-						Invalidate every Cap web session and desktop app authentication
+						Invalidate every web session and desktop app authentication
 						token connected to your account.
 					</CardDescription>
 				</div>
@@ -524,7 +524,7 @@ export const Settings = () => {
 				<DialogContent>
 					<DialogHeader
 						icon={<LogOut className="size-4" />}
-						description="This will immediately invalidate existing Cap web sessions, desktop session tokens, and desktop API keys for your account."
+						description="This will immediately invalidate existing web sessions, desktop session tokens, and desktop API keys for your account."
 					>
 						<DialogTitle>Sign out of all devices?</DialogTitle>
 					</DialogHeader>
@@ -533,7 +533,7 @@ export const Settings = () => {
 							You will be signed out of this browser after the reset completes.
 						</p>
 						<p>
-							The Cap desktop app may need you to click Sign out, then sign in
+							The desktop app may need you to click Sign out, then sign in
 							again before uploads and settings sync work.
 						</p>
 					</div>
