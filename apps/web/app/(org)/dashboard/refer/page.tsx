@@ -5,7 +5,7 @@ import ReferClient from "./ReferClient";
 
 export const metadata = {
 	title: "Refer - data365",
-	description: "Earn rewards by referring friends to Cap",
+	description: "Earn rewards by referring friends to data365",
 };
 
 async function generateEmbedToken(

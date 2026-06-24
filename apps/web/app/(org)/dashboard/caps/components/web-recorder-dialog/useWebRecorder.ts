@@ -1050,8 +1050,8 @@ export const useWebRecorder = ({
 
 			const recorder = new MediaRecorder(mixedStream, {
 				mimeType: pipeline.mimeType,
-				videoBitsPerSecond: 1_200_000,
-				audioBitsPerSecond: 128_000,
+				videoBitsPerSecond: 600_000,
+				audioBitsPerSecond: 96_000,
 			});
 			recorder.ondataavailable = handleRecorderDataAvailable;
 			recorder.onstop = onRecorderStop;

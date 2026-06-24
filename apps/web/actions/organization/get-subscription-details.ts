@@ -63,7 +63,7 @@ export async function getSubscriptionDetails(
 		interval === "year" ? unitAmount / 100 / 12 : unitAmount / 100;
 
 	return {
-		planName: "Cap Pro",
+		planName: "data365 Pro",
 		status: subscription.status,
 		billingInterval: interval,
 		pricePerSeat,

@@ -299,6 +299,9 @@ function parseRangeHeader(header: string): RangeParsed | null {
   };
 }
 
+// Bound the bytes returned by any single ranged response (see resolveRange).
+const MAX_RANGE_CHUNK = 4 * 1024 * 1024; // 4 MiB
+
 function resolveRange(
   parsed: RangeParsed,
   totalSize: number,
@@ -310,7 +313,12 @@ function resolveRange(
 
   const start = parsed.start!;
   const end = parsed.end !== undefined ? Math.min(parsed.end, totalSize - 1) : totalSize - 1;
-  return { offset: start, length: end - start + 1 };
+  // Cap open-ended/large ranges. A browser <video> sends `Range: bytes=0-`, then
+  // ABORTS mid-stream to seek and re-requests; proxying the whole object in one
+  // response keeps the aborted R2 stream + HTTP/2 socket open -> later requests
+  // hang "pending". A bounded chunk (valid partial 206) fixes the in-browser hang.
+  const length = Math.min(end - start + 1, MAX_RANGE_CHUNK);
+  return { offset: start, length };
 }
 
 // ---------------------------------------------------------------------------

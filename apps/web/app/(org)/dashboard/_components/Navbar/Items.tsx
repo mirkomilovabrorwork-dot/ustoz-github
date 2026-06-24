@@ -190,7 +190,10 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 								duration: 0.2,
 							}}
 							className={clsx(
-								"mt-1.5 mx-auto rounded-xl cursor-pointer bg-gray-3",
+								"mt-1.5 mx-auto rounded-xl border cursor-pointer transition-colors",
+								open
+									? "bg-gray-3 border-gray-3"
+									: "border-transparent hover:bg-gray-2 hover:border-gray-3",
 								sidebarCollapsed ? "w-fit px-2 py-0.5" : "w-full p-2.5",
 							)}
 						>

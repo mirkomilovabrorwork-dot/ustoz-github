@@ -7,7 +7,7 @@ export const stripe = () =>
 	new Stripe(key(), {
 		apiVersion: "2023-10-16",
 		appInfo: {
-			name: "Cap",
+			name: "data365",
 			version: "0.1.0",
 		},
 	});

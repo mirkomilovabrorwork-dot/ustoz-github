@@ -7,8 +7,8 @@ test.describe("Public share page", () => {
 	test("share page loads and contains a video element", async ({ page }) => {
 		await page.goto(SHARE_URL, { waitUntil: "domcontentloaded" });
 
-		// Page title must contain "Cap" (the OG/document title set by the share page)
-		await expect(page).toHaveTitle(/Cap/, { timeout: 30_000 });
+		// Page title must contain "data365" (the OG/document title set by the share page)
+		await expect(page).toHaveTitle(/data365/, { timeout: 30_000 });
 
 		// A <video> element must be present — this is the core feature of the share page.
 		// If the video is missing the test MUST fail.

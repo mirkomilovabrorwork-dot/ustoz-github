@@ -45,7 +45,7 @@ const s3ProviderOptions = [
 ];
 
 const proRequiredMessage =
-	"Cap Pro is required to manage organization integrations";
+	"data365 Pro is required to manage organization integrations";
 
 const getOrganizationId = (settings: OrganizationStorageSettings) =>
 	settings.organization.id as Organisation.OrganisationId;

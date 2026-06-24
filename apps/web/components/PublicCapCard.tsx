@@ -71,7 +71,7 @@ export function PublicCapCard({
 	const effectiveDate = cap.metadata?.customCreatedAt
 		? new Date(cap.metadata.customCreatedAt)
 		: new Date(cap.createdAt);
-	const subtitle = `${cap.ownerName || "Cap"} · ${formatRelativeDate(effectiveDate, now)}`;
+	const subtitle = `${cap.ownerName || "data365"} · ${formatRelativeDate(effectiveDate, now)}`;
 
 	const lockBadge = cap.hasPassword && (
 		<div className="flex absolute top-2 right-2 z-10 justify-center items-center rounded-full size-7 bg-black/70 text-white">

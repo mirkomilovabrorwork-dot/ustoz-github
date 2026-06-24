@@ -154,9 +154,9 @@ async function startRecording(): Promise<void> {
 	try {
 		displayStream = await navigator.mediaDevices.getDisplayMedia({
 			video: {
-				width: { max: 1920 },
-				height: { max: 1080 },
-				frameRate: { max: 30 },
+				width: { max: 1280 },
+				height: { max: 720 },
+				frameRate: { max: 24 },
 			},
 			audio: true,
 		});
@@ -217,8 +217,8 @@ async function startRecording(): Promise<void> {
 		const mime = pickMimeType();
 		const recorder = new MediaRecorder(recordStream, {
 			mimeType: mime,
-			videoBitsPerSecond: 1_200_000,
-			audioBitsPerSecond: 128_000,
+			videoBitsPerSecond: 600_000,
+			audioBitsPerSecond: 96_000,
 		});
 
 		let chunkIndex = 0;

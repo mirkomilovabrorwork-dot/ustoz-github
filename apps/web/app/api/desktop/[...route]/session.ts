@@ -28,7 +28,7 @@ function createDesktopRedirectPage(primaryUrl: string, fallbackUrl: string) {
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
 		<meta http-equiv="Pragma" content="no-cache" />
-		<title>Open Cap</title>
+		<title>Open data365</title>
 		<style>
 			:root {
 				color-scheme: light;

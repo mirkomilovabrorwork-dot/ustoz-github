@@ -41,7 +41,7 @@ export function NewComment({
 								src={CAP_LOGO_URL}
 								width="40"
 								height="40"
-								alt="Cap"
+								alt="data365"
 								className="mx-auto my-0"
 							/>
 						</Section>

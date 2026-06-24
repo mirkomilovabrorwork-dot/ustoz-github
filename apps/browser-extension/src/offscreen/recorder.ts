@@ -171,8 +171,8 @@ async function startCapture(msg: StartCaptureMsg): Promise<void> {
 		const mime = pickMimeType();
 		const recorder = new MediaRecorder(recordStream, {
 			mimeType: mime,
-			videoBitsPerSecond: 1_200_000,
-			audioBitsPerSecond: 128_000,
+			videoBitsPerSecond: 600_000,
+			audioBitsPerSecond: 96_000,
 		});
 
 		let chunkIndex = 0;

@@ -144,7 +144,7 @@ export async function saveVideoEdits(
 	if (!userIsPro(user)) {
 		return {
 			ok: false,
-			error: "Cap Pro is required to edit videos.",
+			error: "data365 Pro is required to edit videos.",
 		};
 	}
 
