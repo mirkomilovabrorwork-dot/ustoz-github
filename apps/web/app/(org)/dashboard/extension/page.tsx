@@ -71,7 +71,7 @@ export default function ExtensionPage() {
 						</>,
 					].map((step, i) => (
 						<li key={i} className="flex gap-4 items-start">
-							<span className="flex-shrink-0 flex items-center justify-center size-7 rounded-full bg-blue-100 text-blue-700 text-sm font-bold dark:bg-blue-900/40 dark:text-blue-300">
+							<span className="flex-shrink-0 flex items-center justify-center size-7 rounded-full bg-blue-600 text-white text-sm font-bold">
 								{i + 1}
 							</span>
 							<p className="text-sm text-gray-11 pt-1">{step}</p>
