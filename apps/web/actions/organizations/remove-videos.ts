@@ -37,39 +37,41 @@ export async function removeVideosFromOrganization(
 			throw new Error("Organization not found");
 		}
 
-		const isOrgOwner = organization.ownerId === user.id;
-		let hasAccess = isOrgOwner;
+		const [orgMembership] = await db()
+			.select({ role: organizationMembers.role })
+			.from(organizationMembers)
+			.where(
+				and(
+					eq(organizationMembers.userId, user.id),
+					eq(organizationMembers.organizationId, organizationId),
+				),
+			)
+			.limit(1);
 
-		if (!isOrgOwner) {
-			const orgMembership = await db()
-				.select({ id: organizationMembers.id })
-				.from(organizationMembers)
-				.where(
-					and(
-						eq(organizationMembers.userId, user.id),
-						eq(organizationMembers.organizationId, organizationId),
-					),
-				)
-				.limit(1);
-			hasAccess = orgMembership.length > 0;
-		}
-
-		if (!hasAccess) {
+		if (!orgMembership) {
 			throw new Error(
 				"You don't have permission to remove videos from this organization",
 			);
 		}
 
+		const canRemoveAnySharedVideo =
+			orgMembership.role === "owner" || orgMembership.role === "admin";
+		const sharedVideoScope = canRemoveAnySharedVideo
+			? and(
+					eq(sharedVideos.organizationId, organizationId),
+					inArray(sharedVideos.videoId, videoIds),
+				)
+			: and(
+					eq(sharedVideos.organizationId, organizationId),
+					inArray(sharedVideos.videoId, videoIds),
+					eq(sharedVideos.sharedByUserId, user.id),
+				);
+
 		// Only allow removing videos that are currently shared with the organization
 		const existingSharedVideos = await db()
 			.select({ videoId: sharedVideos.videoId })
 			.from(sharedVideos)
-			.where(
-				and(
-					eq(sharedVideos.organizationId, organizationId),
-					inArray(sharedVideos.videoId, videoIds),
-				),
-			);
+			.where(sharedVideoScope);
 
 		const existingVideoIds = existingSharedVideos.map((sv) => sv.videoId);
 
@@ -83,10 +85,16 @@ export async function removeVideosFromOrganization(
 		await db()
 			.delete(sharedVideos)
 			.where(
-				and(
-					eq(sharedVideos.organizationId, organizationId),
-					inArray(sharedVideos.videoId, existingVideoIds),
-				),
+				canRemoveAnySharedVideo
+					? and(
+							eq(sharedVideos.organizationId, organizationId),
+							inArray(sharedVideos.videoId, existingVideoIds),
+						)
+					: and(
+							eq(sharedVideos.organizationId, organizationId),
+							inArray(sharedVideos.videoId, existingVideoIds),
+							eq(sharedVideos.sharedByUserId, user.id),
+						),
 			);
 
 		// Clear folderId for videos that are being removed from the organization and are currently in folders within that organization

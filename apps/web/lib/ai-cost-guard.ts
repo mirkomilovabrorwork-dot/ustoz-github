@@ -23,6 +23,8 @@ export class BudgetExceededError extends Error {
 	}
 }
 
+const DEFAULT_AI_BUDGET_CAP_MICROS = 1_000_000;
+
 function currentBillingMonth(): string {
 	const now = new Date();
 	const year = now.getUTCFullYear();
@@ -100,6 +102,10 @@ export async function assertAiBudgetAvailable({
 	const billingMonth = currentBillingMonth();
 	const { budgetCapUserMicros, budgetCapOrgMicros } =
 		await getAiBudgetCapsMicros({ orgId, userId });
+	const effectiveBudgetCapOrgMicros =
+		budgetCapUserMicros == null && budgetCapOrgMicros == null
+			? DEFAULT_AI_BUDGET_CAP_MICROS
+			: budgetCapOrgMicros;
 
 	if (budgetCapUserMicros != null && budgetCapUserMicros > 0) {
 		const userSpend = await getMonthlySpendMicros(
@@ -112,10 +118,10 @@ export async function assertAiBudgetAvailable({
 		}
 	}
 
-	if (budgetCapOrgMicros != null && budgetCapOrgMicros > 0) {
+	if (effectiveBudgetCapOrgMicros != null && effectiveBudgetCapOrgMicros > 0) {
 		const orgSpend = await getMonthlySpendMicros("orgId", orgId, billingMonth);
-		if (orgSpend >= budgetCapOrgMicros) {
-			throw new BudgetExceededError("org", orgSpend, budgetCapOrgMicros);
+		if (orgSpend >= effectiveBudgetCapOrgMicros) {
+			throw new BudgetExceededError("org", orgSpend, effectiveBudgetCapOrgMicros);
 		}
 	}
 }
@@ -142,8 +148,12 @@ export async function withCostGuard<T>(
 	});
 	const budgetCapUserMicros =
 		options.budgetCapUserMicros ?? configuredCaps.budgetCapUserMicros;
-	const budgetCapOrgMicros =
+	const configuredBudgetCapOrgMicros =
 		options.budgetCapOrgMicros ?? configuredCaps.budgetCapOrgMicros;
+	const budgetCapOrgMicros =
+		budgetCapUserMicros == null && configuredBudgetCapOrgMicros == null
+			? DEFAULT_AI_BUDGET_CAP_MICROS
+			: configuredBudgetCapOrgMicros;
 
 	if (budgetCapUserMicros != null && budgetCapUserMicros > 0) {
 		const userSpend = await getMonthlySpendMicros(

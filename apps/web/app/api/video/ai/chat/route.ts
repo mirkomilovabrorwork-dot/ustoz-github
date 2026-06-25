@@ -1,5 +1,6 @@
 import { db } from "@cap/database";
 import { decrypt } from "@cap/database/crypto";
+import { getCurrentUser } from "@cap/database/auth/session";
 import { transcriptChunks, users, videos } from "@cap/database/schema";
 import { serverEnv } from "@cap/env";
 import { provideOptionalAuth, VideosPolicy } from "@cap/web-backend";
@@ -113,6 +114,13 @@ export async function POST(request: NextRequest) {
 			JSON.stringify({ error: "videoId and messages are required" }),
 			{ status: 400 },
 		);
+	}
+
+	const user = await getCurrentUser();
+	if (!user?.id) {
+		return new Response(JSON.stringify({ error: "Unauthorized" }), {
+			status: 401,
+		});
 	}
 
 	const typedMessages = messages as Array<{

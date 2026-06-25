@@ -6,6 +6,7 @@ import { nanoId } from "@cap/database/helpers";
 import {
 	folders,
 	sharedVideos,
+	spaces,
 	spaceVideos,
 	videos,
 } from "@cap/database/schema";
@@ -30,12 +31,29 @@ export async function addVideosToFolder(
 		}
 
 		const [folder] = await db()
-			.select({ id: folders.id, spaceId: folders.spaceId })
+			.select({
+				id: folders.id,
+				spaceId: folders.spaceId,
+				organizationId: folders.organizationId,
+			})
 			.from(folders)
 			.where(eq(folders.id, folderId));
 
-		if (!folder) {
+		if (!folder || folder.organizationId !== user.activeOrganizationId) {
 			throw new Error("Folder not found");
+		}
+
+		const isAllSpacesEntry = spaceId === user.activeOrganizationId;
+
+		if (!isAllSpacesEntry) {
+			const [space] = await db()
+				.select({ organizationId: spaces.organizationId })
+				.from(spaces)
+				.where(eq(spaces.id, spaceId));
+
+			if (!space || space.organizationId !== user.activeOrganizationId) {
+				throw new Error("Space not found");
+			}
 		}
 
 		const userVideos = await db()
@@ -48,8 +66,6 @@ export async function addVideosToFolder(
 		if (validVideoIds.length === 0) {
 			throw new Error("No valid videos found");
 		}
-
-		const isAllSpacesEntry = spaceId === user.activeOrganizationId;
 
 		//if we're adding videos to a folder from Caps page, then insert the videos into the folder
 		if (isAllSpacesEntry && folder.spaceId) {

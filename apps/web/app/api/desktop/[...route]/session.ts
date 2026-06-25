@@ -148,7 +148,7 @@ app.get(
 	zValidator(
 		"query",
 		z.object({
-			port: z.string().optional(),
+			port: z.coerce.number().int().min(1).max(65535).optional(), // SECURITY: numeric localhost port only; a free-form string allowed "port=3000@attacker.com" so the 127.0.0.1:${port} redirect leaked the session token (account takeover)
 			platform: z
 				.union([z.literal("web"), z.literal("desktop")])
 				.default("web"),

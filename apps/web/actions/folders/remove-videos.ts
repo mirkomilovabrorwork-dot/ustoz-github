@@ -32,11 +32,15 @@ export async function removeVideosFromFolder(
 
 		// Verify folder exists and is accessible
 		const [folder] = await db()
-			.select({ id: folders.id, spaceId: folders.spaceId })
+			.select({
+				id: folders.id,
+				spaceId: folders.spaceId,
+				organizationId: folders.organizationId,
+			})
 			.from(folders)
 			.where(eq(folders.id, folderId));
 
-		if (!folder) {
+		if (!folder || folder.organizationId !== user.activeOrganizationId) {
 			throw new Error("Folder not found");
 		}
 

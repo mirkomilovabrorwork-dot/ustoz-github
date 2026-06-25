@@ -5,6 +5,7 @@ import { getCurrentUser } from "@cap/database/auth/session";
 import {
 	folders,
 	sharedVideos,
+	spaces,
 	spaceVideos,
 	videos,
 } from "@cap/database/schema";
@@ -46,17 +47,23 @@ export async function moveVideoToFolder({
 	// If folderId is provided, verify it exists and belongs to the same organization
 	if (folderId) {
 		const [folder] = await db()
-			.select()
+			.select({ id: folders.id, organizationId: folders.organizationId })
 			.from(folders)
-			.where(
-				and(
-					eq(folders.id, folderId),
-					eq(folders.organizationId, user.activeOrganizationId),
-				),
-			);
+			.where(eq(folders.id, folderId));
 
-		if (!folder) {
+		if (!folder || folder.organizationId !== user.activeOrganizationId) {
 			throw new Error("Folder not found or not accessible");
+		}
+	}
+
+	if (spaceId && !isAllSpacesEntry) {
+		const [space] = await db()
+			.select({ organizationId: spaces.organizationId })
+			.from(spaces)
+			.where(eq(spaces.id, spaceId));
+
+		if (!space || space.organizationId !== user.activeOrganizationId) {
+			throw new Error("Space not found");
 		}
 	}
 
