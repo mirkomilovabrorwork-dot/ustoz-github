@@ -257,6 +257,13 @@ async function resolveVideoSourceUrl(
 	const candidateKeys = [
 		`${video.ownerId}/${videoId}/result.mp4`,
 		upload[0]?.rawFileKey,
+		// `processVideoWorkflow` deletes the videoUploads row (rawFileKey), and
+		// imported / in-app / extension uploads never produce result.mp4 — the
+		// real file lives at raw-upload.{mp4,webm}. Fall back to those well-known
+		// keys (same as /api/playlist) so transcription doesn't fail with
+		// "Video file not accessible" once the upload row is gone.
+		`${video.ownerId}/${videoId}/raw-upload.mp4`,
+		`${video.ownerId}/${videoId}/raw-upload.webm`,
 	].filter(
 		(value, index, values): value is string =>
 			Boolean(value) && values.indexOf(value) === index,
