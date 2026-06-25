@@ -305,13 +305,13 @@ export const Comments = Object.assign(
 				<>
 					<div
 						ref={props.commentsContainerRef}
-						className="overflow-y-auto flex-1 min-h-0 pb-16"
+						className="overflow-y-auto flex-1 min-h-0 pb-16 lg:pr-16"
 					>
 						{props.children}
 					</div>
 
 					{!props.commentInputProps?.disabled && (
-						<div className="flex-none p-2" style={{ borderTop: "1px solid #e9edf3", background: "#f7f9fc" }}>
+						<div className="flex-none p-2 border-t border-gray-4 bg-gray-2">
 							<CommentInput
 								{...props.commentInputProps}
 								placeholder="Leave a comment"

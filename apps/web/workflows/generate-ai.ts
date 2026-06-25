@@ -104,7 +104,7 @@ const MAX_CHARS_PER_CHUNK = 24000;
 const AI_SUMMARY_FAILURE_PLACEHOLDER =
 	"The AI was unable to generate a proper summary for this content.";
 const GENERATED_TITLE_PATTERN =
-	/^(Cap (Recording|Upload) - .+|Untitled|\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}|.+ \((Display|Window|Area|Camera)\) \d{4}-\d{2}-\d{2} \d{2}:\d{2} [AP]M)$/;
+	/^(data365 (Recording|Upload) - .+|Untitled|\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}|.+ \((Display|Window|Area|Camera)\) \d{4}-\d{2}-\d{2} \d{2}:\d{2} [AP]M)$/;
 
 export function shouldReplaceVideoTitle({
 	currentTitle,

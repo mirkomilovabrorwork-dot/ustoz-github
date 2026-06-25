@@ -406,7 +406,7 @@ export class Videos extends Effect.Service<Videos>()("Videos", {
 					const createData: RepoCreateVideoInput = {
 						ownerId: user.id,
 						orgId: input.orgId,
-						name: `Cap Recording - ${formattedDate}`,
+						name: `data365 Recording - ${formattedDate}`,
 						public: serverEnv().CAP_VIDEOS_DEFAULT_PUBLIC,
 						source: { type: "webMP4" },
 						bucketId,

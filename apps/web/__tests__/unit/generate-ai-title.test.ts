@@ -37,16 +37,16 @@ import {
 } from "@/workflows/generate-ai";
 
 describe("shouldReplaceVideoTitle", () => {
-	it("replaces default Cap titles", () => {
+	it("replaces default data365 titles", () => {
 		expect(
 			shouldReplaceVideoTitle({
-				currentTitle: "Cap Recording - 15 May 2026",
+				currentTitle: "data365 Recording - 15 May 2026",
 				nextAiTitle: "Quarterly Roadmap Review",
 			}),
 		).toBe(true);
 		expect(
 			shouldReplaceVideoTitle({
-				currentTitle: "Cap Upload - 15 May 2026",
+				currentTitle: "data365 Upload - 15 May 2026",
 				nextAiTitle: "Quarterly Roadmap Review",
 			}),
 		).toBe(true);
@@ -105,7 +105,7 @@ describe("shouldReplaceVideoTitle", () => {
 	it("does not replace with a blank generated title", () => {
 		expect(
 			shouldReplaceVideoTitle({
-				currentTitle: "Cap Recording - 15 May 2026",
+				currentTitle: "data365 Recording - 15 May 2026",
 				nextAiTitle: "   ",
 			}),
 		).toBe(false);
