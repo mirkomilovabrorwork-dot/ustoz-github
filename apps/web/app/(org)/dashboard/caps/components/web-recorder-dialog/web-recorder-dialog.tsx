@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { useDashboardContext } from "../../../Contexts";
 import { CameraPreviewWindow } from "./CameraPreviewWindow";
 import { CameraSelector } from "./CameraSelector";
+import { CloseButton } from "./CloseButton";
 import { HowItWorksButton } from "./HowItWorksButton";
 import { HowItWorksPanel } from "./HowItWorksPanel";
 import { InProgressRecordingBar } from "./InProgressRecordingBar";
@@ -371,7 +372,7 @@ export const WebRecorderDialog = ({
 				</DialogTrigger>
 				<DialogContent
 					ref={dialogContentRef}
-					className="w-[300px] border-none bg-transparent p-0"
+					className="w-[300px] border-none bg-transparent p-0 [&>button]:hidden"
 					onPointerDownOutside={handlePointerDownOutside}
 					onFocusOutside={handleFocusOutside}
 					onInteractOutside={handleInteractOutside}
@@ -390,6 +391,9 @@ export const WebRecorderDialog = ({
 									visible={!settingsOpen}
 									onClick={handleSettingsOpen}
 								/>
+								{!settingsOpen && (
+									<CloseButton onClick={handleClose} />
+								)}
 								<SettingsPanel
 									open={settingsOpen}
 									rememberDevices={rememberDevices}
