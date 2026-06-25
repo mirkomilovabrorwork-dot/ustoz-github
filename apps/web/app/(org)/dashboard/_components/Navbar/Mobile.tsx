@@ -3,7 +3,7 @@
 import { LogoBadge } from "@cap/ui";
 import { useClickAway } from "@uidotdev/usehooks";
 import { AnimatePresence, motion } from "framer-motion";
-import { X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { type MutableRefObject, useState } from "react";
 
@@ -59,6 +59,14 @@ export const AdminMobileNav = () => {
 					<div className="flex-1 min-w-0">
 						<DashboardSearch shortcutEnabled={false} />
 					</div>
+					<button
+						type="button"
+						aria-label="Open navigation menu"
+						onClick={() => setSidebarOpen(true)}
+						className="flex flex-shrink-0 justify-center items-center rounded-full min-w-[44px] min-h-[44px] text-gray-12 hover:bg-gray-3"
+					>
+						<Menu className="size-6" aria-hidden="true" />
+					</button>
 				</div>
 			</div>
 		</>
