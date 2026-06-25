@@ -927,7 +927,7 @@ export const useWebRecorder = ({
 					toast.info(
 						recordingMode === "tab"
 							? 'Your mic is recording. To also include the tab\'s sound, check "Share tab audio" in the picker.'
-							: "Your mic is recording your narration. System/app sound isn't included - share a browser tab if you need it.",
+							: "Recording your voice. Your computer's sound (like a video) is not included. To record it too, share a browser tab instead.",
 					);
 				}
 			}
