@@ -113,7 +113,7 @@ const createRecordingDownloadName = (
 ) => {
 	const timestamp = new Date(createdAt).toISOString().replace(/[:.]/g, "-");
 	const extension = getFileExtensionFromMime(mime);
-	return `cap-recording-${timestamp}.${extension}`;
+	return `data365-recording-${timestamp}.${extension}`;
 };
 
 const triggerBrowserDownload = (url: string, fileName: string) => {
