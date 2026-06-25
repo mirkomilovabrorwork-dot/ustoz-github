@@ -526,7 +526,7 @@ export const WebRecorderDialog = ({
 											{recoveredDownloads.map((download) => (
 												<div
 													key={download.id}
-													className="flex items-center justify-between gap-3 rounded-md bg-white/70 px-2.5 py-2 text-xs text-gray-12"
+													className="flex items-center justify-between gap-3 rounded-md bg-gray-3 px-2.5 py-2 text-xs text-gray-12"
 												>
 													<div className="min-w-0">
 														<div className="truncate font-medium">

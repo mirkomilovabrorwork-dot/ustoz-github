@@ -44,7 +44,7 @@ export default async function ReferPage() {
 		return (
 			<div className="flex flex-col items-center justify-center py-20 text-center">
 				<h1 className="text-2xl font-medium mb-2">Referral Program</h1>
-				<p className="text-gray-500">
+				<p className="text-gray-10">
 					The referral program is not available in this deployment.
 				</p>
 			</div>
