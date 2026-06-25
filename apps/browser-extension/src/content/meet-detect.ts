@@ -1039,16 +1039,33 @@ async function startNudgeRecording(
 		});
 
 		let chunkIndex = 0;
+		let pendingChunks = 0;
+		let stopRequested = false;
+
+		const finishStop = () => {
+			cleanupNudgeRecorder();
+			sendMsg({ type: "RECORDER_STOPPED" });
+		};
+
 		recorder.ondataavailable = async (event) => {
-			if (event.data.size <= 0) return;
-			const buffer = await event.data.arrayBuffer();
-			sendMsg({
-				type: "RECORDER_CHUNK",
-				chunk: Array.from(new Uint8Array(buffer)),
-				index: chunkIndex++,
-				mime: recorder.mimeType,
-				ts: Date.now(),
-			});
+			if (event.data.size <= 0) {
+				if (stopRequested && pendingChunks === 0) finishStop();
+				return;
+			}
+			pendingChunks++;
+			try {
+				const buffer = await event.data.arrayBuffer();
+				sendMsg({
+					type: "RECORDER_CHUNK",
+					chunk: Array.from(new Uint8Array(buffer)),
+					index: chunkIndex++,
+					mime: recorder.mimeType,
+					ts: Date.now(),
+				});
+			} finally {
+				pendingChunks--;
+				if (stopRequested && pendingChunks === 0) finishStop();
+			}
 		};
 
 		recorder.onerror = () => {
@@ -1057,8 +1074,8 @@ async function startNudgeRecording(
 		};
 
 		recorder.onstop = () => {
-			cleanupNudgeRecorder();
-			sendMsg({ type: "RECORDER_STOPPED" });
+			stopRequested = true;
+			if (pendingChunks === 0) finishStop();
 		};
 
 		displayStream.getVideoTracks()[0].onended = () => {
@@ -1096,7 +1113,7 @@ async function startNudgeRecording(
 			return;
 		}
 
-		recorder.start(1000);
+		recorder.start(200);
 		clearNudge(() => renderRecordingPill(false));
 	} catch (err) {
 		for (const track of displayStream.getTracks()) track.stop();

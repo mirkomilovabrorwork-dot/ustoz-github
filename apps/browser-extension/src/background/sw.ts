@@ -277,6 +277,22 @@ async function openPopupForPendingMeet(
 	return false;
 }
 
+// Serializes recorder upload work (chunk processing + finalization) so they
+// never overlap. chrome.runtime.onMessage runs each handler independently, so a
+// late RECORDER_CHUNK and the RECORDER_STOPPED finalize could otherwise both
+// begin with `await getState()` and race over the in-memory buffer / totalBytes
+// — dropping the final chunk (the short-recording bug). Funnelling them through
+// one chain guarantees the final chunk's append completes before finalize runs.
+let recorderQueue: Promise<unknown> = Promise.resolve();
+function enqueueRecorder<T>(fn: () => Promise<T>): Promise<T> {
+	const run = recorderQueue.then(fn, fn);
+	recorderQueue = run.then(
+		() => undefined,
+		() => undefined,
+	);
+	return run;
+}
+
 /** Shared finalization logic called from RECORDER_STOPPED and the tabs.onRemoved handler. */
 async function finalizeRecording(): Promise<void> {
 	const state = await getState();
@@ -731,14 +747,16 @@ async function handleMessage(
 			const index = getNumber(msg, "index") ?? 0;
 			const mime = getString(msg, "mime") ?? "video/webm";
 			if (raw && Array.isArray(raw) && raw.length > 0) {
-				await handleChunk(new Uint8Array(raw).buffer, index, mime);
+				await enqueueRecorder(() =>
+					handleChunk(new Uint8Array(raw).buffer, index, mime),
+				);
 			}
 			return { ok: true };
 		}
 
 		// ── Offscreen: recorder stopped ───────────────────────────────────
 		case "RECORDER_STOPPED": {
-			await finalizeRecording();
+			await enqueueRecorder(() => finalizeRecording());
 			return { ok: true };
 		}
 
@@ -1004,7 +1022,7 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 		state.recorderTabId === tabId
 	) {
 		// Tab closed mid-recording — finalize with whatever chunks arrived.
-		await finalizeRecording().catch(() => {});
+		await enqueueRecorder(() => finalizeRecording()).catch(() => {});
 	}
 });
 
@@ -1022,6 +1040,6 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 		state.mode === "meeting" &&
 		state.contentRecorderTabId === tabId
 	) {
-		await finalizeRecording().catch(() => {});
+		await enqueueRecorder(() => finalizeRecording()).catch(() => {});
 	}
 });

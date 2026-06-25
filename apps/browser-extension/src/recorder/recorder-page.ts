@@ -222,17 +222,37 @@ async function startRecording(): Promise<void> {
 		});
 
 		let chunkIndex = 0;
+		let pendingChunks = 0;
+		let stopRequested = false;
+
+		const finishStop = () => {
+			if (state) {
+				cleanup(state);
+				state = null;
+			}
+			stopTimer();
+			sendMsg({ type: "RECORDER_STOPPED" });
+		};
 
 		recorder.ondataavailable = async (e) => {
-			if (e.data.size <= 0) return;
-			const buffer = await e.data.arrayBuffer();
-			sendMsg({
-				type: "RECORDER_CHUNK",
-				chunk: Array.from(new Uint8Array(buffer)),
-				index: chunkIndex++,
-				mime: recorder.mimeType,
-				ts: Date.now(),
-			});
+			if (e.data.size <= 0) {
+				if (stopRequested && pendingChunks === 0) finishStop();
+				return;
+			}
+			pendingChunks++;
+			try {
+				const buffer = await e.data.arrayBuffer();
+				sendMsg({
+					type: "RECORDER_CHUNK",
+					chunk: Array.from(new Uint8Array(buffer)),
+					index: chunkIndex++,
+					mime: recorder.mimeType,
+					ts: Date.now(),
+				});
+			} finally {
+				pendingChunks--;
+				if (stopRequested && pendingChunks === 0) finishStop();
+			}
 		};
 
 		recorder.onerror = () => {
@@ -244,12 +264,8 @@ async function startRecording(): Promise<void> {
 		};
 
 		recorder.onstop = () => {
-			if (state) {
-				cleanup(state);
-				state = null;
-			}
-			stopTimer();
-			sendMsg({ type: "RECORDER_STOPPED" });
+			stopRequested = true;
+			if (pendingChunks === 0) finishStop();
 		};
 
 		// If the user clicks the browser's native "Stop sharing" control, the
@@ -291,7 +307,7 @@ async function startRecording(): Promise<void> {
 
 		// Upload session is ready and the SW is in "recording" — capture is now
 		// safe; no chunk can be dropped for arriving "too early".
-		recorder.start(1000);
+		recorder.start(200);
 
 		showView("view-recording");
 		startTimer();

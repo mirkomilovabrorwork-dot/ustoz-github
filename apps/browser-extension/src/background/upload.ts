@@ -406,6 +406,19 @@ export async function finalizeUpload(): Promise<void> {
 		"uploadedBytes" in state ? (state.uploadedBytes as number) : 0;
 	const { videoId, uploadId } = state;
 
+	const MIN_VIABLE_BYTES = 10 * 1024; // header-only mp4 is ~1.2KB; a real recording is far larger
+	if (totalBytes < MIN_VIABLE_BYTES) {
+		console.error(`[upload] Recording too small (${totalBytes} bytes) — refusing to publish a broken video.`);
+		await setState({
+			kind: "error",
+			reason:
+				"Recording was too short — no video was captured. Please record for at least a couple of seconds and try again.",
+			recoverable: true,
+			previousVideoId: videoId,
+		});
+		return;
+	}
+
 	if (state.kind === "recording") {
 		await setState({
 			kind: "uploading",
