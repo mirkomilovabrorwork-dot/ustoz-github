@@ -42,6 +42,15 @@
 	}
 }
 
+/* --text-primary is used ONLY by the in-browser recorder dialog. In :root it is
+   a fixed dark navy (#0d1b2a) with no dark-mode override, so its labels (e.g.
+   the "System Audio" toggle) rendered dark-on-dark and became unreadable in
+   dark mode. The app toggles dark via the `.dark` class, so flip the token here
+   to the Radix dark gray-12 (near-white). Light mode keeps the :root value. */
+.dark {
+	--text-primary: var(--gray-12);
+}
+
 body {
 	overflow-x: hidden;
 }
