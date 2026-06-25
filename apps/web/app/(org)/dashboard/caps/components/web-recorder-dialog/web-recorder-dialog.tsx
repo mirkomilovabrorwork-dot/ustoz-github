@@ -338,7 +338,7 @@ export const WebRecorderDialog = ({
 		});
 	};
 
-	// handleClose: called by the X button and Escape key (via WebRecorderDialogHeader).
+	// handleClose: invoked by the dedicated CloseButton (✕). Escape closes via Radix onOpenChange directly, not through here.
 	// During an active recording → minimize (handleOpenChange handles it above).
 	// During upload/finalize → also delegate to handleOpenChange (guard toast fires).
 	// In any other state → close normally.
@@ -404,10 +404,7 @@ export const WebRecorderDialog = ({
 									open={howItWorksOpen}
 									onClose={() => setHowItWorksOpen(false)}
 								/>
-								<WebRecorderDialogHeader
-									isBusy={isBusy}
-									onClose={handleClose}
-								/>
+								<WebRecorderDialogHeader />
 								<RecordingModeSelector
 									mode={recordingMode}
 									disabled={isBusy}
