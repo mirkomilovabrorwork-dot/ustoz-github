@@ -16,4 +16,16 @@ export const STRIPE_PLAN_IDS = {
 	},
 };
 
+// Allowlist of every price the app is allowed to start a checkout for.
+// The subscribe routes must validate the client-supplied priceId against this
+// set so a caller can't substitute an arbitrary (e.g. cheaper) Stripe price.
+// Includes both env tiers because env selection is inconsistent across callers.
+export const ALL_STRIPE_PLAN_PRICE_IDS: readonly string[] = [
+	...Object.values(STRIPE_PLAN_IDS.development),
+	...Object.values(STRIPE_PLAN_IDS.production),
+];
+
+export const isValidStripePriceId = (priceId: string): boolean =>
+	ALL_STRIPE_PLAN_PRICE_IDS.includes(priceId);
+
 export const userIsPro = (_user: unknown): boolean => true;

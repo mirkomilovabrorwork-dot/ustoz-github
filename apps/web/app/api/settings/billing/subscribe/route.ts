@@ -2,7 +2,7 @@ import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { users } from "@cap/database/schema";
 import { serverEnv } from "@cap/env";
-import { stripe, userIsPro } from "@cap/utils";
+import { isValidStripePriceId, stripe, userIsPro } from "@cap/utils";
 import { eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import type Stripe from "stripe";
@@ -12,10 +12,18 @@ export async function POST(request: NextRequest) {
 	let customerId = user?.stripeCustomerId;
 	const { priceId, quantity, isOnBoarding } = await request.json();
 
-	if (!priceId) {
-		console.error("Price ID not found");
+	if (!priceId || typeof priceId !== "string" || !isValidStripePriceId(priceId)) {
+		// Reject arbitrary/unknown prices — the client must not be able to
+		// substitute a cheaper or unintended Stripe price.
+		console.error("Invalid or unknown price ID");
 		return Response.json({ error: true }, { status: 400 });
 	}
+
+	// quantity (seat count) must be a sane positive integer, not client-trusted.
+	const seatCount =
+		Number.isInteger(quantity) && quantity >= 1 && quantity <= 1000
+			? quantity
+			: 1;
 
 	if (!user) {
 		console.error("User not found");
@@ -64,7 +72,7 @@ export async function POST(request: NextRequest) {
 
 		const checkoutSession = await stripe().checkout.sessions.create({
 			customer: customerId as string,
-			line_items: [{ price: priceId, quantity: quantity }],
+			line_items: [{ price: priceId, quantity: seatCount }],
 			mode: "subscription",
 			success_url: isOnBoarding
 				? `${serverEnv().WEB_URL}/dashboard/settings/organization?upgrade=true&session_id={CHECKOUT_SESSION_ID}`

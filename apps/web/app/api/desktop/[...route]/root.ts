@@ -9,7 +9,7 @@ import {
 	users,
 } from "@cap/database/schema";
 import { serverEnv } from "@cap/env";
-import { stripe, userIsPro } from "@cap/utils";
+import { isValidStripePriceId, stripe, userIsPro } from "@cap/utils";
 import { OrganizationBrandingPatchBody } from "@cap/web-api-contract";
 import { hashAuthApiKey, ImageUploads } from "@cap/web-backend";
 import { type ImageUpload, Organisation } from "@cap/web-domain";
@@ -20,7 +20,7 @@ import { type Context, Hono } from "hono";
 import type Stripe from "stripe";
 import { z } from "zod";
 import { runPromise } from "@/lib/server";
-import { withAuth, withOptionalAuth } from "../../utils";
+import { developerRateLimiter, withAuth, withOptionalAuth } from "../../utils";
 import {
 	canEditOrganizationBranding,
 	type DesktopOrganizationRow,
@@ -324,15 +324,23 @@ function formatDiagnosticsForDiscord(
 	return lines.join("\n");
 }
 
+// Diagnostic log upload. Intentionally accepts unauthenticated callers (so a
+// user hitting setup/capture failures before sign-in can still send logs), but
+// it relays to a Discord webhook — so it is rate-limited (per IP / auth header)
+// and size-capped to prevent unauthenticated spam/large-payload abuse.
+const MAX_LOG_CHARS = 2_000_000; // ~2MB, well under Discord's upload limit
+const MAX_DIAGNOSTICS_CHARS = 100_000;
+
 app.post(
 	"/logs",
+	developerRateLimiter,
 	zValidator(
 		"form",
 		z.object({
-			log: z.string(),
-			os: z.string().optional(),
-			version: z.string().optional(),
-			diagnostics: z.string().optional(),
+			log: z.string().max(MAX_LOG_CHARS),
+			os: z.string().max(100).optional(),
+			version: z.string().max(100).optional(),
+			diagnostics: z.string().max(MAX_DIAGNOSTICS_CHARS).optional(),
 		}),
 	),
 	withOptionalAuth,
@@ -702,6 +710,12 @@ app.post(
 	async (c) => {
 		const { priceId } = c.req.valid("json");
 		const user = c.get("user");
+
+		if (!isValidStripePriceId(priceId)) {
+			// Reject arbitrary/unknown prices — same protection as the web route.
+			console.log("[POST] Error: invalid or unknown price ID");
+			return c.json({ error: true }, { status: 400 });
+		}
 
 		if (userIsPro(user)) {
 			console.log("[POST] Error: User already on Pro plan");
