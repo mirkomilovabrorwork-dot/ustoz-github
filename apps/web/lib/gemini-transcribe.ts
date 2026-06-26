@@ -450,6 +450,16 @@ IMPORTANT: Output STANDARD WebVTT only. Start your response with a "WEBVTT" head
 	const inputTokens = genData.usageMetadata?.promptTokenCount ?? 0;
 	const outputTokens = genData.usageMetadata?.candidatesTokenCount ?? 0;
 
+	// [diag] long-audio near-empty transcript — tells us whether Gemini itself
+	// returned little (finishReason / 0 output) or our parser dropped cues
+	// (rawText long but saved VTT tiny). Remove after the 10-min case is fixed.
+	const finishReason = (
+		genData.candidates?.[0] as { finishReason?: string } | undefined
+	)?.finishReason;
+	console.log(
+		`[gemini-transcribe] rawText.length=${rawText.length} outputTokens=${outputTokens} finishReason=${finishReason} durationSec=${audioDurationSec} preview=${JSON.stringify(rawText.slice(0, 220))}`,
+	);
+
 	fetch(
 		`https://generativelanguage.googleapis.com/v1beta/${fileName}?key=${apiKey}`,
 		{ method: "DELETE" },
