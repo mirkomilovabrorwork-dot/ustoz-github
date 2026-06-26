@@ -318,6 +318,17 @@ async function generateWithAi(
 	if (result.chapters) {
 		result.chapters = clampChapters(result.chapters, videoDuration);
 	}
+	if (result.aiSummary) {
+		result.aiSummary.chapters = sanitizeSummaryChapters(
+			result.aiSummary.chapters,
+			videoDuration,
+		);
+		result.aiSummary.refinedTranscript.chapters =
+			result.aiSummary.refinedTranscript.chapters.map((ch) => ({
+				...ch,
+				startSec: sanitizeStartSec(ch.startSec, videoDuration) ?? 0,
+			}));
+	}
 
 	return result;
 }
@@ -338,26 +349,73 @@ function getVideoDuration(segments: VttSegment[]): number {
 	return lastSegment ? lastSegment.start + 3 : 0;
 }
 
+// Coerce a chapter start (seconds) into a sane range. The summary model
+// occasionally returns the value in the WRONG unit — observed ~x60 inflated
+// (e.g. 6000 for a real 100s mark), which rendered as "100:00" in the UI.
+// Recover the common x60 double-conversion, otherwise clamp into [0, duration]
+// so a bad value can never reach the UI as a garbage timestamp.
+function sanitizeStartSec(
+	value: number,
+	videoDuration: number,
+): number | null {
+	if (!Number.isFinite(value) || value < 0) return null;
+	if (videoDuration <= 0) return Math.round(value);
+	if (value <= videoDuration) return Math.round(value);
+	if (value / 60 <= videoDuration) return Math.round(value / 60);
+	return Math.round(videoDuration);
+}
+
 function clampChapters(
 	chapters: { title: string; start: number }[],
 	videoDuration: number,
 ): { title: string; start: number }[] {
-	const filtered = chapters.filter((ch) => ch.start < videoDuration);
+	const cleaned: { title: string; start: number }[] = [];
+	for (const ch of chapters) {
+		const start = sanitizeStartSec(ch.start, videoDuration);
+		if (start === null) continue;
+		cleaned.push({ title: ch.title, start });
+	}
 
-	if (filtered.length === 0 && chapters.length > 0) {
+	if (cleaned.length === 0 && chapters.length > 0) {
 		const first = chapters[0];
 		return first ? [{ title: first.title, start: 0 }] : [];
 	}
 
+	cleaned.sort((a, b) => a.start - b.start);
+
 	const minGap = Math.max(5, Math.floor(videoDuration / 10));
 	const deduped: { title: string; start: number }[] = [];
-	for (const chapter of filtered) {
+	for (const chapter of cleaned) {
 		const last = deduped[deduped.length - 1];
 		if (!last || Math.abs(chapter.start - last.start) >= minGap) {
 			deduped.push(chapter);
 		}
 	}
 
+	return deduped;
+}
+
+// Same sanitization for the aiSummary.chapters[] shape ({ startSec, ... }).
+function sanitizeSummaryChapters<T extends { startSec: number }>(
+	chapters: T[],
+	videoDuration: number,
+): T[] {
+	const cleaned: T[] = [];
+	for (const ch of chapters) {
+		const startSec = sanitizeStartSec(ch.startSec, videoDuration);
+		if (startSec === null) continue;
+		cleaned.push({ ...ch, startSec });
+	}
+	cleaned.sort((a, b) => a.startSec - b.startSec);
+
+	const minGap = Math.max(5, Math.floor(videoDuration / 10));
+	const deduped: T[] = [];
+	for (const ch of cleaned) {
+		const last = deduped[deduped.length - 1];
+		if (!last || Math.abs(ch.startSec - last.startSec) >= minGap) {
+			deduped.push(ch);
+		}
+	}
 	return deduped;
 }
 
@@ -658,7 +716,7 @@ Extract structured data in JSON format. Return ONLY valid JSON with this exact s
 ${schemaExample}
 
 Rules:
-- All chapter "start" / "startSec" values must be between 0 and ${videoDuration} seconds; derive them from the transcript timestamps
+- "start" and "startSec" are INTEGER SECONDS from the start of the video — NOT minutes and NOT "mm:ss". A transcript label like [1:40] means start=100; [7:07] means start=427. Every value MUST be a whole number between 0 and ${videoDuration}, and must NEVER exceed ${videoDuration}.
 - tasks[].priority must be "high", "medium", or "low"
 - tasks[].done is always false unless explicitly resolved in the transcript
 - Keep ALL JSON property names exactly as shown
@@ -928,7 +986,7 @@ Return ONLY valid JSON with this exact structure:
 ${schemaExample}
 
 Rules:
-- aiSummary.chapters[].startSec must be between 0 and ${videoDuration}; use the section timestamps provided above
+- aiSummary.chapters[].startSec must be INTEGER SECONDS (not minutes, not mm:ss) between 0 and ${videoDuration}; e.g. the label [1:40] means startSec=100. Use the section timestamps provided above and never exceed ${videoDuration}.
 - tasks[].priority must be "high", "medium", or "low"
 - refinedTranscript.chapters may be left as an empty array — it is handled separately
 - Keep ALL JSON property names exactly as shown`;

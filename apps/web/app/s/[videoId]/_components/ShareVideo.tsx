@@ -547,6 +547,7 @@ export const ShareVideo = forwardRef<
 								transcriptContent={transcriptContent ?? undefined}
 								currentTime={currentTime}
 								onVideoJump={handleSeek}
+								chapters={chapters.map((c) => ({ startSec: c.start, title: c.title }))}
 							/>
 						}
 						refined={
