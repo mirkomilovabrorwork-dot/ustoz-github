@@ -233,7 +233,7 @@ export function normalizeToWebVtt(raw: string, audioDurationSec: number): string
 
 import { isTransientGeminiError, withGeminiRetry } from "@/lib/gemini-retry";
 
-const GEMINI_TRANSCRIBE_MODEL = "gemini-2.5-flash";
+const GEMINI_TRANSCRIBE_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"] as const;
 
 async function pollUntilActive(
 	fileName: string,
@@ -334,24 +334,40 @@ export async function transcribeWithGemini(
 		await withGeminiRetry(() => pollUntilActive(fileName, apiKey));
 	}
 
-	const { genRes, genData } = await withGeminiRetry(async () => {
-		const res = await fetch(
-			`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TRANSCRIBE_MODEL}:generateContent?key=${apiKey}`,
-			{
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					contents: [
-						{
-							parts: [
+	type GenData = {
+		candidates?: Array<{
+			content: { parts: Array<{ text?: string }> };
+		}>;
+		usageMetadata?: {
+			promptTokenCount?: number;
+			candidatesTokenCount?: number;
+		};
+		error?: { message: string };
+	};
+
+	let genRes!: Response;
+	let genData!: GenData;
+	for (let mi = 0; mi < GEMINI_TRANSCRIBE_MODELS.length; mi++) {
+		const model = GEMINI_TRANSCRIBE_MODELS[mi];
+		try {
+			({ genRes, genData } = await withGeminiRetry(async () => {
+				const res = await fetch(
+					`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+					{
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							contents: [
 								{
-									fileData: {
-										mimeType,
-										fileUri,
-									},
-								},
-								{
-									text: `You are a professional Uzbek meeting transcription editor.
+									parts: [
+										{
+											fileData: {
+												mimeType,
+												fileUri,
+											},
+										},
+										{
+											text: `You are a professional Uzbek meeting transcription editor.
 
 Transcribe the attached online/offline meeting fully and accurately in Uzbek Latin.
 
@@ -402,43 +418,45 @@ Put a cue boundary only where it exactly matches the audio:
 8. Output only the transcript. No intro, no explanation, no table, no numbering.
 
 IMPORTANT: Output STANDARD WebVTT only. Start your response with a "WEBVTT" header line, then a blank line. For each cue, put the timestamp on its OWN line as "HH:MM:SS.mmm --> HH:MM:SS.mmm", then the cue text on the NEXT line(s), then a blank line before the next cue. Do NOT put the timestamp and the text on the same line. Do NOT wrap timestamps in markdown brackets like **[...]**. The speaker labels, bold formatting, and content rules above still apply within each cue's text.`,
+										},
+									],
 								},
 							],
-						},
-					],
-					generationConfig: {
-						temperature: 0.1,
-						maxOutputTokens: 65536,
-						thinkingConfig: { thinkingBudget: 0 },
+							generationConfig: {
+								temperature: 0.1,
+								maxOutputTokens: 65536,
+								thinkingConfig: { thinkingBudget: 0 },
+							},
+						}),
 					},
-				}),
-			},
-		);
+				);
 
-		const data = (await res.json()) as {
-			candidates?: Array<{
-				content: { parts: Array<{ text?: string }> };
-			}>;
-			usageMetadata?: {
-				promptTokenCount?: number;
-				candidatesTokenCount?: number;
-			};
-			error?: { message: string };
-		};
+				const data = (await res.json()) as GenData;
 
-		if (!res.ok) {
-			const errMsg = `Gemini generateContent failed (HTTP ${res.status}): ${data.error?.message ?? "unknown"}`;
-			if (isTransientGeminiError(res.status, data.error?.message ?? "")) {
-				throw new Error(errMsg);
-			}
-			// Non-transient: throw a special marker so withGeminiRetry skips retries
-			const e = new Error(errMsg);
-			(e as Error & { permanent?: boolean }).permanent = true;
-			throw e;
+				if (!res.ok) {
+					const errMsg = `Gemini generateContent failed (HTTP ${res.status}): ${data.error?.message ?? "unknown"}`;
+					if (isTransientGeminiError(res.status, data.error?.message ?? "")) {
+						throw new Error(errMsg);
+					}
+					// Non-transient: throw a special marker so withGeminiRetry skips retries
+					const e = new Error(errMsg);
+					(e as Error & { permanent?: boolean }).permanent = true;
+					throw e;
+				}
+
+				return { genRes: res, genData: data };
+			}));
+			break; // primary model succeeded
+		} catch (err) {
+			const isPermanent = (err as { permanent?: boolean })?.permanent === true;
+			const isLastModel = mi === GEMINI_TRANSCRIBE_MODELS.length - 1;
+			if (isPermanent || isLastModel) throw err;
+			const nextModel = GEMINI_TRANSCRIBE_MODELS[mi + 1];
+			console.warn(
+				`[gemini-transcribe] model ${model} overloaded, falling back to ${nextModel}`,
+			);
 		}
-
-		return { genRes: res, genData: data };
-	});
+	}
 
 	if (!genRes.ok) {
 		throw new Error(
