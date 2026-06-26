@@ -406,7 +406,7 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 				</div>
 				<div className="pb-4 mt-auto w-full flex flex-col gap-2 shrink-0">
 					<StorageIndicator />
-					<SidebarUser />
+					<SidebarUser inline={!!toggleMobileNav} />
 				</div>
 			</nav>
 			<DialogContent className="p-0 w-full max-w-md rounded-xl bg-gray-2">
@@ -446,7 +446,7 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 	);
 };
 
-const SidebarUser = () => {
+const SidebarUser = ({ inline }: { inline?: boolean }) => {
 	const [menuOpen, setMenuOpen] = useState(false);
 	const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
 	const { user, sidebarCollapsed } = useDashboardContext();
@@ -520,6 +520,72 @@ const SidebarUser = () => {
 		],
 		[nextTheme, setThemeHandler, themeLabel, user.isPro],
 	);
+
+	if (inline) {
+		return (
+			<>
+				<UpgradeModal
+					open={upgradeModalOpen}
+					onOpenChange={setUpgradeModalOpen}
+				/>
+				<div className="w-full">
+					{/* Profile header — non-interactive, mirrors the Popover trigger markup */}
+					<div className="flex items-center gap-2 p-2 rounded-xl border border-transparent">
+						<SignedImageUrl
+							image={user.imageUrl}
+							name={user.name ?? "User"}
+							letterClass="text-xs"
+							className="flex-shrink-0 size-6 text-gray-12"
+						/>
+						<span className="text-sm truncate text-gray-12">
+							{user.name ?? "User"}
+						</span>
+					</div>
+					{/* Inline menu items — each at least 44 px tall for touch targets */}
+					<div className="flex flex-col w-full mt-1">
+						{menuItems
+							.filter((item) => item.showCondition)
+							.map((item, index) => {
+								const sharedClassName =
+									"flex items-center gap-2 w-full min-h-[44px] px-2 py-2 rounded-lg text-sm text-gray-12 hover:bg-gray-5 transition-colors cursor-pointer text-left";
+								const iconEl = cloneElement(item.icon, {
+									className: item.iconClassName,
+									size: 14,
+								});
+								if ("href" in item && item.href) {
+									return (
+										<Link
+											key={index.toString()}
+											href={item.href}
+											className={sharedClassName}
+											onClick={item.onClick}
+										>
+											<span className="flex flex-shrink-0 justify-center items-center w-3.5 h-3.5">
+												{iconEl}
+											</span>
+											{item.name}
+										</Link>
+									);
+								}
+								return (
+									<button
+										key={index.toString()}
+										type="button"
+										className={sharedClassName}
+										onClick={item.onClick}
+									>
+										<span className="flex flex-shrink-0 justify-center items-center w-3.5 h-3.5">
+											{iconEl}
+										</span>
+										{item.name}
+									</button>
+								);
+							})}
+					</div>
+				</div>
+			</>
+		);
+	}
 
 	return (
 		<>
