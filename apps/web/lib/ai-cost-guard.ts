@@ -23,7 +23,16 @@ export class BudgetExceededError extends Error {
 	}
 }
 
-const DEFAULT_AI_BUDGET_CAP_MICROS = 1_000_000;
+// Default monthly AI spend cap (microdollars) applied ONLY when neither the
+// user nor the org has configured an explicit budget. The upstream value was
+// $1 — a SaaS free-tier guard that is wrong for a self-hosted instance whose
+// owner brings their own Gemini key and pays their own bill: a single active
+// day of recording/transcribing exhausts $1 and then silently blocks ALL AI
+// (transcription + summary) with BudgetExceededError. Default to a generous
+// runaway-loop backstop instead; owners who want a tighter cap can set a
+// per-org/user budget in settings (org.settings.aiBudget / user prefs).
+const DEFAULT_AI_BUDGET_CAP_MICROS = 100_000_000; // $100 / month
+
 
 function currentBillingMonth(): string {
 	const now = new Date();

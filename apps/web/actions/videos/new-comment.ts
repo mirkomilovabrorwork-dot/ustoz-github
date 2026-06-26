@@ -3,8 +3,8 @@
 import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { nanoId } from "@cap/database/helpers";
-import { comments, organizations, videos } from "@cap/database/schema";
-import { provideOptionalAuth, VideosPolicy } from "@cap/web-backend";
+import { comments, organizations, spaces, spaceVideos, videos } from "@cap/database/schema";
+import { provideOptionalAuth, resolveEffectiveVideoRules, VideosPolicy } from "@cap/web-backend";
 import type { ImageUpload } from "@cap/web-domain";
 import { Comment, Policy, User, type Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
@@ -82,21 +82,33 @@ export async function newComment(data: {
 
 	if (!video) throw new Error("Video not found");
 
+	// Resolve space-level settings so that a space's disableComments/
+	// disableReactions propagates to this API path, not only to the page render.
+	const videoSpaces = await db()
+		.select({
+			id: spaces.id,
+			name: spaces.name,
+			settings: spaces.settings,
+		})
+		.from(spaceVideos)
+		.innerJoin(spaces, eq(spaceVideos.spaceId, spaces.id))
+		.where(eq(spaceVideos.videoId, videoId));
+
+	const effectiveRules = resolveEffectiveVideoRules({
+		videoSettings: video.settings,
+		organizationSettings: video.orgSettings,
+		spaces: videoSpaces,
+	});
+
 	// Gate text comments and emoji reactions independently: a "text" item is a
 	// comment (governed by disableComments), an "emoji" item is a reaction
 	// (governed by disableReactions). Previously disableComments blocked both.
 	if (type === "emoji") {
-		const reactionsDisabled =
-			video.settings?.disableReactions ??
-			video.orgSettings?.disableReactions ??
-			false;
-		if (reactionsDisabled) throw new Error("Reactions are disabled");
+		if (effectiveRules.settings.disableReactions)
+			throw new Error("Reactions are disabled");
 	} else {
-		const commentsDisabled =
-			video.settings?.disableComments ??
-			video.orgSettings?.disableComments ??
-			false;
-		if (commentsDisabled) throw new Error("Comments are disabled");
+		if (effectiveRules.settings.disableComments)
+			throw new Error("Comments are disabled");
 	}
 
 	// Gate comment creation behind the same view-authorization the rest of the

@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { createVideoForServerProcessing } from "@/actions/video/create-for-processing";
+import { markUploadFailed } from "@/actions/video/mark-upload-failed";
 import { triggerVideoProcessing } from "@/actions/video/trigger-processing";
 import { useDashboardContext } from "@/app/(org)/dashboard/Contexts";
 import { sendProgressUpdate } from "@/app/(org)/dashboard/caps/components/sendProgressUpdate";
@@ -227,6 +228,9 @@ async function uploadVideoForServerProcessing(
 	orgId: Organisation.OrganisationId,
 	setUploadStatus: (state: UploadStatus | undefined) => void,
 ) {
+	// Hoisted so the outer catch can reference it for orphan cleanup.
+	let createdVideoId: Awaited<ReturnType<typeof createVideoForServerProcessing>>["id"] | undefined;
+
 	try {
 		setUploadStatus({ status: "parsing" });
 
@@ -265,6 +269,7 @@ async function uploadVideoForServerProcessing(
 		});
 
 		const uploadId = videoData.id;
+		createdVideoId = videoData.id;
 
 		setUploadStatus({
 			status: "uploadingVideo",
@@ -381,6 +386,17 @@ async function uploadVideoForServerProcessing(
 		return true;
 	} catch (err) {
 		console.error("Video upload failed", err);
+
+		// Mark the orphaned upload row as errored so it doesn't stay stuck at
+		// "uploading" indefinitely. Wrapped so a cleanup failure never swallows
+		// the original error path.
+		if (createdVideoId) {
+			try {
+				await markUploadFailed(createdVideoId);
+			} catch (cleanupErr) {
+				console.error("Failed to mark upload as failed:", cleanupErr);
+			}
+		}
 
 		if (err instanceof Error && err.message === "upgrade_required") {
 			toast.error(

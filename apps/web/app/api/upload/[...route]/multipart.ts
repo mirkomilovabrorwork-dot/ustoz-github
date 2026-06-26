@@ -278,13 +278,18 @@ app.post(
 		z
 			.object({
 				uploadId: z.string(),
-				parts: z.array(
-					z.object({
-						partNumber: z.number(),
-						etag: z.string(),
-						size: z.number(),
-					}),
-				),
+				parts: z
+					.array(
+						z.object({
+							partNumber: z.number(),
+							etag: z.string(),
+							size: z.number(),
+						}),
+					)
+					// A completed multipart upload MUST have >=1 part; an empty array
+					// is forwarded to S3 as a malformed completion and yields a broken
+					// 0-byte object. Reject it cleanly instead (C8).
+					.min(1, "A completed upload must include at least one part"),
 				durationInSecs: stringOrNumberOptional,
 				width: stringOrNumberOptional,
 				height: stringOrNumberOptional,
