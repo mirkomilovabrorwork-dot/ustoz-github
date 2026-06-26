@@ -1,5 +1,6 @@
 "use client";
 import Top from "./Navbar/Top";
+import ExtensionUpdateBanner from "./ExtensionUpdateBanner";
 
 export default function DashboardInner({
 	children,
@@ -8,6 +9,7 @@ export default function DashboardInner({
 }) {
 	return (
 		<div className="flex overflow-hidden w-full flex-col flex-1 md:mt-0 mt-[126px]">
+			<ExtensionUpdateBanner />
 			<Top />
 			<main
 				className={
