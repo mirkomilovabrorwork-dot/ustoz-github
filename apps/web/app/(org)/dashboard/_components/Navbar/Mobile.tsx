@@ -47,7 +47,7 @@ export const AdminMobileNav = () => {
 								transition: { duration: 0.3, bounce: 0.2, type: "spring" },
 							}}
 							exit={{ x: "100%" }}
-							className="relative flex-1 flex flex-col ml-auto max-w-xs w-[275px] border-l border-gray-3 pt-5 pb-4 px-4 bg-gray-2"
+							className="relative flex-1 flex flex-col ml-auto max-w-xs w-[275px] border-l border-gray-3 pt-5 pb-4 px-4 bg-gray-2 overflow-y-auto"
 						>
 							<div className="flex justify-end items-center mb-6 w-full rounded-full">
 								<button
