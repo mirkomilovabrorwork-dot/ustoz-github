@@ -31,7 +31,7 @@ export default function ExtensionUpdateBanner() {
 	}
 
 	return (
-		<div className="flex items-center gap-3 w-full border-b border-blue-4 bg-blue-2 px-4 py-2.5 text-sm text-gray-12">
+		<div className="flex items-center gap-3 w-full border-b border-gray-4 bg-gray-3 px-4 py-2.5 text-sm text-gray-12">
 			<p className="flex-1 min-w-0">
 				<span className="font-medium">Extension update required —</span>{" "}
 				We improved the screen recorder. Because the extension is installed
