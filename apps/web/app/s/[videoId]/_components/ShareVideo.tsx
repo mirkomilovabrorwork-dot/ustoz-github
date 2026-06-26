@@ -10,6 +10,7 @@ import {
 	useCallback,
 	useEffect,
 	useImperativeHandle,
+	useMemo,
 	useRef,
 	useState,
 } from "react";
@@ -37,7 +38,7 @@ import {
 	PreparingVideoOverlay,
 	RecordingInProgressOverlay,
 } from "./RecordingInProgress";
-import { formatChaptersAsVTT } from "./utils/transcript-utils";
+import { formatChaptersAsVTT, clampStartSec } from "./utils/transcript-utils";
 
 type CommentWithAuthor = typeof commentsSchema.$inferSelect & {
 	authorName: string | null;
@@ -96,6 +97,11 @@ export const ShareVideo = forwardRef<
 		const videoRef = useRef<HTMLVideoElement | null>(null);
 		useImperativeHandle(ref, () => videoRef.current as HTMLVideoElement, []);
 		const router = useRouter();
+
+		const safeChapters = useMemo(
+			() => chapters.map((c) => ({ ...c, start: clampStartSec(c.start, data.duration ?? undefined) })),
+			[chapters, data.duration],
+		);
 		const handleUploadComplete = useCallback(() => {
 			router.refresh();
 		}, [router]);
@@ -213,7 +219,7 @@ export const ShareVideo = forwardRef<
 
 		useEffect(() => {
 			if (chapters?.length > 0) {
-				const vttContent = formatChaptersAsVTT(chapters);
+				const vttContent = formatChaptersAsVTT(safeChapters);
 				const blob = new Blob([vttContent], { type: "text/vtt" });
 				const newUrl = URL.createObjectURL(blob);
 				setChaptersUrl((prev) => {
@@ -233,7 +239,7 @@ export const ShareVideo = forwardRef<
 				}
 				return null;
 			});
-		}, [chapters]);
+		}, [safeChapters]);
 
 		const isSegmentsSource = data.source.type === "desktopSegments";
 		const previousSegmentUploadProgressRef = useRef(segmentUploadProgress);
@@ -416,7 +422,7 @@ export const ShareVideo = forwardRef<
 							chapters={
 								areChaptersDisabled
 									? []
-									: chapters.map((ch) => ({
+									: safeChapters.map((ch) => ({
 											startSec: ch.start,
 											title: ch.title,
 										}))
@@ -547,7 +553,7 @@ export const ShareVideo = forwardRef<
 								transcriptContent={transcriptContent ?? undefined}
 								currentTime={currentTime}
 								onVideoJump={handleSeek}
-								chapters={chapters.map((c) => ({ startSec: c.start, title: c.title }))}
+								chapters={safeChapters.map((c) => ({ startSec: c.start, title: c.title }))}
 							/>
 						}
 						refined={

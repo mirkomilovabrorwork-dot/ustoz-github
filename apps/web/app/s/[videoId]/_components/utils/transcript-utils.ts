@@ -28,6 +28,18 @@ export const formatTimeMinutes = (time: number) => {
 		.padStart(2, "0")}`;
 };
 
+// Defensive display-time clamp mirroring the backend sanitizeStartSec.
+// Existing videos may have a chapter startSec stored in the wrong unit
+// (~x60 inflated). Recover the common x60 case, otherwise clamp into
+// [0, duration] so the UI never shows a time beyond the video length.
+export const clampStartSec = (startSec: number, durationSec?: number): number => {
+	if (!Number.isFinite(startSec) || startSec < 0) return 0;
+	if (!durationSec || durationSec <= 0) return startSec;
+	if (startSec <= durationSec) return startSec;
+	if (startSec / 60 <= durationSec) return startSec / 60;
+	return durationSec;
+};
+
 /**
  * Formats transcript entries as VTT format for subtitles
  */

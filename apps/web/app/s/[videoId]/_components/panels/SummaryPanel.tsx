@@ -1,6 +1,6 @@
 "use client";
 
-import { formatTimeMinutes } from "../utils/transcript-utils";
+import { formatTimeMinutes, clampStartSec } from "../utils/transcript-utils";
 
 interface SummaryPanelProps {
 	data: {
@@ -20,7 +20,10 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 	const { aiSummary } = data;
 	const topics = aiSummary?.topics ?? [];
 	const nextSteps = aiSummary?.nextSteps ?? [];
-	const chapters = aiSummary?.chapters ?? [];
+	const chapters = (aiSummary?.chapters ?? []).map((c) => ({
+		...c,
+		startSec: clampStartSec(c.startSec, data.duration),
+	}));
 
 	if (!aiSummary) {
 		return (
