@@ -572,6 +572,14 @@ const SidebarUser = () => {
 						)}
 						side="top"
 						align="start"
+						sideOffset={6}
+						// The trigger (user profile) sits at the BOTTOM of the sidebar /
+						// mobile drawer, so the menu must always open UPWARD. Without this,
+						// Radix's collision avoidance could flip it DOWN — off the bottom of
+						// the screen on mobile, where it flashes and vanishes ("can't sign
+						// out on mobile"). Force upward + keep it on-screen.
+						avoidCollisions={false}
+						collisionPadding={12}
 					>
 						<Command>
 							<CommandGroup>
