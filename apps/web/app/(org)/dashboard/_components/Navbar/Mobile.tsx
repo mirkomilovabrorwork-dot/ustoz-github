@@ -12,9 +12,22 @@ import NavItems from "./Items";
 
 export const AdminMobileNav = () => {
 	const [sidebarOpen, setSidebarOpen] = useState(false);
-	const sidebarRef: MutableRefObject<HTMLDivElement> = useClickAway(() =>
-		setSidebarOpen(false),
-	);
+	const sidebarRef: MutableRefObject<HTMLDivElement> = useClickAway((event) => {
+		// The user menu's "Sign Out" (and Settings/theme/etc.) render inside a
+		// Radix Popover PORTAL appended to <body> — OUTSIDE this drawer's DOM. A
+		// tap on such a portaled item would otherwise count as a click-away,
+		// close the drawer, and unmount the button before its handler runs — the
+		// "can't sign out on mobile" bug. Ignore clicks inside any Radix popper.
+		const target = (event as Event)?.target as Element | null;
+		if (
+			target?.closest?.(
+				"[data-radix-popper-content-wrapper],[data-radix-portal]",
+			)
+		) {
+			return;
+		}
+		setSidebarOpen(false);
+	});
 
 	return (
 		<>
