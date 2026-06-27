@@ -101,6 +101,8 @@ function parseAiSummary(raw: unknown): AiSummary | null {
 }
 
 const MAX_CHARS_PER_CHUNK = 24000;
+export const MAX_REFINED_TRANSCRIPT_AUTO_CHARS = 12000;
+export const MAX_REFINED_TRANSCRIPT_AUTO_SECONDS = 12 * 60;
 const AI_SUMMARY_FAILURE_PLACEHOLDER =
 	"The AI was unable to generate a proper summary for this content.";
 const GENERATED_TITLE_PATTERN =
@@ -220,14 +222,16 @@ async function validateAndSetProcessing(videoId: string): Promise<VideoData> {
 
 async function fetchTranscript(
 	videoId: string,
-	userId: string,
+	_userId: string,
 	video: typeof videos.$inferSelect,
 ): Promise<TranscriptData | null> {
 	"use step";
 
 	const vtt = await Effect.gen(function* () {
 		const [bucket] = yield* getStorageAccessForVideo(video);
-		return yield* bucket.getObject(`${video.ownerId}/${videoId}/transcription.vtt`);
+		return yield* bucket.getObject(
+			`${video.ownerId}/${videoId}/transcription.vtt`,
+		);
 	}).pipe(runPromise);
 
 	if (Option.isNone(vtt)) {
@@ -297,6 +301,10 @@ async function generateWithAi(
 
 	const videoDuration = getVideoDuration(transcript.segments);
 	const languageInstruction = getAiLanguageInstruction(language);
+	const includeRefinedTranscript = shouldGenerateRefinedTranscript({
+		transcriptCharCount: transcript.text.length,
+		videoDurationSeconds: videoDuration,
+	});
 
 	let result: AiResult;
 	if (chunks.length === 1) {
@@ -305,6 +313,7 @@ async function generateWithAi(
 			videoDuration,
 			languageInstruction,
 			context,
+			includeRefinedTranscript,
 		);
 	} else {
 		result = await generateMultipleChunks(
@@ -312,6 +321,7 @@ async function generateWithAi(
 			videoDuration,
 			languageInstruction,
 			context,
+			includeRefinedTranscript,
 		);
 	}
 
@@ -343,6 +353,21 @@ export function getAiLanguageInstruction(
 	return `Write the title, summary, chapter titles, section summaries, and key points in ${getAiGenerationLanguageName(language)}.`;
 }
 
+export function shouldGenerateRefinedTranscript({
+	transcriptCharCount,
+	videoDurationSeconds,
+}: {
+	transcriptCharCount: number;
+	videoDurationSeconds: number;
+}): boolean {
+	return (
+		transcriptCharCount > 0 &&
+		transcriptCharCount <= MAX_REFINED_TRANSCRIPT_AUTO_CHARS &&
+		(videoDurationSeconds <= 0 ||
+			videoDurationSeconds <= MAX_REFINED_TRANSCRIPT_AUTO_SECONDS)
+	);
+}
+
 const MIXED_LANGUAGE_PRESERVATION_RULES = `Mixed-language preservation rules:
 - Uzbek words may be cleaned or summarized in Uzbek Latin, but English, Russian, technical terms, product names, brand names, code identifiers, and acronyms must stay exactly as spoken.
 - Do NOT translate or transliterate foreign/technical words: deadline must not become dedlayn, dashboard must not become boshqaruv paneli, and сразу must not become srazu.
@@ -359,10 +384,7 @@ function getVideoDuration(segments: VttSegment[]): number {
 // (e.g. 6000 for a real 100s mark), which rendered as "100:00" in the UI.
 // Recover the common x60 double-conversion, otherwise clamp into [0, duration]
 // so a bad value can never reach the UI as a garbage timestamp.
-function sanitizeStartSec(
-	value: number,
-	videoDuration: number,
-): number | null {
+function sanitizeStartSec(value: number, videoDuration: number): number | null {
 	if (!Number.isFinite(value) || value < 0) return null;
 	if (videoDuration <= 0) return Math.round(value);
 	if (value <= videoDuration) return Math.round(value);
@@ -685,6 +707,7 @@ async function generateSingleChunk(
 	videoDuration: number,
 	languageInstruction: string,
 	context: AiCallContext,
+	includeRefinedTranscript: boolean,
 ): Promise<AiResult> {
 	const transcriptWithTimestamps = segments
 		.map(
@@ -733,14 +756,16 @@ ${transcriptWithTimestamps}`;
 	const apiResult = await callAiApi(prompt, {}, context);
 	const parsed = parseAiResponse(apiResult.content);
 
-	// Dedicated refined-transcript call — never competes with the JSON budget
-	// above, so it can never truncate the cleaned full transcript.
-	const refined = await generateRefinedTranscriptSingle(
-		transcriptWithTimestamps,
-		parsed.chapters ?? [],
-		segments[0]?.start ?? 0,
-		context,
-	);
+	// Full cleaned transcripts are useful but expensive because output length is
+	// close to raw transcript length. Keep them automatic only for short videos.
+	const refined = includeRefinedTranscript
+		? await generateRefinedTranscriptSingle(
+				transcriptWithTimestamps,
+				parsed.chapters ?? [],
+				segments[0]?.start ?? 0,
+				context,
+			)
+		: { chapters: [], inputTokens: 0, outputTokens: 0 };
 	const refinedChapters = refined.chapters;
 
 	// Attach the separately-generated refined transcript. If the summary JSON
@@ -784,7 +809,6 @@ async function generateRefinedTranscriptSingle(
 	outputTokens: number;
 }> {
 	const chapterTitle = chapters[0]?.title ?? "Transcript";
-	const timeLabel = `${Math.floor(startSec / 60)}:${String(startSec % 60).padStart(2, "0")}`;
 	const refinedPrompt = `You are a transcript editor. Your ONLY job is to produce a clean, complete, full version of the spoken text below — NOT a summary.
 
 RULES (strict):
@@ -801,7 +825,11 @@ Return ONLY the cleaned text. No JSON. No explanations.
 Transcript:
 ${transcriptWithTimestamps}`;
 
-	const refinedResult = await callAiApi(refinedPrompt, { json: false }, context);
+	const refinedResult = await callAiApi(
+		refinedPrompt,
+		{ json: false },
+		context,
+	);
 	const usage = {
 		inputTokens: refinedResult.inputTokens,
 		outputTokens: refinedResult.outputTokens,
@@ -832,6 +860,7 @@ async function generateMultipleChunks(
 	videoDuration: number,
 	languageInstruction: string,
 	context: AiCallContext,
+	includeRefinedTranscript: boolean,
 ): Promise<AiResult> {
 	const chunkSummaries: {
 		summary: string;
@@ -893,16 +922,18 @@ ${chunk.text}`;
 		title: string;
 		paragraphs: string[];
 	}[] = [];
-	for (let i = 0; i < chunks.length; i++) {
-		const chunk = chunks[i];
-		if (!chunk) continue;
-		const timeLabel = `${Math.floor(chunk.startTime / 60)}:${String(chunk.startTime % 60).padStart(2, "0")}`;
-		// Use chapter title from the matching summary if available, else "Part N"
-		const matchedSummary = chunkSummaries.find(
-			(cs) => cs.startTime === chunk.startTime,
-		);
-		const chapterTitle = matchedSummary?.chapters[0]?.title ?? `Part ${i + 1}`;
-		const refinedPrompt = `You are a transcript editor. Your ONLY job is to produce a clean, complete, full version of the spoken text below — NOT a summary.
+	if (includeRefinedTranscript) {
+		for (let i = 0; i < chunks.length; i++) {
+			const chunk = chunks[i];
+			if (!chunk) continue;
+			const timeLabel = `${Math.floor(chunk.startTime / 60)}:${String(chunk.startTime % 60).padStart(2, "0")}`;
+			// Use chapter title from the matching summary if available, else "Part N"
+			const matchedSummary = chunkSummaries.find(
+				(cs) => cs.startTime === chunk.startTime,
+			);
+			const chapterTitle =
+				matchedSummary?.chapters[0]?.title ?? `Part ${i + 1}`;
+			const refinedPrompt = `You are a transcript editor. Your ONLY job is to produce a clean, complete, full version of the spoken text below — NOT a summary.
 
 RULES (strict):
 - Remove ONLY: filler words ("uh", "um", "a-a", "er", "well", "you know", "like" used as filler), exact word-for-word repetitions, false starts (e.g. "I was — I mean, we should"), and off-topic jokes that add zero informational content.
@@ -917,23 +948,24 @@ Return ONLY the cleaned text. No JSON. No explanations.
 
 Transcript (${timeLabel}):
 ${chunk.text}`;
-		const refinedResult = await callAiApi(
-			refinedPrompt,
-			{ json: false },
-			context,
-		);
-		totalInputTokens += refinedResult.inputTokens;
-		totalOutputTokens += refinedResult.outputTokens;
-		const cleanedText = refinedResult.content.trim();
-		const paragraphs = cleanedText
-			.split(/\n\s*\n/)
-			.map((p) => p.trim())
-			.filter((p) => p.length > 0);
-		refinedChapters.push({
-			startSec: chunk.startTime,
-			title: chapterTitle,
-			paragraphs: paragraphs.length > 0 ? paragraphs : [cleanedText],
-		});
+			const refinedResult = await callAiApi(
+				refinedPrompt,
+				{ json: false },
+				context,
+			);
+			totalInputTokens += refinedResult.inputTokens;
+			totalOutputTokens += refinedResult.outputTokens;
+			const cleanedText = refinedResult.content.trim();
+			const paragraphs = cleanedText
+				.split(/\n\s*\n/)
+				.map((p) => p.trim())
+				.filter((p) => p.length > 0);
+			refinedChapters.push({
+				startSec: chunk.startTime,
+				title: chapterTitle,
+				paragraphs: paragraphs.length > 0 ? paragraphs : [cleanedText],
+			});
+		}
 	}
 
 	const allChapters: { title: string; start: number }[] = [];
@@ -1015,13 +1047,18 @@ ${MIXED_LANGUAGE_PRESERVATION_RULES}`;
 			chapters: aiSummaryChaptersFromChunks,
 			refinedTranscript: { chapters: [] },
 		};
-		// Override refinedTranscript with the per-chunk cleaned result
-		if (refinedChapters.length > 0) {
+		// Override refinedTranscript with the per-chunk cleaned result when this
+		// run intentionally paid for it; otherwise clear any model-invented value.
+		if (includeRefinedTranscript && refinedChapters.length > 0) {
 			if (aiSummaryRaw && typeof aiSummaryRaw === "object") {
 				(aiSummaryRaw as Record<string, unknown>).refinedTranscript = {
 					chapters: refinedChapters,
 				};
 			}
+		} else if (aiSummaryRaw && typeof aiSummaryRaw === "object") {
+			(aiSummaryRaw as Record<string, unknown>).refinedTranscript = {
+				chapters: [],
+			};
 		}
 		return {
 			title: parsed.title,

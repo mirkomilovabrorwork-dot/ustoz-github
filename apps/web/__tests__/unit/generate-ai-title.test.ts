@@ -33,6 +33,9 @@ vi.mock("server-only", () => ({}));
 
 import {
 	getAiLanguageInstruction,
+	MAX_REFINED_TRANSCRIPT_AUTO_CHARS,
+	MAX_REFINED_TRANSCRIPT_AUTO_SECONDS,
+	shouldGenerateRefinedTranscript,
 	shouldReplaceVideoTitle,
 } from "@/workflows/generate-ai";
 
@@ -121,5 +124,30 @@ describe("getAiLanguageInstruction", () => {
 
 	it("uses the selected language name", () => {
 		expect(getAiLanguageInstruction("es")).toContain("Spanish");
+	});
+});
+
+describe("shouldGenerateRefinedTranscript", () => {
+	it("allows automatic cleaned transcript only for short recordings", () => {
+		expect(
+			shouldGenerateRefinedTranscript({
+				transcriptCharCount: MAX_REFINED_TRANSCRIPT_AUTO_CHARS,
+				videoDurationSeconds: MAX_REFINED_TRANSCRIPT_AUTO_SECONDS,
+			}),
+		).toBe(true);
+
+		expect(
+			shouldGenerateRefinedTranscript({
+				transcriptCharCount: MAX_REFINED_TRANSCRIPT_AUTO_CHARS + 1,
+				videoDurationSeconds: 60,
+			}),
+		).toBe(false);
+
+		expect(
+			shouldGenerateRefinedTranscript({
+				transcriptCharCount: 1000,
+				videoDurationSeconds: MAX_REFINED_TRANSCRIPT_AUTO_SECONDS + 1,
+			}),
+		).toBe(false);
 	});
 });

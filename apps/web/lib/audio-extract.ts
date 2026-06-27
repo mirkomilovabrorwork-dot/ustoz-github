@@ -66,10 +66,14 @@ export async function extractAudioFromUrl(
 		"-i",
 		videoUrl,
 		"-vn",
+		"-ac",
+		"1",
+		"-ar",
+		"24000",
 		"-acodec",
 		"libmp3lame",
 		"-b:a",
-		"128k",
+		"64k",
 		"-f",
 		"mp3",
 		"-y",
@@ -117,10 +121,14 @@ export async function extractAudioToBuffer(videoUrl: string): Promise<Buffer> {
 		"-i",
 		videoUrl,
 		"-vn",
+		"-ac",
+		"1",
+		"-ar",
+		"24000",
 		"-acodec",
 		"libmp3lame",
 		"-b:a",
-		"128k",
+		"64k",
 		"-f",
 		"mp3",
 		"-pipe:1",
@@ -161,10 +169,14 @@ export async function convertWavToMp3(wavBuffer: Buffer): Promise<Buffer> {
 	const ffmpegArgs = [
 		"-i",
 		"pipe:0",
+		"-ac",
+		"1",
+		"-ar",
+		"24000",
 		"-acodec",
 		"libmp3lame",
 		"-b:a",
-		"128k",
+		"64k",
 		"-f",
 		"mp3",
 		"-pipe:1",
@@ -217,7 +229,9 @@ function parseDurationFromStderr(stderr: string): number | null {
 	return Number(h) * 3600 + Number(m) * 60 + Number(s) + Number(cs) / 100;
 }
 
-export async function checkHasAudioTrack(videoUrl: string): Promise<VideoProbeResult> {
+export async function checkHasAudioTrack(
+	videoUrl: string,
+): Promise<VideoProbeResult> {
 	let ffmpeg: string;
 	try {
 		ffmpeg = getFfmpegPath();

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { formatTimeMinutes } from "../utils/transcript-utils";
+import { clampStartSec, formatTimeMinutes } from "../utils/transcript-utils";
 import { renderMarkdownBold } from "./markdownBold";
 
 interface TranscriptPanelProps {
@@ -9,6 +9,7 @@ interface TranscriptPanelProps {
 	currentTime?: number;
 	onVideoJump?: (seconds: number) => void;
 	chapters?: { startSec: number; title: string }[];
+	duration?: number | null;
 }
 
 interface Cue {
@@ -16,7 +17,7 @@ interface Cue {
 	startSeconds: number;
 	endSeconds: number;
 	text: string;
-	speaker: string;
+	speaker: string | null;
 	timestamp: string;
 }
 
@@ -71,10 +72,10 @@ function parseVTTCues(vttContent: string): Cue[] {
 			// Capture any inline text that follows the closing bracket / **
 			// e.g. "**[start --> end]** spoken text here"
 			// Everything after the end timestamp token, then strip decorators.
-			const afterEnd = afterArrow.slice((endTokenMatch?.[0]?.length ?? 0));
+			const afterEnd = afterArrow.slice(endTokenMatch?.[0]?.length ?? 0);
 			const inlineText = afterEnd
 				.replace(/^[^\]]*\]/, "") // drop up to first ']' (handles closing bracket)
-				.replace(/\*\*/g, "")     // remove bold markdown
+				.replace(/\*\*/g, "") // remove bold markdown
 				.replace(/^[\s\-–—:>]+/, "") // strip leading separators
 				.trim();
 
@@ -139,12 +140,15 @@ function vttTimeToSeconds(timeStr: string): number | null {
 	return null;
 }
 
-function extractSpeaker(text: string): { speaker: string; text: string } {
+function extractSpeaker(text: string): {
+	speaker: string | null;
+	text: string;
+} {
 	const match = text.match(/^<v\s+([^>]+)>(.*)$/);
 	if (match) {
 		return {
 			speaker: match[1]?.trim() ?? "Speaker",
-			text: match[2]?.trim() ?? text,
+			text: (match[2]?.trim() ?? text).replace(/<\/v>$/i, "").trim(),
 		};
 	}
 	const colonMatch = text.match(/^([^:]{1,30}):\s+(.+)$/);
@@ -154,7 +158,7 @@ function extractSpeaker(text: string): { speaker: string; text: string } {
 			text: colonMatch[2]?.trim() ?? text,
 		};
 	}
-	return { speaker: "Speaker", text };
+	return { speaker: null, text };
 }
 
 function formatTimestamp(seconds: number): string {
@@ -180,7 +184,7 @@ function speakerInitials(name: string): string {
 }
 
 interface CueGroup {
-	speaker: string;
+	speaker: string | null;
 	cues: Cue[];
 }
 
@@ -236,16 +240,45 @@ function isActive(cue: Cue, currentTime: number): boolean {
 	return currentTime >= cue.startSeconds && currentTime < cue.endSeconds;
 }
 
+function normalizeCueTimes(cues: Cue[], duration?: number | null): Cue[] {
+	if (!duration || duration <= 0) return cues;
+
+	return cues
+		.map((cue) => {
+			const recoveredStart = clampStartSec(cue.startSeconds, duration);
+			const shouldScaleEnd =
+				cue.endSeconds > duration && cue.endSeconds / 60 <= duration;
+			const recoveredEnd = shouldScaleEnd
+				? cue.endSeconds / 60
+				: Math.min(cue.endSeconds, duration);
+			const endSeconds =
+				recoveredEnd > recoveredStart
+					? recoveredEnd
+					: Math.min(duration, recoveredStart + 3);
+
+			return {
+				...cue,
+				startSeconds: recoveredStart,
+				endSeconds,
+				timestamp: formatTimestamp(recoveredStart),
+			};
+		})
+		.sort((a, b) => a.startSeconds - b.startSeconds);
+}
+
 export function TranscriptPanel({
 	transcriptContent,
 	currentTime = 0,
 	onVideoJump,
 	chapters,
+	duration,
 }: TranscriptPanelProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const activeRef = useRef<HTMLDivElement>(null);
 
-	const cues = transcriptContent ? parseVTTCues(transcriptContent) : [];
+	const cues = transcriptContent
+		? normalizeCueTimes(parseVTTCues(transcriptContent), duration)
+		: [];
 
 	const useChapterMode = chapters != null && chapters.length > 0;
 	const chapterSections = useChapterMode ? groupByChapters(cues, chapters) : [];
@@ -279,16 +312,20 @@ export function TranscriptPanel({
 				>
 					<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
 				</svg>
-				<p className="text-sm font-medium text-gray-12">No transcript available</p>
-				<p className="text-xs text-gray-10">Transcript will appear here once processing is complete</p>
+				<p className="text-sm font-medium text-gray-12">
+					No transcript available
+				</p>
+				<p className="text-xs text-gray-10">
+					Transcript will appear here once processing is complete
+				</p>
 			</div>
 		);
 	}
 
 	// Shared per-cue card renderer
-	function renderCue(cue: Cue, gi: number, ci: number, speaker: string) {
-		const hue = speakerHue(speaker);
-		const initials = speakerInitials(speaker);
+	function renderCue(cue: Cue, gi: number, ci: number, speaker: string | null) {
+		const hue = speakerHue(speaker ?? "Transcript");
+		const initials = speaker ? speakerInitials(speaker) : "";
 		const avatarBg = `hsl(${hue},55%,55%)`;
 		const active = cue.id === activeCueId;
 
@@ -299,14 +336,16 @@ export function TranscriptPanel({
 				className="group"
 				style={{
 					display: "grid",
-					gridTemplateColumns: "42px 1fr 38px",
+					gridTemplateColumns: "52px minmax(0,1fr) 38px",
 					gap: "14px",
 					alignItems: "start",
 					padding: "14px 16px",
 					marginBottom: "6px",
 					borderRadius: "16px",
 					background: active ? "var(--blue-3)" : "var(--gray-1)",
-					border: active ? "1px solid var(--blue-6)" : "1px solid var(--gray-4)",
+					border: active
+						? "1px solid var(--blue-6)"
+						: "1px solid var(--gray-4)",
 					position: "relative",
 					cursor: "default",
 					transition: "background 320ms, border-color 320ms, box-shadow 320ms",
@@ -314,38 +353,54 @@ export function TranscriptPanel({
 				}}
 			>
 				<div className="flex flex-col items-center gap-1 pt-0.5">
-					<div
-						className="flex items-center justify-center text-[14px] font-bold text-white shrink-0"
-						style={{
-							width: "42px",
-							height: "42px",
-							borderRadius: "13px",
-							backgroundColor: avatarBg,
-							boxShadow: "inset 0 0 0 1px rgba(255,255,255,.22), 0 2px 6px rgba(15,23,42,.12)",
-							flexShrink: 0,
-						}}
-						title={speaker}
-					>
-						{initials}
-					</div>
+					{speaker ? (
+						<div
+							className="flex items-center justify-center text-[13px] font-bold text-white shrink-0"
+							style={{
+								width: "42px",
+								height: "42px",
+								borderRadius: "13px",
+								backgroundColor: avatarBg,
+								boxShadow:
+									"inset 0 0 0 1px rgba(255,255,255,.22), 0 2px 6px rgba(15,23,42,.12)",
+								flexShrink: 0,
+							}}
+							title={speaker}
+						>
+							{initials}
+						</div>
+					) : null}
 					<span
-					  style={{
-					    fontSize: "11px",
-					    fontWeight: 600,
-					    color: "var(--gray-11)",
-					    fontVariantNumeric: "tabular-nums",
-					    background: "var(--gray-3)",
-					    padding: "2px 8px",
-					    borderRadius: "999px",
-					  }}
+						style={{
+							fontSize: "11px",
+							fontWeight: 600,
+							color: "var(--gray-11)",
+							fontVariantNumeric: "tabular-nums",
+							background: "var(--gray-3)",
+							padding: "2px 8px",
+							borderRadius: "999px",
+						}}
 					>
-					  {cue.timestamp}
+						{cue.timestamp}
 					</span>
 				</div>
 
-				<p className="min-w-0 break-words" style={{ fontSize: "13.5px", lineHeight: 1.72, color: "var(--gray-12)", paddingTop: "4px" }}>
-					{renderMarkdownBold(cue.text)}
-				</p>
+				<div className="min-w-0">
+					{speaker ? (
+						<p className="mb-1 text-xs font-semibold text-gray-11">{speaker}</p>
+					) : null}
+					<p
+						className="min-w-0 break-words"
+						style={{
+							fontSize: "13.5px",
+							lineHeight: 1.72,
+							color: "var(--gray-12)",
+							paddingTop: speaker ? 0 : "4px",
+						}}
+					>
+						{renderMarkdownBold(cue.text)}
+					</p>
+				</div>
 
 				<div className="flex items-start justify-end pt-1">
 					<button
@@ -353,7 +408,12 @@ export function TranscriptPanel({
 						onClick={() => onVideoJump?.(cue.startSeconds)}
 						aria-label={`Jump to ${cue.timestamp}`}
 						className="flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-all duration-150 hover:scale-110"
-						style={{ width: "34px", height: "34px", background: "var(--gray-3)", color: "var(--gray-11)" }}
+						style={{
+							width: "34px",
+							height: "34px",
+							background: "var(--gray-3)",
+							color: "var(--gray-11)",
+						}}
 					>
 						<svg
 							aria-hidden="true"
@@ -374,7 +434,10 @@ export function TranscriptPanel({
 		return (
 			<div ref={containerRef} className="flex flex-col gap-4 p-4">
 				{chapterSections.map((section, si) => (
-					<section key={`chapter-${section.startSec}`} className="flex flex-col gap-0.5">
+					<section
+						key={`chapter-${section.startSec}`}
+						className="flex flex-col gap-0.5"
+					>
 						{/* Chapter header — mirrors RefinedTranscriptPanel style */}
 						<div className="mb-2 flex items-center gap-2">
 							<button
@@ -394,11 +457,11 @@ export function TranscriptPanel({
 						</div>
 
 						{section.cues.length === 0 ? (
-							<p className="text-xs text-gray-400 px-2 pb-2">No speech in this chapter</p>
+							<p className="text-xs text-gray-400 px-2 pb-2">
+								No speech in this chapter
+							</p>
 						) : (
-							section.cues.map((cue, ci) =>
-								renderCue(cue, si, ci, cue.speaker),
-							)
+							section.cues.map((cue, ci) => renderCue(cue, si, ci, cue.speaker))
 						)}
 					</section>
 				))}

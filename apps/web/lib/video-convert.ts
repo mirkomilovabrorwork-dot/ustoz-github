@@ -52,7 +52,9 @@ function runFfmpeg(args: string[]): Promise<void> {
 			}
 
 			finish(() =>
-				reject(new Error(`Video conversion failed with code ${code}: ${stderr}`)),
+				reject(
+					new Error(`Video conversion failed with code ${code}: ${stderr}`),
+				),
 			);
 		});
 	});
@@ -246,6 +248,8 @@ async function convertRemoteVideoToMp4FileInternal(
 			"libx264",
 			"-preset",
 			"veryfast",
+			"-crf",
+			"26",
 			"-pix_fmt",
 			"yuv420p",
 			"-c:a",

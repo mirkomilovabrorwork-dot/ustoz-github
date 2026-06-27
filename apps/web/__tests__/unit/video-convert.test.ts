@@ -129,6 +129,8 @@ describe("video-convert", () => {
 
 		expect(spawnArgs).toHaveLength(2);
 		expect(spawnArgs[1]?.args).toContain("libx264");
+		expect(spawnArgs[1]?.args).toContain("-crf");
+		expect(spawnArgs[1]?.args).toContain("26");
 		expect(spawnArgs[1]?.args).toContain("aac");
 	});
 });

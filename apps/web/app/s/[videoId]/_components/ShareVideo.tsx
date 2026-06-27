@@ -24,13 +24,13 @@ import { AIFab } from "./AIFab";
 import { BelowVideoTabs } from "./BelowVideoTabs";
 import { useCaptionContext } from "./CaptionContext";
 import { CapVideoPlayer } from "./CapVideoPlayer";
+import { GenerateAiPanel } from "./GenerateAiPanel";
 import {
 	shouldDeferPlaybackSource,
 	shouldReloadPlaybackAfterUploadCompletes,
 	useUploadProgress,
 } from "./ProgressCircle";
 import { RefinedTranscriptPanel } from "./panels/RefinedTranscriptPanel";
-import { GenerateAiPanel } from "./GenerateAiPanel";
 import { SummaryPanel } from "./panels/SummaryPanel";
 import { TasksPanel } from "./panels/TasksPanel";
 import { TranscriptPanel } from "./panels/TranscriptPanel";
@@ -38,7 +38,7 @@ import {
 	PreparingVideoOverlay,
 	RecordingInProgressOverlay,
 } from "./RecordingInProgress";
-import { formatChaptersAsVTT, clampStartSec } from "./utils/transcript-utils";
+import { clampStartSec, formatChaptersAsVTT } from "./utils/transcript-utils";
 
 type CommentWithAuthor = typeof commentsSchema.$inferSelect & {
 	authorName: string | null;
@@ -99,7 +99,11 @@ export const ShareVideo = forwardRef<
 		const router = useRouter();
 
 		const safeChapters = useMemo(
-			() => chapters.map((c) => ({ ...c, start: clampStartSec(c.start, data.duration ?? undefined) })),
+			() =>
+				chapters.map((c) => ({
+					...c,
+					start: clampStartSec(c.start, data.duration ?? undefined),
+				})),
 			[chapters, data.duration],
 		);
 		const handleUploadComplete = useCallback(() => {
@@ -239,7 +243,7 @@ export const ShareVideo = forwardRef<
 				}
 				return null;
 			});
-		}, [safeChapters]);
+		}, [safeChapters, chapters?.length]);
 
 		const isSegmentsSource = data.source.type === "desktopSegments";
 		const previousSegmentUploadProgressRef = useRef(segmentUploadProgress);
@@ -531,7 +535,16 @@ export const ShareVideo = forwardRef<
 								<GenerateAiPanel
 									videoId={data.id}
 									canGenerate={canGenerate}
-									transcriptionStatus={data.transcriptionStatus as "PROCESSING" | "COMPLETE" | "ERROR" | "SKIPPED" | "NO_AUDIO" | null | undefined}
+									transcriptionStatus={
+										data.transcriptionStatus as
+											| "PROCESSING"
+											| "COMPLETE"
+											| "ERROR"
+											| "SKIPPED"
+											| "NO_AUDIO"
+											| null
+											| undefined
+									}
 									aiGenerationStatus={aiGenerationStatus}
 									duration={data.duration}
 								/>
@@ -557,7 +570,11 @@ export const ShareVideo = forwardRef<
 									transcriptContent={transcriptContent}
 									currentTime={currentTime}
 									onVideoJump={handleSeek}
-									chapters={safeChapters.map((c) => ({ startSec: c.start, title: c.title }))}
+									duration={data.duration}
+									chapters={safeChapters.map((c) => ({
+										startSec: c.start,
+										title: c.title,
+									}))}
 								/>
 							) : hasCleanTranscript ? (
 								<div className="rounded-xl border border-blue-6 bg-blue-3 px-4 py-5">
@@ -565,8 +582,8 @@ export const ShareVideo = forwardRef<
 										Raw transcript is not available for this recording.
 									</p>
 									<p className="mt-1 text-sm leading-relaxed text-gray-11">
-										A cleaned transcript is ready. Open the Clean Transcript tab to read
-										the full AI-polished version.
+										A cleaned transcript is ready. Open the Clean Transcript tab
+										to read the full AI-polished version.
 									</p>
 								</div>
 							) : (
@@ -574,7 +591,11 @@ export const ShareVideo = forwardRef<
 									transcriptContent={undefined}
 									currentTime={currentTime}
 									onVideoJump={handleSeek}
-									chapters={safeChapters.map((c) => ({ startSec: c.start, title: c.title }))}
+									duration={data.duration}
+									chapters={safeChapters.map((c) => ({
+										startSec: c.start,
+										title: c.title,
+									}))}
 								/>
 							)
 						}
@@ -584,6 +605,7 @@ export const ShareVideo = forwardRef<
 									data.metadata?.aiSummary?.refinedTranscript ?? undefined
 								}
 								onVideoJump={handleSeek}
+								duration={data.duration}
 							/>
 						}
 					/>
