@@ -155,11 +155,11 @@ export function GenerateAiPanel({
     ] as const;
 
     return (
-      <div className="flex flex-col gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-4 dark:border-blue-900 dark:bg-blue-950/40">
+      <div className="flex flex-col gap-3 rounded-xl border border-blue-6 bg-blue-3 px-4 py-4">
         {/* Header row */}
         <div className="flex items-center gap-2">
           <SpinnerIcon />
-          <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+          <span className="text-sm font-semibold text-blue-11">
             Analyzing…
           </span>
         </div>
@@ -170,10 +170,10 @@ export function GenerateAiPanel({
               key={step.key}
               className={`flex-1 rounded-full px-3 py-1.5 text-center text-xs font-medium ${
                 step.state === "done"
-                  ? "bg-blue-600 text-white dark:bg-blue-400 dark:text-blue-950"
+                  ? "bg-blue-9 text-white"
                   : step.state === "current"
-                    ? "bg-blue-100 text-blue-700 ring-1 ring-blue-300 dark:bg-blue-900 dark:text-blue-200 dark:ring-blue-700"
-                    : "bg-blue-100/60 text-blue-400 dark:bg-blue-900/40 dark:text-blue-500"
+                    ? "bg-blue-4 text-blue-11 ring-1 ring-blue-7"
+                    : "bg-blue-4/60 text-blue-9"
               }`}
             >
               {step.label}
@@ -182,7 +182,7 @@ export function GenerateAiPanel({
         </div>
 
         {/* Label */}
-        <p className="text-sm text-blue-700 dark:text-blue-300">{label}</p>
+        <p className="text-sm text-blue-11">{label}</p>
       </div>
     );
   }
@@ -190,15 +190,15 @@ export function GenerateAiPanel({
   // ── Error state ───────────────────────────────────────────────────────────
   if (hasError && canGenerate) {
     return (
-      <div className="flex flex-col gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-4 dark:border-red-900 dark:bg-red-950/40">
-        <p className="text-sm text-red-700 dark:text-red-300">
+      <div className="flex flex-col gap-3 rounded-xl border border-red-6 bg-red-3 px-4 py-4">
+        <p className="text-sm text-red-11">
           AI analysis failed.{" "}
           {transcriptionStatus === "ERROR"
             ? "Transcription failed."
             : "AI generation error."}
         </p>
         {error && (
-          <p className="text-xs text-red-500 dark:text-red-400">{error}</p>
+          <p className="text-xs text-red-10">{error}</p>
         )}
         <button
           type="button"
@@ -220,12 +220,12 @@ export function GenerateAiPanel({
         aiGenerationStatus !== "COMPLETE"))
   ) {
     return (
-      <div className="flex flex-col gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-4 dark:border-blue-900 dark:bg-blue-950/40">
-        <p className="text-sm text-gray-700 dark:text-gray-300">
+      <div className="flex flex-col gap-3 rounded-xl border border-blue-6 bg-blue-3 px-4 py-4">
+        <p className="text-sm text-gray-12">
           AI analysis hasn't been run for this video yet.
         </p>
         {error && (
-          <p className="text-xs text-red-500 dark:text-red-400">{error}</p>
+          <p className="text-xs text-red-10">{error}</p>
         )}
         <button
           type="button"
@@ -242,8 +242,8 @@ export function GenerateAiPanel({
   // ── Non-admin viewer with no content ─────────────────────────────────────
   if (!transcriptionStatus && !aiGenerationStatus) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-6 text-center dark:border-gray-700 dark:bg-gray-900/40">
-        <p className="text-sm text-gray-500 dark:text-gray-400">
+      <div className="rounded-xl border border-gray-4 bg-gray-2 px-4 py-6 text-center">
+        <p className="text-sm text-gray-10">
           AI analysis not available.
         </p>
       </div>
@@ -256,7 +256,7 @@ export function GenerateAiPanel({
 function SpinnerIcon() {
   return (
     <svg
-      className="size-4 animate-spin text-blue-600 dark:text-blue-400"
+      className="size-4 animate-spin text-blue-10"
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       viewBox="0 0 24 24"

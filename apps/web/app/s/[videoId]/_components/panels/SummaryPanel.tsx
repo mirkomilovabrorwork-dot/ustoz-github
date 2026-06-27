@@ -27,8 +27,8 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 
 	if (!aiSummary) {
 		return (
-			<div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-6 text-center">
-				<p className="text-sm text-gray-500">No AI summary available.</p>
+			<div className="rounded-xl border border-gray-4 bg-gray-2 px-4 py-6 text-center">
+				<p className="text-sm text-gray-10">No AI summary available.</p>
 			</div>
 		);
 	}
@@ -39,13 +39,13 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 			{aiSummary.overview && (
 				<div
 					style={{
-						background: "linear-gradient(135deg, #eef4ff, #f7f9fc)",
-						border: "1px solid rgba(37,99,235,.15)",
+						background: "linear-gradient(135deg, var(--blue-3), var(--gray-2))",
+						border: "1px solid var(--blue-6)",
 						borderRadius: "11px",
 						padding: "16px 18px",
 					}}
 				>
-					<p className="text-sm leading-relaxed" style={{ color: "#0f172a" }}>
+					<p className="text-sm leading-relaxed" style={{ color: "var(--gray-12)" }}>
 						{aiSummary.overview}
 					</p>
 				</div>
@@ -56,7 +56,7 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 				<div>
 					<h3
 						className="mb-2"
-						style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a", letterSpacing: "-.01em" }}
+						style={{ fontSize: "14px", fontWeight: 700, color: "var(--gray-12)", letterSpacing: "-.01em" }}
 					>
 						Chapters
 					</h3>
@@ -78,9 +78,9 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 									style={{
 										fontSize: "12px",
 										fontWeight: 700,
-										color: "#1d4ed8",
-										background: "#eef4ff",
-										border: "1px solid rgba(37,99,235,.18)",
+										color: "var(--blue-11)",
+										background: "var(--blue-3)",
+										border: "1px solid var(--blue-6)",
 										borderRadius: "999px",
 										padding: "4px 0",
 										textAlign: "center",
@@ -92,11 +92,11 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 									{formatTimeMinutes(chapter.startSec)}
 								</button>
 								<div className="min-w-0">
-									<p style={{ fontSize: "13.5px", fontWeight: 650, color: "#0f172a", marginBottom: "3px" }}>
+									<p style={{ fontSize: "13.5px", fontWeight: 650, color: "var(--gray-12)", marginBottom: "3px" }}>
 										{chapter.title}
 									</p>
 									{chapter.body && (
-										<p style={{ fontSize: "12.5px", lineHeight: 1.6, color: "#475569" }}>
+										<p style={{ fontSize: "12.5px", lineHeight: 1.6, color: "var(--gray-11)" }}>
 											{chapter.body}
 										</p>
 									)}
@@ -112,7 +112,7 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 				<div>
 					<h3
 						className="mb-2"
-						style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a", letterSpacing: "-.01em" }}
+						style={{ fontSize: "14px", fontWeight: 700, color: "var(--gray-12)", letterSpacing: "-.01em" }}
 					>
 						Topics
 					</h3>
@@ -121,8 +121,8 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 							<div
 								key={topic.title}
 								style={{
-									background: "#fff",
-									border: "1px solid #e9edf3",
+									background: "var(--gray-1)",
+									border: "1px solid var(--gray-4)",
 									borderRadius: "11px",
 									padding: "13px 14px",
 									transition: "transform 320ms, box-shadow 320ms, border-color 320ms",
@@ -130,11 +130,11 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 							>
 								<p
 									className="mb-1"
-									style={{ fontSize: "13px", fontWeight: 650, color: "#0f172a" }}
+									style={{ fontSize: "13px", fontWeight: 650, color: "var(--gray-12)" }}
 								>
 									{topic.title}
 								</p>
-								<p style={{ fontSize: "12.5px", lineHeight: 1.55, color: "#475569" }}>
+								<p style={{ fontSize: "12.5px", lineHeight: 1.55, color: "var(--gray-11)" }}>
 									{topic.body}
 								</p>
 							</div>
@@ -148,7 +148,7 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 				<div>
 					<h3
 						className="mb-2"
-						style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a", letterSpacing: "-.01em" }}
+						style={{ fontSize: "14px", fontWeight: 700, color: "var(--gray-12)", letterSpacing: "-.01em" }}
 					>
 						Next Steps
 					</h3>
@@ -160,8 +160,8 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 									display: "flex",
 									gap: "12px",
 									alignItems: "flex-start",
-									background: "#fff",
-									border: "1px solid #e9edf3",
+									background: "var(--gray-1)",
+									border: "1px solid var(--gray-4)",
 									borderLeft: "3px solid #2563eb",
 									borderRadius: "10px",
 									padding: "12px 14px",
@@ -173,14 +173,14 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 										flexShrink: 0,
 										fontSize: "12px",
 										fontWeight: 750,
-										color: "#1d4ed8",
+										color: "var(--blue-11)",
 										fontVariantNumeric: "tabular-nums",
 										minWidth: "18px",
 									}}
 								>
 									{i + 1}
 								</span>
-								<span style={{ fontSize: "13px", lineHeight: 1.6, color: "#0f172a" }}>{step}</span>
+								<span style={{ fontSize: "13px", lineHeight: 1.6, color: "var(--gray-12)" }}>{step}</span>
 							</li>
 						))}
 					</ol>
@@ -189,7 +189,7 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 
 			{/* Empty state when all sections are empty */}
 			{topics.length === 0 && nextSteps.length === 0 && chapters.length === 0 && !aiSummary.overview && (
-				<p className="text-sm" style={{ color: "#94a3b8" }}>No content available yet.</p>
+				<p className="text-sm text-gray-10">No content available yet.</p>
 			)}
 		</div>
 	);

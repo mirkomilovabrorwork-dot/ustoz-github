@@ -36,12 +36,12 @@ export default function ExtensionUpdateBanner() {
 				<span className="font-medium text-gray-12">
 					Extension update required.
 				</span>{" "}
-				<span className="hidden sm:inline">
+				<span className="ml-1 hidden sm:inline">
 					We improved the screen recorder. Because the extension is installed
 					manually, please remove the old version and reinstall it to get the
 					fix.
 				</span>
-				<span className="sm:hidden">
+				<span className="ml-1 sm:hidden">
 					Reinstall once to get the recorder fix.
 				</span>
 			</p>
