@@ -142,7 +142,90 @@ function UsersSection() {
 						No users found.
 					</div>
 				) : (
-					<div className="overflow-x-auto -mx-5">
+					<>
+					<div className="grid gap-3 sm:hidden">
+						{users.map((u) => (
+							<div
+								key={u.id}
+								className="rounded-xl border border-gray-4 bg-gray-1 p-4"
+							>
+								<div className="flex items-start justify-between gap-3">
+									<div className="min-w-0">
+										<p className="truncate text-sm font-semibold text-gray-12">
+											{u.name || "Unnamed user"}
+										</p>
+										<p className="mt-1 break-all text-xs text-gray-10">
+											{u.email}
+										</p>
+									</div>
+									{u.accessDisabled ? (
+										<span className="inline-flex shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900/30 dark:text-red-400">
+											Disabled
+										</span>
+									) : (
+										<span className="inline-flex shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400">
+											Active
+										</span>
+									)}
+								</div>
+								<div className="mt-3 flex items-center justify-between gap-3 text-xs text-gray-10">
+									<span>{u.isAdmin ? "Admin" : "User"}</span>
+									<span>
+										{u.createdAt
+											? new Date(u.createdAt).toLocaleDateString()
+											: "-"}
+									</span>
+								</div>
+								<div className="mt-4 grid grid-cols-3 gap-2">
+									<Button
+										variant="gray"
+										size="xs"
+										onClick={() => toggleAdminMutation.mutate(u.id)}
+										disabled={toggleAdminMutation.isPending}
+										className="min-h-10"
+									>
+										{u.isAdmin ? <ShieldOff className="size-3" /> : <Shield className="size-3" />}
+										<span>{u.isAdmin ? "Demote" : "Admin"}</span>
+									</Button>
+									<Button
+										variant="gray"
+										size="xs"
+										onClick={() =>
+											setResetDialogUser({
+												id: u.id,
+												name: u.name,
+												email: u.email,
+											})
+										}
+										className="min-h-10"
+									>
+										<KeyRound className="size-3" />
+										<span>Reset</span>
+									</Button>
+									{!u.isAdmin ? (
+										<Button
+											variant="destructive"
+											size="xs"
+											onClick={() =>
+												setRevokeDialogUser({
+													id: u.id,
+													name: u.name,
+													email: u.email,
+												})
+											}
+											className="min-h-10"
+										>
+											<Trash2 className="size-3" />
+											<span>Revoke</span>
+										</Button>
+									) : (
+										<div />
+									)}
+								</div>
+							</div>
+						))}
+					</div>
+					<div className="hidden overflow-x-auto -mx-5 sm:block">
 						<table className="w-full text-sm">
 							<thead>
 								<tr className="border-b border-gray-4">
@@ -250,6 +333,7 @@ function UsersSection() {
 							</tbody>
 						</table>
 					</div>
+					</>
 				)}
 			</Card>
 
@@ -617,7 +701,60 @@ function InviteLinksSection() {
 						No invites generated yet.
 					</div>
 				) : (
-					<div className="overflow-x-auto -mx-5">
+					<>
+					<div className="grid gap-3 sm:hidden">
+						{invitesList.map((inv) => (
+							<div
+								key={inv.id}
+								className="rounded-xl border border-gray-4 bg-gray-1 p-4"
+							>
+								<div className="flex items-start justify-between gap-3">
+									<div className="min-w-0">
+										<p className="font-mono text-xs font-medium text-gray-12">
+											{inv.token.slice(0, 8)}...
+										</p>
+										<p className="mt-1 break-all text-xs text-gray-10">
+											{inv.email || "Open invite"}
+										</p>
+									</div>
+									{statusBadge(inv.status)}
+								</div>
+								<div className="mt-3 text-xs text-gray-10">
+									Expires:{" "}
+									{inv.expiresAt
+										? new Date(inv.expiresAt).toLocaleDateString()
+										: "-"}
+								</div>
+								{inv.status === "pending" && (
+									<div className="mt-4 grid grid-cols-2 gap-2">
+										<Button
+											variant="gray"
+											size="xs"
+											onClick={() => {
+												const baseUrl = window.location.origin;
+												copyToClipboard(`${baseUrl}/invite/${inv.token}`);
+											}}
+											className="min-h-10"
+										>
+											<Copy className="size-3" />
+											<span>Copy</span>
+										</Button>
+										<Button
+											variant="destructive"
+											size="xs"
+											onClick={() => revokeMutation.mutate(inv.id)}
+											disabled={revokeMutation.isPending}
+											className="min-h-10"
+										>
+											<Trash2 className="size-3" />
+											<span>Revoke</span>
+										</Button>
+									</div>
+								)}
+							</div>
+						))}
+					</div>
+					<div className="hidden overflow-x-auto -mx-5 sm:block">
 						<table className="w-full text-sm">
 							<thead>
 								<tr className="border-b border-gray-4">
@@ -689,6 +826,7 @@ function InviteLinksSection() {
 							</tbody>
 						</table>
 					</div>
+					</>
 				)}
 			</div>
 		</Card>

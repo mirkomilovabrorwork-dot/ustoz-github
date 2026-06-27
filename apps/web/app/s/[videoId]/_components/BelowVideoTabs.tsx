@@ -5,11 +5,11 @@ import { useCallback, useState } from "react";
 
 type TabId = "summary" | "tasks" | "transcript" | "refined";
 
-const TABS: { id: TabId; label: string }[] = [
-	{ id: "summary", label: "Summary" },
-	{ id: "tasks", label: "Action Items" },
-	{ id: "transcript", label: "Transcript" },
-	{ id: "refined", label: "Clean Transcript" },
+const TABS: { id: TabId; label: string; shortLabel: string }[] = [
+	{ id: "summary", label: "Summary", shortLabel: "Summary" },
+	{ id: "tasks", label: "Action Items", shortLabel: "Tasks" },
+	{ id: "transcript", label: "Transcript", shortLabel: "Transcript" },
+	{ id: "refined", label: "Clean Transcript", shortLabel: "Clean" },
 ];
 
 interface BelowVideoTabsProps {
@@ -84,11 +84,11 @@ export function BelowVideoTabs({
 					display: "flex",
 					gap: "4px",
 					padding: "8px",
-					background: "linear-gradient(#f7f9fc, #fff)",
+					background: "linear-gradient(var(--gray-2), var(--gray-1))",
 					backdropFilter: "blur(6px)",
 					WebkitBackdropFilter: "blur(6px)",
 					borderRadius: "16px 16px 0 0",
-					borderBottom: "1px solid #e9edf3",
+					borderBottom: "1px solid var(--gray-4)",
 					overflowX: "auto",
 					flexWrap: "nowrap",
 					WebkitOverflowScrolling: "touch",
@@ -110,16 +110,18 @@ export function BelowVideoTabs({
 							className={hiddenOnDesktop ? "xl:!hidden" : undefined}
 							style={{
 								flex: "0 0 auto",
-								minWidth: "80px",
-								padding: "9px 8px",
-								fontSize: "13.5px",
+								minWidth: "74px",
+								minHeight: "44px",
+								padding: "9px 10px",
+								fontSize: "13px",
 								fontWeight: 600,
+								whiteSpace: "nowrap",
 								textAlign: "center",
 								cursor: "pointer",
-								color: isActive ? "#1d4ed8" : "#475569",
+								color: isActive ? "var(--blue-11)" : "var(--gray-11)",
 								border: "none",
 								borderRadius: "9px",
-								background: isActive ? "#eef4ff" : "none",
+								background: isActive ? "var(--blue-3)" : "none",
 								boxShadow: isActive
 									? "inset 0 0 0 1px rgba(37, 99, 235, .14)"
 									: "none",
@@ -128,7 +130,8 @@ export function BelowVideoTabs({
 									"color 320ms cubic-bezier(.22,.61,.36,1), background 320ms cubic-bezier(.22,.61,.36,1)",
 							}}
 						>
-							{tab.label}
+							<span className="sm:hidden">{tab.shortLabel}</span>
+							<span className="hidden sm:inline">{tab.label}</span>
 						</button>
 					);
 				})}
@@ -148,12 +151,13 @@ export function BelowVideoTabs({
 					role="tabpanel"
 					aria-labelledby={`tab-${activeTab}`}
 					style={{
-						background: "#fff",
-						border: "1px solid #e9edf3",
+						background: "var(--gray-1)",
+						border: "1px solid var(--gray-4)",
 						borderRadius: "16px",
 						boxShadow:
 							"0 1px 2px rgba(15,23,42,.06), 0 2px 6px rgba(15,23,42,.07)",
-						padding: "24px 24px 28px",
+						padding:
+							"clamp(16px, 5vw, 24px) clamp(14px, 5vw, 24px) clamp(18px, 6vw, 28px)",
 						animation: "tabPanelFade .22s ease both",
 					}}
 				>
@@ -165,7 +169,7 @@ export function BelowVideoTabs({
 							fontWeight: 700,
 							letterSpacing: ".07em",
 							textTransform: "uppercase",
-							color: "#64748b",
+							color: "var(--gray-10)",
 							marginBottom: "12px",
 							display: "flex",
 							alignItems: "center",
@@ -177,7 +181,7 @@ export function BelowVideoTabs({
 							style={{
 								flex: 1,
 								height: "1px",
-								background: "#e9edf3",
+								background: "var(--gray-4)",
 								display: "block",
 							}}
 						/>

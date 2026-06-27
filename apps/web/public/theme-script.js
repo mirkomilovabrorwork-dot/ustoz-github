@@ -9,7 +9,8 @@
 	var isDashboardPath =
 		pathname.indexOf("/dashboard") === 0 ||
 		pathname.indexOf("/login") === 0 ||
-		pathname.indexOf("/onboarding") === 0;
+		pathname.indexOf("/onboarding") === 0 ||
+		pathname.indexOf("/s/") === 0;
 	var applyTheme = () => {
 		document.body.classList.add(cookie || "light");
 	};

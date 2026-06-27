@@ -34,7 +34,7 @@ export const SelectedCapsBar = ({
 		<AnimatePresence>
 			{selectedCaps.length > 0 && (
 				<motion.div
-					className="flex fixed right-0 left-0 bottom-20 lg:bottom-12 z-50 justify-between items-center p-3 mx-auto w-full max-w-xl rounded-xl border shadow-lg border-gray-2 bg-gray-1"
+					className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] left-2 right-2 z-50 mx-auto flex w-auto max-w-xl items-center justify-between rounded-xl border border-gray-2 bg-gray-1 p-3 shadow-lg lg:bottom-12 lg:left-0 lg:right-0 lg:w-full"
 					initial={{ opacity: 0, y: 10, scale: 0.9 }}
 					animate={{ opacity: 1, y: 0, scale: 1 }}
 					exit={{

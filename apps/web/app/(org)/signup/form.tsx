@@ -96,32 +96,35 @@ export function SignupForm() {
 				layout: { duration: 0.3, ease: "easeInOut" },
 				height: { duration: 0.3, ease: "easeInOut" },
 			}}
-			className="overflow-hidden relative w-[calc(100%-32px)] p-[28px] max-w-[432px] bg-gray-3 border border-gray-5 rounded-2xl"
+			className="mx-auto w-full max-w-[432px] overflow-hidden rounded-2xl border border-gray-5 bg-gray-3 p-5 sm:p-7"
 		>
 			<MotionLink layout="position" className="flex mx-auto size-fit" href="/">
-				<MotionLogoBadge layout="position" className="size-12" />
+				<MotionLogoBadge layout="position" className="size-11 sm:size-12" />
 			</MotionLink>
 			<motion.div
 				layout="position"
-				className="flex flex-col justify-center items-center my-7 text-left"
+				className="my-5 flex flex-col items-center justify-center text-center sm:my-7"
 			>
 				<motion.h1
 					key="title"
 					layout="position"
-					className="text-2xl font-semibold text-gray-12"
+					className="text-[1.6rem] font-semibold leading-tight text-gray-12 sm:text-2xl"
 				>
 					Sign up to data365
 				</motion.h1>
 				<motion.p
 					key="subtitle"
 					layout="position"
-					className="text-[16px] text-gray-10 mt-2 text-center"
+					className="mt-2 text-sm text-gray-10 sm:text-[16px]"
 				>
 					Create your account to start watching lessons.
 				</motion.p>
 			</motion.div>
 			<motion.div layout="position" className="flex flex-col space-y-3">
-				<form onSubmit={handleSubmit} className="flex flex-col space-y-3 px-1">
+				<form
+					onSubmit={handleSubmit}
+					className="flex flex-col space-y-3 sm:px-1"
+				>
 					<MotionInput
 						id={nameInputId}
 						name="name"

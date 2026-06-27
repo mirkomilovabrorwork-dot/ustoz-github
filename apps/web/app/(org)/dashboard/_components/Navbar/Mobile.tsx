@@ -47,14 +47,14 @@ export const AdminMobileNav = () => {
 								transition: { duration: 0.3, bounce: 0.2, type: "spring" },
 							}}
 							exit={{ x: "100%" }}
-							className="relative flex-1 flex flex-col ml-auto max-w-xs w-[275px] border-l border-gray-3 pt-5 pb-4 px-4 bg-gray-2 overflow-y-auto"
+							className="relative ml-auto flex w-[min(calc(100vw-2rem),320px)] max-w-xs flex-1 flex-col overflow-y-auto border-l border-gray-3 bg-gray-2 px-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pt-5"
 						>
 							<div className="flex justify-end items-center mb-6 w-full rounded-full">
 								<button
 									type="button"
 									aria-label="Close navigation menu"
 									onClick={() => setSidebarOpen(false)}
-									className="flex justify-center items-center rounded-full"
+									className="flex min-h-[44px] min-w-[44px] justify-center items-center rounded-full hover:bg-gray-3"
 								>
 									<X className="text-gray-12 size-7" aria-hidden="true" />
 								</button>
@@ -66,7 +66,10 @@ export const AdminMobileNav = () => {
 			</AnimatePresence>
 			<div className="flex fixed z-[51] w-full h-16 border-b border-gray-3 bg-gray-1 lg:border-none lg:hidden">
 				<div className="flex gap-3 items-center px-4 w-full h-full">
-					<Link className="block flex-shrink-0" href="/dashboard">
+					<Link
+						className="flex min-h-[44px] min-w-[44px] flex-shrink-0 items-center justify-center rounded-full"
+						href="/dashboard"
+					>
 						<LogoBadge className="block w-auto h-8" />
 					</Link>
 					<div className="flex-1 min-w-0">

@@ -395,7 +395,7 @@ export const ShareHeader = ({
 					<button
 						type="button"
 						onClick={() => setIsSharingDialogOpen(true)}
-						className="inline-flex items-center rounded-full border border-gray-6 bg-gray-3 px-2.5 py-0.5 text-xs text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12"
+						className="inline-flex min-h-9 items-center rounded-full border border-gray-6 bg-gray-3 px-3 py-1 text-sm text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12 sm:min-h-0 sm:px-2.5 sm:py-0.5 sm:text-xs"
 					>
 						Make shareable
 						<FontAwesomeIcon className="ml-1.5 size-2.5" icon={faChevronDown} />
@@ -406,7 +406,7 @@ export const ShareHeader = ({
 				<button
 					type="button"
 					onClick={() => setIsSharingDialogOpen(true)}
-					className="inline-flex items-center rounded-full border border-gray-6 bg-gray-3 px-2.5 py-0.5 text-xs text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12"
+					className="inline-flex min-h-9 items-center rounded-full border border-gray-6 bg-gray-3 px-3 py-1 text-sm text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12 sm:min-h-0 sm:px-2.5 sm:py-0.5 sm:text-xs"
 				>
 					Shared
 					<FontAwesomeIcon className="ml-1.5 size-2.5" icon={faChevronDown} />
@@ -434,7 +434,7 @@ export const ShareHeader = ({
 		return (
 			<div className="group relative inline-flex shrink-0 items-center">
 				{canManageSharePageBranding && (
-					<div className="pointer-events-none absolute left-0 top-full z-10 mt-1 flex items-center gap-1 rounded-full border border-gray-5 bg-white p-1 opacity-0 shadow-sm transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+					<div className="pointer-events-none absolute left-0 top-full z-10 mt-1 flex items-center gap-1 rounded-full border border-gray-5 bg-gray-1 p-1 opacity-0 shadow-sm transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
 						<Button
 							variant="gray"
 							size="xs"
@@ -519,15 +519,15 @@ export const ShareHeader = ({
 				user={user}
 				onUpgradeRequest={setUpgradeModalOpen}
 			/>
-			<div className="mt-8">
+			<div className="mt-5 sm:mt-8">
 				<div className="flex flex-col gap-5">
 					<div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-						<div className="flex min-w-0 items-center gap-3">
+						<div className="flex min-w-0 items-center gap-2 sm:gap-3">
 							{user && (
 								<button
 									type="button"
 									onClick={handleBackClick}
-									className="inline-flex items-center gap-1.5 rounded-full border border-gray-6 bg-gray-3 px-2.5 py-0.5 text-xs text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12"
+									className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-gray-6 bg-gray-3 px-3 py-1 text-sm text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12 sm:min-h-0 sm:px-2.5 sm:py-0.5 sm:text-xs"
 									aria-label="Go back"
 								>
 									<ArrowLeft className="size-3" />
@@ -543,14 +543,14 @@ export const ShareHeader = ({
 										onChange={(e) => setEditValue(e.target.value)}
 										onBlur={handleBlur}
 										onKeyDown={handleKeyDown}
-										className="w-full min-w-0 text-2xl sm:text-3xl font-semibold text-gray-12"
+										className="w-full min-w-0 text-xl font-semibold text-gray-12 sm:text-3xl"
 									/>
 								) : (
 									<div className="relative inline-flex min-w-0 max-w-full align-middle">
 										<h1
 											role={isOwner ? "button" : undefined}
 											tabIndex={isOwner ? 0 : undefined}
-											className="truncate text-2xl sm:text-3xl font-semibold text-gray-12"
+											className="truncate text-xl font-semibold text-gray-12 sm:text-3xl"
 											onClick={() => {
 												if (isOwner) {
 													startEditing();
@@ -576,7 +576,7 @@ export const ShareHeader = ({
 							</div>
 						</div>
 
-						<div className="flex items-center gap-2 shrink-0">
+						<div className="flex w-full shrink-0 items-center justify-end gap-2 lg:w-auto">
 							{(data.hasPassword || data.hasInheritedPassword) && (
 								<FontAwesomeIcon
 									className="text-amber-600 size-4"
@@ -604,7 +604,7 @@ export const ShareHeader = ({
 									type="button"
 									onClick={handleCopyClick}
 									aria-label="Copy link"
-									className="inline-flex sm:hidden items-center justify-center rounded-full border border-gray-6 bg-gray-3 p-1.5 text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12"
+									className="inline-flex size-11 items-center justify-center rounded-full border border-gray-6 bg-gray-3 text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12 sm:hidden"
 								>
 									{linkCopied ? (
 										<Check className="w-3.5 h-3.5 shrink-0 text-green-600 svgpathanimation" />
@@ -613,7 +613,7 @@ export const ShareHeader = ({
 									)}
 								</button>
 								{showCopyOptions && (
-									<div className="absolute right-0 top-full z-50 mt-1 min-w-full w-max overflow-hidden rounded-lg border border-gray-6 bg-white shadow-lg">
+									<div className="absolute right-0 top-full z-50 mt-1 w-max max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-gray-6 bg-gray-1 shadow-lg">
 										<button
 											type="button"
 											className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-12 transition-colors hover:bg-gray-3"
@@ -651,12 +651,13 @@ export const ShareHeader = ({
 									onClick={() => setShowShareOptions((v) => !v)}
 									aria-label="Share"
 									title="Share"
-									className="inline-flex sm:hidden items-center justify-center rounded-full border border-gray-6 bg-gray-3 p-1.5 text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12"
+									className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-blue-9 px-4 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-10 sm:hidden"
 								>
-									<Share2 className="w-3.5 h-3.5 shrink-0" />
+									<Share2 className="size-4 shrink-0" />
+									<span>Share</span>
 								</button>
 								{showShareOptions && (
-									<div className="absolute right-0 top-full z-50 mt-1 min-w-full w-max overflow-hidden rounded-lg border border-gray-6 bg-white shadow-lg">
+									<div className="absolute right-0 top-full z-50 mt-1 w-max max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-gray-6 bg-gray-1 shadow-lg">
 										<button
 											type="button"
 											className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-12 transition-colors hover:bg-gray-3"
@@ -718,7 +719,7 @@ export const ShareHeader = ({
 								disabled={isDownloading}
 								aria-label="Download video"
 								title="Download video"
-								className="inline-flex items-center justify-center gap-1.5 rounded-full border border-gray-6 bg-gray-3 p-1.5 text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12 disabled:opacity-60 sm:px-3 sm:py-1.5 sm:text-sm"
+								className="inline-flex size-11 items-center justify-center gap-1.5 rounded-full border border-gray-6 bg-gray-3 text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12 disabled:opacity-60 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 sm:text-sm"
 							>
 								{isDownloading ? (
 									<Loader2 className="size-3.5 shrink-0 animate-spin" />
@@ -737,7 +738,7 @@ export const ShareHeader = ({
 										<button
 											type="button"
 											aria-label="More actions"
-											className="inline-flex items-center justify-center rounded-full border border-gray-6 bg-gray-3 p-1.5 text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12"
+											className="inline-flex size-11 items-center justify-center rounded-full border border-gray-6 bg-gray-3 text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12 sm:h-auto sm:w-auto sm:p-1.5"
 										>
 											<Ellipsis className="w-3.5 h-3.5 shrink-0" />
 										</button>

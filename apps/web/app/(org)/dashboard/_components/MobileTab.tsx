@@ -55,14 +55,14 @@ const MobileTab = () => {
 		}
 	});
 	return (
-		<div className="flex sticky bottom-0 z-50 flex-1 gap-4 justify-between items-center px-5 w-full h-16 border-t lg:hidden border-gray-5 bg-gray-1">
-			<div className="relative flex-auto w-fit">
+		<div className="sticky bottom-0 z-50 flex h-[calc(4rem+env(safe-area-inset-bottom,0px))] min-h-16 w-full flex-1 items-center justify-between gap-2 border-t border-gray-5 bg-gray-1 px-3 pb-[env(safe-area-inset-bottom,0px)] lg:hidden sm:px-5">
+			<div className="relative min-w-0 flex-1">
 				<AnimatePresence>
 					{open && <OrgsMenu setOpen={setOpen} menuRef={menuRef} />}
 				</AnimatePresence>
 				<Orgs open={open} setOpen={setOpen} containerRef={containerRef} />
 			</div>
-			<div className="flex gap-3 justify-between items-center h-full text-gray-11">
+			<div className="flex flex-shrink-0 items-center justify-between gap-2 text-gray-11 sm:gap-3">
 				{Tabs.filter((i) => !i.adminOnly || canViewSettings).map((tab) => (
 					<Link
 						href={tab.href}
@@ -92,7 +92,7 @@ const Orgs = ({
 			type="button"
 			onClick={() => setOpen((p) => !p)}
 			ref={containerRef}
-			className="flex gap-1.5 items-center flex-auto max-w-[224px] p-2 rounded-full border bg-gray-3 border-gray-5"
+			className="flex w-full max-w-[38vw] items-center gap-1.5 rounded-full border border-gray-5 bg-gray-3 p-2 sm:max-w-[224px]"
 		>
 			<SignedImageUrl
 				image={activeOrg?.organization.iconUrl}
@@ -131,7 +131,7 @@ const OrgsMenu = ({
 			transition={{ duration: 0.15 }}
 			ref={menuRef as LegacyRef<HTMLDivElement>}
 			className={
-				"isolate absolute overscroll-contain bottom-14 p-2 space-y-1.5 flex-auto w-full rounded-xl h-fit border bg-gray-3 max-h-[325px] custom-scroll border-gray-4"
+				"isolate absolute bottom-14 left-0 h-fit max-h-[min(325px,60vh)] w-[min(90vw,320px)] overscroll-contain rounded-xl border border-gray-4 bg-gray-3 p-2 custom-scroll space-y-1.5"
 			}
 		>
 			{orgData?.map((organization) => {

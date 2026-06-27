@@ -387,7 +387,10 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 											},
 										}}
 										layoutId="navlinks"
-										className="absolute h-[36px] w-full rounded-xl pointer-events-none bg-gray-3"
+										className={clsx(
+											"absolute w-full rounded-xl pointer-events-none bg-gray-3",
+											toggleMobileNav ? "h-[44px]" : "h-[36px]",
+										)}
 									/>
 								)}
 
@@ -787,7 +790,9 @@ const NavItem = ({
 					"relative border border-transparent transition z-3",
 					sidebarCollapsed
 						? "flex justify-center items-center px-0 w-full size-9"
-						: "px-3 py-2 w-full",
+						: toggleMobileNav
+							? "px-3 py-2.5 min-h-[44px] w-full"
+							: "px-3 py-2 w-full",
 					isPathActive(href, matchChildren)
 						? "bg-transparent pointer-events-none"
 						: "hover:bg-gray-2",

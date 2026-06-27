@@ -112,7 +112,101 @@ export default function BrowseSpacesPage() {
 					/>
 				</div>
 			</div>
-			<div className="overflow-x-auto rounded-xl border border-gray-3">
+			<div className="grid gap-3 sm:hidden">
+				{!spacesData && (
+					<div className="rounded-xl border border-gray-3 bg-gray-1 p-5 text-center text-sm text-gray-8">
+						Loading Spaces...
+					</div>
+				)}
+				{spacesData && filteredSpaces && filteredSpaces.length === 0 && (
+					<div className="rounded-xl border border-gray-3 bg-gray-1 p-5 text-center text-sm text-gray-8">
+						No spaces found.
+					</div>
+				)}
+				{filteredSpaces?.map((space: Spaces) => (
+					<div
+						key={space.id}
+						role="button"
+						tabIndex={0}
+						onClick={() => router.push(`/dashboard/spaces/${space.id}`)}
+						onKeyDown={(event) => {
+							if (event.key === "Enter" || event.key === " ") {
+								event.preventDefault();
+								router.push(`/dashboard/spaces/${space.id}`);
+							}
+						}}
+						className="rounded-xl border border-gray-3 bg-gray-1 p-4 text-left transition-colors hover:bg-gray-2"
+					>
+						<div className="flex items-start justify-between gap-3">
+							<div className="flex min-w-0 items-center gap-3">
+								<SignedImageUrl
+									image={space.iconUrl}
+									name={space.name}
+									className="relative flex-shrink-0 size-8"
+									letterClass="text-sm"
+								/>
+								<div className="min-w-0">
+									<p className="truncate text-sm font-semibold text-gray-12">
+										{space.name}
+									</p>
+									<p className="mt-0.5 text-xs text-gray-10">
+										{getRoleLabel(space.currentUserRole)}
+									</p>
+								</div>
+							</div>
+							{space.currentUserCanManage && !space.primary && (
+								<div className="flex shrink-0 gap-1">
+									<Button
+										variant="gray"
+										className="size-9 p-0 min-w-[unset]"
+										size="sm"
+										onClick={(e) => {
+											e.stopPropagation();
+											setEditSpace({
+												id: space.id,
+												name: space.name,
+												members: (trueActiveOrgMembers || []).map(
+													(m: { user: { id: string } }) => m.user.id,
+												),
+												iconUrl: space.iconUrl ?? undefined,
+												settings: space.settings,
+												hasPassword: space.hasPassword,
+												public: space.public,
+											});
+											setShowSpaceDialog(true);
+										}}
+									>
+										<FontAwesomeIcon icon={faEdit} className="size-3" />
+									</Button>
+									<Button
+										variant="gray"
+										onClick={(e) => handleDeleteSpace(e, space)}
+										className="size-9 p-0 min-w-[unset]"
+										size="sm"
+									>
+										<FontAwesomeIcon icon={faTrash} className="size-3" />
+									</Button>
+								</div>
+							)}
+						</div>
+						<div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+							<div className="rounded-lg bg-gray-2 px-3 py-2">
+								<p className="text-gray-9">Members</p>
+								<p className="mt-1 font-medium text-gray-12">
+									{space.memberCount}
+								</p>
+							</div>
+							<div className="rounded-lg bg-gray-2 px-3 py-2">
+								<p className="text-gray-9">Videos</p>
+								<p className="mt-1 font-medium text-gray-12">
+									{space.videoCount}
+								</p>
+							</div>
+						</div>
+					</div>
+				))}
+			</div>
+			<div className="hidden overflow-x-auto rounded-xl border border-gray-3 sm:block">
 				<table className="min-w-full bg-gray-1">
 					<thead>
 						<tr className="text-sm text-left text-gray-10">

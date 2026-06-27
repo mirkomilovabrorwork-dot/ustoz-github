@@ -31,28 +31,37 @@ export default function ExtensionUpdateBanner() {
 	}
 
 	return (
-		<div className="flex items-center gap-3 w-full border-b border-gray-4 bg-gray-3 px-4 py-2.5 text-sm text-gray-12">
-			<p className="flex-1 min-w-0">
-				<span className="font-medium">Extension update required —</span>{" "}
-				We improved the screen recorder. Because the extension is installed
-				manually, please remove the old version and reinstall it to get the
-				fix.{" "}
+		<div className="flex w-full items-start gap-2 border-b border-gray-4 bg-gray-3 px-3 py-2 text-sm text-gray-12 sm:items-center sm:gap-3 sm:px-4 sm:py-2.5">
+			<p className="min-w-0 flex-1 text-xs leading-5 text-gray-11 sm:text-sm">
+				<span className="font-medium text-gray-12">
+					Extension update required.
+				</span>{" "}
+				<span className="hidden sm:inline">
+					We improved the screen recorder. Because the extension is installed
+					manually, please remove the old version and reinstall it to get the
+					fix.
+				</span>
+				<span className="sm:hidden">
+					Reinstall once to get the recorder fix.
+				</span>
+			</p>
+			<div className="flex shrink-0 items-center gap-1.5">
 				<Link
 					href="/dashboard/extension"
-					className="font-medium text-blue-11 underline underline-offset-2 hover:text-blue-9 transition-colors"
+					className="inline-flex min-h-9 items-center rounded-full bg-blue-9 px-3 text-xs font-medium text-white transition-colors hover:bg-blue-10 sm:min-h-0 sm:bg-transparent sm:p-0 sm:text-sm sm:text-blue-11 sm:underline sm:underline-offset-2 sm:hover:bg-transparent sm:hover:text-blue-9"
 				>
-					Update extension &rarr;
+					Update<span className="hidden sm:inline">&nbsp;extension</span>
 				</Link>
-			</p>
-			<button
-				type="button"
-				onClick={dismiss}
-				aria-label="Dismiss"
-				className="flex-shrink-0 rounded p-1 text-gray-9 hover:text-gray-12 transition-colors"
-			>
-				<X size={16} aria-hidden="true" />
-				<span className="sr-only">Close</span>
-			</button>
+				<button
+					type="button"
+					onClick={dismiss}
+					aria-label="Dismiss"
+					className="inline-flex size-9 flex-shrink-0 items-center justify-center rounded-full text-gray-9 transition-colors hover:bg-gray-4 hover:text-gray-12"
+				>
+					<X size={16} aria-hidden="true" />
+					<span className="sr-only">Close</span>
+				</button>
+			</div>
 		</div>
 	);
 }

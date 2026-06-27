@@ -93,7 +93,7 @@ const SidebarAnalytics = ({
 
 	return (
 		<div className="flex flex-wrap gap-4 items-center justify-between px-4 py-3"
-			style={{ borderBottom: "1px solid #e9edf3" }}>
+			style={{ borderBottom: "1px solid var(--gray-4)" }}>
 			<div className="flex gap-4 items-center">
 				<div className="flex gap-2 items-center">
 					<FontAwesomeIcon className="text-gray-8 size-4" icon={faEye} />
@@ -127,8 +127,8 @@ const ReactionsBlock = ({
 	reactions: Record<string, number>;
 	onReact: (emoji: string) => void;
 }) => (
-	<div className="grid grid-cols-6 gap-1.5 p-4"
-		style={{ borderTop: "1px solid #e9edf3" }}>
+	<div className="grid grid-cols-3 gap-1.5 p-4 sm:grid-cols-6"
+		style={{ borderTop: "1px solid var(--gray-4)" }}>
 		{REACTIONS.map(({ emoji, label }) => (
 			<button
 				key={emoji}
@@ -136,7 +136,7 @@ const ReactionsBlock = ({
 				aria-label={label}
 				onClick={() => onReact(emoji)}
 				className="flex items-center justify-center gap-1 rounded-full transition-colors text-sm font-emoji"
-				style={{ padding: "6px 4px", background: "#f7f9fc", border: "1px solid #e9edf3", borderRadius: "999px" }}
+				style={{ padding: "6px 4px", background: "var(--gray-2)", border: "1px solid var(--gray-4)", borderRadius: "999px" }}
 			>
 				<span role="img" aria-label={label}>
 					{emoji}
@@ -294,8 +294,7 @@ export const Sidebar = forwardRef<{ scrollToBottom: () => void }, SidebarProps>(
 
 		return (
 			<div
-				className="flex flex-col gap-3"
-				style={{ width: "100%", position: "sticky", top: "1rem" }}
+				className="flex w-full flex-col gap-3 lg:sticky lg:top-4"
 			>
 				{/* Processing cost is internal billing info — show it only to the
 				    owner/org members, never to viewers (students/clients) who open
@@ -304,7 +303,7 @@ export const Sidebar = forwardRef<{ scrollToBottom: () => void }, SidebarProps>(
 					<div
 						style={{
 							borderRadius: "14px",
-							background: "linear-gradient(135deg, #eef4ff 0%, #f7f9fc 100%)",
+							background: "linear-gradient(135deg, var(--blue-3) 0%, var(--gray-2) 100%)",
 							border: "1px solid rgba(37, 99, 235, .15)",
 							boxShadow:
 								"0 1px 2px rgba(15,23,42,.06), 0 2px 6px rgba(15,23,42,.07)",
@@ -318,13 +317,13 @@ export const Sidebar = forwardRef<{ scrollToBottom: () => void }, SidebarProps>(
 				)}
 
 				<div className="overflow-hidden flex flex-col" style={{
-					background: "#fff",
-					border: "1px solid #e9edf3",
+					background: "var(--gray-1)",
+					border: "1px solid var(--gray-4)",
 					borderRadius: "16px",
 					boxShadow: "0 2px 6px rgba(15,23,42,.06), 0 8px 20px rgba(15,23,42,.10), 0 16px 32px -8px rgba(15,23,42,.08)",
 				}}>
 					<div className="flex items-center px-4 py-3"
-						style={{ borderBottom: "1px solid #e9edf3" }}>
+						style={{ borderBottom: "1px solid var(--gray-4)" }}>
 						<span className="text-sm font-semibold text-gray-12">Activity</span>
 					</div>
 

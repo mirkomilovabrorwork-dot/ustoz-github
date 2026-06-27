@@ -238,7 +238,148 @@ export const MembersCard = ({ setIsInviteDialogOpen }: MembersCardProps) => {
 						</Link>
 					)}
 				</div>
-				<div className="overflow-x-auto mt-5">
+				<div className="mt-5 grid gap-3 sm:hidden">
+					{activeOrganization?.members?.map((member) => {
+						const memberIsOwner = isMemberOwner(member.user.id);
+						const memberRole = getEffectiveOrganizationRole({
+							userId: member.user.id,
+							ownerId: activeOrganization.organization.ownerId,
+							memberRole: member.role,
+						});
+						const assignableRole =
+							normalizeAssignableOrganizationRole(memberRole);
+						const canUpdateRole = canChangeOrganizationMemberRole({
+							actorRole: currentRole,
+							actorUserId: user.id,
+							targetUserId: member.user.id,
+							ownerId: activeOrganization.organization.ownerId,
+							targetRole: memberRole,
+							nextRole: assignableRole,
+						});
+						const canRemoveMember = canRemoveOrganizationMember({
+							actorRole: currentRole,
+							actorUserId: user.id,
+							targetUserId: member.user.id,
+							ownerId: activeOrganization.organization.ownerId,
+							targetRole: memberRole,
+						});
+						const roleUpdating =
+							updateRoleMutation.isPending &&
+							updateRoleMutation.variables?.memberId === member.id;
+						return (
+							<div
+								key={member.id}
+								className="rounded-xl border border-gray-4 bg-gray-1 p-4"
+							>
+								<div className="min-w-0">
+									<p className="truncate text-sm font-semibold text-gray-12">
+										{member.user.name}
+									</p>
+									<p className="mt-1 break-all text-xs text-gray-10">
+										{member.user.email}
+									</p>
+								</div>
+								<div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+									<div className="rounded-lg bg-gray-2 px-3 py-2">
+										<p className="text-gray-9">Joined</p>
+										<p className="mt-1 font-medium text-gray-12">
+											{formatPlatformDate(member.createdAt)}
+										</p>
+									</div>
+									<div className="rounded-lg bg-gray-2 px-3 py-2">
+										<p className="text-gray-9">Status</p>
+										<p className="mt-1 font-medium text-gray-12">Active</p>
+									</div>
+								</div>
+								<div className="mt-4 flex flex-col gap-3">
+									{memberIsOwner || memberRole === "owner" ? (
+										<div className="inline-flex min-h-10 items-center rounded-lg bg-gray-2 px-3 text-sm font-medium text-gray-12">
+											Owner
+										</div>
+									) : (
+										<Select
+											value={assignableRole ?? "member"}
+											placeholder="Role"
+											options={roleOptions}
+											size="sm"
+											variant="gray"
+											onValueChange={(value) => {
+												const nextRole =
+													normalizeAssignableOrganizationRole(value);
+												if (!nextRole) return;
+												updateRoleMutation.mutate({
+													memberId: member.id,
+													role: nextRole,
+												});
+											}}
+											disabled={!canUpdateRole || roleUpdating}
+										/>
+									)}
+									{!memberIsOwner && (
+										<Button
+											type="button"
+											size="xs"
+											variant="destructive"
+											className="min-h-10"
+											onClick={() => {
+												if (canRemoveMember) {
+													handleRemoveMember({
+														id: member.id,
+														user: {
+															name: member.user.name ?? "(No Name)",
+															email: member.user.email ?? "(No Email)",
+														},
+													});
+												} else {
+													showMemberManagerToast();
+												}
+											}}
+											disabled={!canRemoveMember}
+										>
+											Remove
+										</Button>
+									)}
+								</div>
+							</div>
+						);
+					})}
+					{activeOrganization?.invites?.map((invite) => (
+						<div
+							key={invite.id}
+							className="rounded-xl border border-gray-4 bg-gray-1 p-4"
+						>
+							<p className="text-sm font-semibold text-gray-12">Pending</p>
+							<p className="mt-1 break-all text-xs text-gray-10">
+								{invite.invitedEmail}
+							</p>
+							<div className="mt-4 flex items-center justify-between gap-3">
+								<span className="text-sm text-gray-11">
+									{organizationRoleLabel(
+										normalizeAssignableOrganizationRole(invite.role) ??
+											"member",
+									)}
+								</span>
+								<Button
+									type="button"
+									size="xs"
+									variant="destructive"
+									className="min-h-10"
+									onClick={() => {
+										if (canManageMembers) {
+											deleteInviteMutation.mutate(invite.id);
+										} else {
+											showMemberManagerToast();
+										}
+									}}
+									disabled={!canManageMembers || deletingInviteId === invite.id}
+								>
+									{deletingInviteId === invite.id ? "Deleting..." : "Delete Invite"}
+								</Button>
+							</div>
+						</div>
+					))}
+				</div>
+				<div className="mt-5 hidden overflow-x-auto sm:block">
 				<Table>
 					<TableHeader>
 						<TableRow>

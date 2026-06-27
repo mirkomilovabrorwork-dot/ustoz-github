@@ -58,7 +58,7 @@ const devtoolsConfig = {
 	defaultOpen: false,
 	hideUntilHover: false,
 	position: "top-left",
-	requireUrlFlag: false,
+	requireUrlFlag: true,
 } satisfies DevtoolsConfig;
 
 function getDevtoolsSettings(value: string | null): DevtoolsConfig {
