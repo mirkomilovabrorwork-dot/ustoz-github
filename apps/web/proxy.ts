@@ -57,6 +57,7 @@ export async function proxy(request: NextRequest) {
 				path.startsWith("/self-hosting") ||
 				path.startsWith("/download") ||
 				path.startsWith("/terms") ||
+				path.startsWith("/privacy") ||
 				path.startsWith("/verify-otp")
 			) &&
 			process.env.NODE_ENV !== "development"
