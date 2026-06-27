@@ -279,8 +279,8 @@ export function TranscriptPanel({
 				>
 					<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
 				</svg>
-				<p className="text-sm font-medium text-gray-600">No transcript available</p>
-				<p className="text-xs text-gray-400">Transcript will appear here once processing is complete</p>
+				<p className="text-sm font-medium text-gray-12">No transcript available</p>
+				<p className="text-xs text-gray-10">Transcript will appear here once processing is complete</p>
 			</div>
 		);
 	}

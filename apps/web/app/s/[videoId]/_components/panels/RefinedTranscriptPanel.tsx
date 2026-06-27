@@ -21,7 +21,7 @@ export function RefinedTranscriptPanel({
 }: RefinedTranscriptPanelProps) {
 	if (!refinedTranscript || refinedTranscript.chapters.length === 0) {
 		return (
-			<div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-10 text-center">
+			<div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-gray-4 bg-gray-2 px-4 py-10 text-center">
 				<svg
 					aria-hidden="true"
 					xmlns="http://www.w3.org/2000/svg"
@@ -39,8 +39,8 @@ export function RefinedTranscriptPanel({
 					<line x1="16" y1="17" x2="8" y2="17" />
 					<polyline points="10 9 9 9 8 9" />
 				</svg>
-				<p className="text-sm font-medium text-gray-600">No refined transcript yet</p>
-				<p className="text-xs text-gray-400">Generate AI content to see a cleaned-up version here</p>
+				<p className="text-sm font-medium text-gray-12">No refined transcript yet</p>
+				<p className="text-xs text-gray-10">Generate AI content to see a cleaned-up version here</p>
 			</div>
 		);
 	}
@@ -50,24 +50,32 @@ export function RefinedTranscriptPanel({
 			{refinedTranscript.chapters.map((chapter) => (
 				<section
 					key={chapter.startSec}
-					className="refined-section rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+					className="refined-section rounded-xl border border-gray-4 bg-gray-1 p-4 shadow-sm"
 				>
 					<div className="mb-3 flex items-center gap-2">
 						<button
 							type="button"
 							onClick={() => onVideoJump?.(chapter.startSec)}
-							className="rounded-md bg-blue-50 px-2 py-0.5 font-mono text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100"
+							className="rounded-md px-2 py-0.5 font-mono text-xs font-medium transition-colors"
+							style={{
+								background: "var(--blue-3)",
+								color: "var(--blue-11)",
+							}}
 						>
 							{formatTimeMinutes(chapter.startSec)}
 						</button>
-						<h3 className="flex-1 text-sm font-semibold text-gray-900">
+						<h3 className="flex-1 text-sm font-semibold text-gray-12">
 							{chapter.title}
 						</h3>
 						<button
 							type="button"
 							onClick={() => onVideoJump?.(chapter.startSec)}
 							aria-label={`Play from ${chapter.title}`}
-							className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 transition-colors hover:bg-blue-100"
+							className="flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors"
+							style={{
+								background: "var(--blue-3)",
+								color: "var(--blue-11)",
+							}}
 						>
 							<Play className="size-3.5 fill-current" />
 						</button>
@@ -76,7 +84,7 @@ export function RefinedTranscriptPanel({
 						{chapter.paragraphs.map((paragraph, pi) => (
 							<p
 								key={`${chapter.startSec}-p-${pi}`}
-								className="text-sm leading-relaxed text-gray-700"
+								className="text-sm leading-relaxed text-gray-12"
 							>
 								{renderMarkdownBold(paragraph)}
 							</p>

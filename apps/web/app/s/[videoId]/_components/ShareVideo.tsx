@@ -503,6 +503,9 @@ export const ShareVideo = forwardRef<
 			</>
 		);
 
+		const hasCleanTranscript =
+			(data.metadata?.aiSummary?.refinedTranscript?.chapters?.length ?? 0) > 0;
+
 		return (
 			<>
 				{/*
@@ -549,12 +552,31 @@ export const ShareVideo = forwardRef<
 							/>
 						}
 						transcript={
-							<TranscriptPanel
-								transcriptContent={transcriptContent ?? undefined}
-								currentTime={currentTime}
-								onVideoJump={handleSeek}
-								chapters={safeChapters.map((c) => ({ startSec: c.start, title: c.title }))}
-							/>
+							transcriptContent ? (
+								<TranscriptPanel
+									transcriptContent={transcriptContent}
+									currentTime={currentTime}
+									onVideoJump={handleSeek}
+									chapters={safeChapters.map((c) => ({ startSec: c.start, title: c.title }))}
+								/>
+							) : hasCleanTranscript ? (
+								<div className="rounded-xl border border-blue-6 bg-blue-3 px-4 py-5">
+									<p className="text-sm font-semibold text-gray-12">
+										Raw transcript is not available for this recording.
+									</p>
+									<p className="mt-1 text-sm leading-relaxed text-gray-11">
+										A cleaned transcript is ready. Open the Clean Transcript tab to read
+										the full AI-polished version.
+									</p>
+								</div>
+							) : (
+								<TranscriptPanel
+									transcriptContent={undefined}
+									currentTime={currentTime}
+									onVideoJump={handleSeek}
+									chapters={safeChapters.map((c) => ({ startSec: c.start, title: c.title }))}
+								/>
+							)
 						}
 						refined={
 							<RefinedTranscriptPanel
