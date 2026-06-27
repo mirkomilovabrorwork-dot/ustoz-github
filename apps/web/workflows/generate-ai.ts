@@ -343,6 +343,11 @@ export function getAiLanguageInstruction(
 	return `Write the title, summary, chapter titles, section summaries, and key points in ${getAiGenerationLanguageName(language)}.`;
 }
 
+const MIXED_LANGUAGE_PRESERVATION_RULES = `Mixed-language preservation rules:
+- Uzbek words may be cleaned or summarized in Uzbek Latin, but English, Russian, technical terms, product names, brand names, code identifiers, and acronyms must stay exactly as spoken.
+- Do NOT translate or transliterate foreign/technical words: deadline must not become dedlayn, dashboard must not become boshqaruv paneli, and сразу must not become srazu.
+- Preserve existing markdown bold around foreign terms when present.`;
+
 function getVideoDuration(segments: VttSegment[]): number {
 	if (segments.length === 0) return 0;
 	const lastSegment = segments[segments.length - 1];
@@ -720,6 +725,7 @@ Rules:
 - tasks[].priority must be "high", "medium", or "low"
 - tasks[].done is always false unless explicitly resolved in the transcript
 - Keep ALL JSON property names exactly as shown
+${MIXED_LANGUAGE_PRESERVATION_RULES}
 
 Transcript:
 ${transcriptWithTimestamps}`;
@@ -788,6 +794,7 @@ RULES (strict):
 - Preserve the speaker's original wording and language (Uzbek/Russian/English mixed is fine).
 - Output clean readable paragraphs separated by blank lines. No bullet points, no headers.
 - This is DIFFERENT from a summary: a summary is short; this must be the full cleaned text.
+${MIXED_LANGUAGE_PRESERVATION_RULES}
 
 Return ONLY the cleaned text. No JSON. No explanations.
 
@@ -856,6 +863,7 @@ ${languageInstruction}
 Keep JSON property names exactly as shown.
 IMPORTANT: All chapter "start" values MUST be between ${chunk.startTime} and ${chunk.endTime} seconds. The total video is only ${videoDuration} seconds long.
 Be thorough - this summary will be combined with other sections to create a comprehensive overview.
+${MIXED_LANGUAGE_PRESERVATION_RULES}
 Return ONLY valid JSON without any markdown formatting or code blocks.
 Transcript section:
 ${chunk.text}`;
@@ -903,6 +911,7 @@ RULES (strict):
 - Preserve the speaker's original wording and language (Uzbek/Russian/English mixed is fine).
 - Output clean readable paragraphs separated by blank lines. No bullet points, no headers.
 - This is DIFFERENT from a summary: a summary is short; this must be the full cleaned text.
+${MIXED_LANGUAGE_PRESERVATION_RULES}
 
 Return ONLY the cleaned text. No JSON. No explanations.
 
@@ -989,7 +998,8 @@ Rules:
 - aiSummary.chapters[].startSec must be INTEGER SECONDS (not minutes, not mm:ss) between 0 and ${videoDuration}; e.g. the label [1:40] means startSec=100. Use the section timestamps provided above and never exceed ${videoDuration}.
 - tasks[].priority must be "high", "medium", or "low"
 - refinedTranscript.chapters may be left as an empty array — it is handled separately
-- Keep ALL JSON property names exactly as shown`;
+- Keep ALL JSON property names exactly as shown
+${MIXED_LANGUAGE_PRESERVATION_RULES}`;
 
 	const finalResult = await callAiApi(finalPrompt, {}, context);
 	totalInputTokens += finalResult.inputTokens;

@@ -305,12 +305,12 @@ export function TranscriptPanel({
 					padding: "14px 16px",
 					marginBottom: "6px",
 					borderRadius: "16px",
-					background: active ? "#eef4ff" : "#fff",
-					border: active ? "1px solid rgba(37,99,235,.16)" : "1px solid transparent",
+					background: active ? "var(--blue-3)" : "var(--gray-1)",
+					border: active ? "1px solid var(--blue-6)" : "1px solid var(--gray-4)",
 					position: "relative",
 					cursor: "default",
 					transition: "background 320ms, border-color 320ms, box-shadow 320ms",
-					boxShadow: active ? undefined : "0 1px 3px rgba(15,23,42,.045)",
+					boxShadow: active ? undefined : "0 1px 3px rgba(15,23,42,.08)",
 				}}
 			>
 				<div className="flex flex-col items-center gap-1 pt-0.5">
@@ -332,9 +332,9 @@ export function TranscriptPanel({
 					  style={{
 					    fontSize: "11px",
 					    fontWeight: 600,
-					    color: "#64748b",
+					    color: "var(--gray-11)",
 					    fontVariantNumeric: "tabular-nums",
-					    background: "#f0f4f9",
+					    background: "var(--gray-3)",
 					    padding: "2px 8px",
 					    borderRadius: "999px",
 					  }}
@@ -343,7 +343,7 @@ export function TranscriptPanel({
 					</span>
 				</div>
 
-				<p className="min-w-0 break-words" style={{ fontSize: "13.5px", lineHeight: 1.72, color: "#475569", paddingTop: "4px" }}>
+				<p className="min-w-0 break-words" style={{ fontSize: "13.5px", lineHeight: 1.72, color: "var(--gray-12)", paddingTop: "4px" }}>
 					{renderMarkdownBold(cue.text)}
 				</p>
 
@@ -353,7 +353,7 @@ export function TranscriptPanel({
 						onClick={() => onVideoJump?.(cue.startSeconds)}
 						aria-label={`Jump to ${cue.timestamp}`}
 						className="flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-all duration-150 hover:scale-110"
-						style={{ width: "34px", height: "34px", background: "#f0f4f9", color: "#475569" }}
+						style={{ width: "34px", height: "34px", background: "var(--gray-3)", color: "var(--gray-11)" }}
 					>
 						<svg
 							aria-hidden="true"
@@ -380,11 +380,15 @@ export function TranscriptPanel({
 							<button
 								type="button"
 								onClick={() => onVideoJump?.(section.startSec)}
-								className="rounded-md bg-blue-50 px-2 py-0.5 font-mono text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100"
+								className="rounded-md px-2 py-0.5 font-mono text-xs font-medium transition-colors"
+								style={{
+									background: "var(--blue-3)",
+									color: "var(--blue-11)",
+								}}
 							>
 								{formatTimeMinutes(section.startSec)}
 							</button>
-							<h3 className="flex-1 text-sm font-semibold text-gray-900">
+							<h3 className="flex-1 text-sm font-semibold text-gray-12">
 								{section.title}
 							</h3>
 						</div>
@@ -405,95 +409,11 @@ export function TranscriptPanel({
 	// Fallback: existing speaker-grouped flat list
 	return (
 		<div ref={containerRef} className="flex flex-col gap-1 p-4">
-			{groups.map((group, gi) => {
-				const hue = speakerHue(group.speaker);
-				const initials = speakerInitials(group.speaker);
-				const avatarBg = `hsl(${hue},55%,55%)`;
-
-				return (
-					<div key={`${group.speaker}-${gi}`} className="flex flex-col gap-0.5">
-						{group.cues.map((cue, ci) => {
-							const active = cue.id === activeCueId;
-							return (
-								<div
-									key={`${group.speaker}-${gi}-${ci}`}
-									ref={active ? activeRef : undefined}
-									className="group"
-								style={{
-									display: "grid",
-									gridTemplateColumns: "42px 1fr 38px",
-									gap: "14px",
-									alignItems: "start",
-									padding: "14px 16px",
-									marginBottom: "6px",
-									borderRadius: "16px",
-									background: active ? "#eef4ff" : "#fff",
-									border: active ? "1px solid rgba(37,99,235,.16)" : "1px solid transparent",
-									position: "relative",
-									cursor: "default",
-									transition: "background 320ms, border-color 320ms, box-shadow 320ms",
-									boxShadow: active ? undefined : "0 1px 3px rgba(15,23,42,.045)",
-								}}
-								>
-									<div className="flex flex-col items-center gap-1 pt-0.5">
-										<div
-											className="flex items-center justify-center text-[14px] font-bold text-white shrink-0"
-											style={{
-												width: "42px",
-												height: "42px",
-												borderRadius: "13px",
-												backgroundColor: avatarBg,
-												boxShadow: "inset 0 0 0 1px rgba(255,255,255,.22), 0 2px 6px rgba(15,23,42,.12)",
-												flexShrink: 0,
-											}}
-											title={group.speaker}
-										>
-											{initials}
-										</div>
-										<span
-										  style={{
-										    fontSize: "11px",
-										    fontWeight: 600,
-										    color: "#64748b",
-										    fontVariantNumeric: "tabular-nums",
-										    background: "#f0f4f9",
-										    padding: "2px 8px",
-										    borderRadius: "999px",
-										  }}
-										>
-										  {cue.timestamp}
-										</span>
-									</div>
-
-									<p className="min-w-0 break-words" style={{ fontSize: "13.5px", lineHeight: 1.72, color: "#475569", paddingTop: "4px" }}>
-										{renderMarkdownBold(cue.text)}
-									</p>
-
-									<div className="flex items-start justify-end pt-1">
-										<button
-											type="button"
-											onClick={() => onVideoJump?.(cue.startSeconds)}
-											aria-label={`Jump to ${cue.timestamp}`}
-											className="flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-all duration-150 hover:scale-110"
-											style={{ width: "34px", height: "34px", background: "#f0f4f9", color: "#475569" }}
-										>
-											<svg
-												aria-hidden="true"
-												xmlns="http://www.w3.org/2000/svg"
-												viewBox="0 0 24 24"
-												fill="currentColor"
-												className="size-3"
-											>
-												<path d="M8 5v14l11-7z" />
-											</svg>
-										</button>
-									</div>
-								</div>
-							);
-						})}
-					</div>
-				);
-			})}
+			{groups.map((group, gi) => (
+				<div key={`${group.speaker}-${gi}`} className="flex flex-col gap-0.5">
+					{group.cues.map((cue, ci) => renderCue(cue, gi, ci, group.speaker))}
+				</div>
+			))}
 		</div>
 	);
 }

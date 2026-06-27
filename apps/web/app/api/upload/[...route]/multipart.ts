@@ -17,6 +17,7 @@ import { z } from "zod";
 import { withAuth } from "@/app/api/utils";
 import { invalidateGoogleDriveStorageQuotaCache } from "@/lib/google-drive-storage-quota";
 import { runPromise } from "@/lib/server";
+import { checkUploadQuota } from "@/lib/storage-quota";
 import { startVideoProcessingWorkflow } from "@/lib/video-processing";
 import { stringOrNumberOptional } from "@/utils/zod";
 import {
@@ -331,6 +332,23 @@ app.post(
 
 			return yield* Effect.gen(function* () {
 				const [bucket] = yield* Storage.getAccessForVideo(video);
+				const incomingBytes = parts.reduce((acc, part) => acc + part.size, 0);
+				const quotaCheck = yield* Effect.promise(() =>
+					checkUploadQuota({
+						orgId: video.orgId,
+						userId: video.ownerId,
+						incomingBytes,
+					}),
+				);
+				if (!quotaCheck.ok) {
+					return c.json(
+						{
+							error: quotaCheck.message,
+							reason: quotaCheck.reason,
+						},
+						413,
+					);
+				}
 
 				const { result, formattedParts } = yield* Effect.gen(function* () {
 					console.log(
@@ -467,23 +485,37 @@ app.post(
 
 					if (isRawRecorderUpload(subpath)) {
 						yield* db.use((db) =>
-							db
-								.update(Db.videos)
-								.set({
-									duration: updateIfDefined(
-										body.durationInSecs,
-										Db.videos.duration,
-									),
-									width: updateIfDefined(body.width, Db.videos.width),
-									height: updateIfDefined(body.height, Db.videos.height),
-									fps: updateIfDefined(body.fps, Db.videos.fps),
-								})
-								.where(
-									and(
-										eq(Db.videos.id, Video.VideoId.make(videoId)),
-										eq(Db.videos.ownerId, user.id),
-									),
-								),
+							db.transaction(() =>
+								Promise.all([
+									db
+										.update(Db.videos)
+										.set({
+											duration: updateIfDefined(
+												body.durationInSecs,
+												Db.videos.duration,
+											),
+											width: updateIfDefined(body.width, Db.videos.width),
+											height: updateIfDefined(body.height, Db.videos.height),
+											fps: updateIfDefined(body.fps, Db.videos.fps),
+										})
+										.where(
+											and(
+												eq(Db.videos.id, Video.VideoId.make(videoId)),
+												eq(Db.videos.ownerId, user.id),
+											),
+										),
+									db
+										.update(Db.videoUploads)
+										.set({
+											uploaded: incomingBytes,
+											total: incomingBytes,
+											updatedAt: new Date(),
+										})
+										.where(
+											eq(Db.videoUploads.videoId, Video.VideoId.make(videoId)),
+										),
+								]),
+							),
 						);
 
 						const processingStarted = yield* Effect.tryPromise(() =>

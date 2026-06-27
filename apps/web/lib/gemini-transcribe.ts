@@ -257,6 +257,74 @@ async function pollUntilActive(
 	throw new Error("Gemini file never reached ACTIVE state");
 }
 
+export function buildTranscriptionPrompt(): string {
+	return `You are a professional Uzbek transcription editor for meeting, instruction video, and voice-note recordings.
+
+Transcribe the attached audio/video fully and accurately in Uzbek Latin.
+
+Rules:
+
+1. Transcribe the entire file from beginning to end. Do not summarize, skip, shorten, or stop halfway.
+
+2. Uzbek words must be written only in Uzbek Latin. Do not write Uzbek words in Cyrillic.
+
+3. Detect the content type from the recording:
+- If it is a multi-speaker online/offline meeting, identify speakers by voice, context, and conversation flow.
+- If speaker names are known from the audio, use their names.
+- If names are not clear, use Speaker 1, Speaker 2, Speaker 3, and keep labels consistent.
+- If two people talk over each other and both cannot be clearly separated, write [ustma-ust gaplashildi].
+- If it is a one-speaker instruction, YouTube-style video, or voice note, do not invent speaker labels.
+- If another person clearly speaks in the background and their words are important, use Boshqa ovoz.
+
+4. Add real, accurate timestamps from the audio. Do not use sample, fake, guessed, estimated, or template timestamps.
+
+Put cue boundaries only where they exactly match the recording:
+- at the beginning,
+- when the speaker changes,
+- when a new topic or section starts,
+- when decisions, tasks, objections, or important points appear,
+- when there is a meaningful pause or transition,
+- and when needed to keep long speech easy to navigate.
+
+5. Clean the transcript professionally:
+- remove filler sounds like "umm", "aa", "eee", "э"
+- remove repeated stutters
+- remove meaningless false starts
+- keep the original meaning and natural speaking style
+
+6. If the recording contains direct instructions or tasks, transcribe them exactly as spoken. Do not convert them into a task list.
+
+7. If an Uzbek word is unclear, correct it based on surrounding context. If it is impossible to identify, write [noaniq].
+
+8. Keep foreign words exactly as spoken:
+- Russian words must stay in Cyrillic and be bold, for example **сразу**, **любой**, **дефицит**
+- English words must stay in English/Latin and be bold, for example **deadline**, **CRM**, **dashboard**
+- Technical terms, product names, brand names, code identifiers, and acronyms must stay exactly as spoken.
+- Do not translate foreign words.
+- Do not transliterate Russian words into Latin.
+- Do not convert English/technical words into Uzbek spelling.
+- Bold every foreign word or phrase.
+
+Mixed-language examples:
+- Wrong: dedlayn. Correct: **deadline**.
+- Wrong: boshqaruv paneli. Correct: **dashboard**.
+- Wrong: srazu. Correct: **сразу**.
+- Correct mixed sentence: Bugun **dashboard** **deadline** bor, **сразу** qilamiz.
+
+9. Output only the transcript. No intro, no explanation, no table, no numbering.
+
+IMPORTANT OUTPUT FORMAT:
+- Output STANDARD WebVTT only.
+- Start your response with a WEBVTT header line, then a blank line.
+- For each cue, put the timestamp on its own line as HH:MM:SS.mmm --> HH:MM:SS.mmm.
+- Put cue text on the next line(s), then a blank line before the next cue.
+- Do NOT put timestamp and text on the same line.
+- Do NOT wrap timestamps in markdown brackets like **[HH:MM:SS]**.
+- For multi-speaker cues, use standard WebVTT voice tags: <v Speaker 1>spoken text</v>.
+- For one-speaker recordings, write only the spoken text without a speaker label.
+- The bold foreign-word rules still apply inside cue text.`;
+}
+
 export async function transcribeWithGemini(
 	audioUrl: string,
 	options: {
@@ -366,59 +434,7 @@ export async function transcribeWithGemini(
 												fileUri,
 											},
 										},
-										{
-											text: `You are a professional Uzbek meeting transcription editor.
-
-Transcribe the attached online/offline meeting fully and accurately in Uzbek Latin.
-
-Rules:
-
-1. Transcribe the entire meeting from beginning to end. Do not summarize, skip, shorten, or stop halfway.
-
-2. Uzbek words must be written only in Uzbek Latin. Do not write Uzbek words in Cyrillic.
-
-3. This meeting has multiple speakers. Identify speakers by voice, context, and conversation flow.
-
-If speaker names are known from the audio, use their names.
-
-If names are not clear, use:
-Speaker 1:
-Speaker 2:
-Speaker 3:
-
-Keep speaker labels consistent across the whole transcript.
-
-If two people talk over each other and both cannot be clearly separated, write:
-[ustma-ust gaplashildi]
-
-4. Add real, accurate timestamps from the audio. Do not use sample, fake, guessed, or template timestamps.
-
-Put a cue boundary only where it exactly matches the audio:
-- at the beginning,
-- when the speaker changes,
-- when a new discussion topic starts,
-- when decisions, tasks, objections, or important points appear,
-- when there is a meaningful pause or transition.
-
-5. Clean the transcript professionally:
-- remove filler sounds like "umm", "aa", "eee", "э"
-- remove repeated stutters
-- remove meaningless false starts
-- keep the original meaning and speaking style
-
-6. If an Uzbek word is unclear, correct it based on surrounding context. If it is impossible to identify, write [noaniq].
-
-7. Keep foreign words exactly as spoken:
-- Russian words must stay in Cyrillic and be bold: **сразу**, **любой**, **дефицит**
-- English words must stay in English/Latin and be bold: **deadline**, **CRM**, **dashboard**
-- Do not translate foreign words.
-- Do not transliterate Russian words into Latin.
-- Bold every foreign word or phrase.
-
-8. Output only the transcript. No intro, no explanation, no table, no numbering.
-
-IMPORTANT: Output STANDARD WebVTT only. Start your response with a "WEBVTT" header line, then a blank line. For each cue, put the timestamp on its OWN line as "HH:MM:SS.mmm --> HH:MM:SS.mmm", then the cue text on the NEXT line(s), then a blank line before the next cue. Do NOT put the timestamp and the text on the same line. Do NOT wrap timestamps in markdown brackets like **[...]**. The speaker labels, bold formatting, and content rules above still apply within each cue's text.`,
-										},
+										{ text: buildTranscriptionPrompt() },
 									],
 								},
 							],
