@@ -20,11 +20,23 @@ const mainOrigins = [
 	addHttps(serverEnv().VERCEL_PROJECT_PRODUCTION_URL_HOST),
 ].filter(Boolean) as string[];
 
+function hasSessionCookie(request: NextRequest) {
+	return (
+		request.cookies.has("next-auth.session-token") ||
+		request.cookies.has("__Secure-next-auth.session-token") ||
+		request.cookies.has("authjs.session-token") ||
+		request.cookies.has("__Secure-authjs.session-token")
+	);
+}
+
 export async function proxy(request: NextRequest) {
 	const url = new URL(request.url);
 	const path = url.pathname;
 
-	if (path === "/" && request.cookies.has("next-auth.session-token")) {
+	if (
+		hasSessionCookie(request) &&
+		(path === "/" || path.startsWith("/login") || path.startsWith("/signup"))
+	) {
 		return NextResponse.redirect(new URL("/dashboard/caps", url.origin));
 	}
 
