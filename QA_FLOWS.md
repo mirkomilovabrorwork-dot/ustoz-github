@@ -1,3 +1,153 @@
+# RUN 3 — Core Video Pipeline (2026-06-25)
+
+**Scope:** Record → Upload → Trim → Play → Transcript → AI analysis → Share/Viewer  
+**Method:** Static code read, no execution  
+**Source repo:** `C:\Users\localhost\Desktop\ustoz-github`
+
+---
+
+## RUN 3 Totals
+
+| Metric | Count |
+|---|---|
+| Total Table-C rows | 50 |
+| Critical flows | 22 |
+| Smoke flows | 21 |
+| Gap A (missing mgmt action) | 1 |
+| Gap B (incomplete CRUD / lifecycle) | 6 |
+| Gap C (broken journey / dead-end) | 4 |
+| Gap D (missing state sync) | 3 |
+| Gap E (missing relationship handling) | 0 |
+| Gap F (missing permission) | 4 |
+| Gap G (missing automation control) | 1 |
+| Gap H (missing feedback / error handling) | 10 |
+| Gap I (looks-interactive-but-isn't) | 2 |
+| Gap J (missing audit / history) | 0 |
+
+---
+
+## Top 8 Most-Likely-Real Gaps (ranked by severity)
+
+| Rank | Gap ID | Description | File:Line | Type |
+|---|---|---|---|---|
+| 1 | C1 | AI analysis does NOT auto-run after transcription unless `aiGenerationEnabled` flag was set in the original dispatch job payload — flag source is `isAiGenerationEnabled(user)` read at page level and forwarded into the transcription job. If the job was queued without the flag (e.g. via desktop finalize, import, or any path that doesn't pass the flag), transcription completes silently and the user sees no summary, no action items, no chapters, with no error and no prompt to trigger AI. | `apps/web/workflows/transcribe.ts:97-99`, `apps/web/utils/flags.ts`, `apps/web/lib/generate-ai.ts:16` | G |
+| 2 | C2 | `processVideoWorkflow` deletes the `videoUploads` row and never creates `result.mp4`. Playlist route priority 3 falls back to `raw-upload` via `resolveRawPreviewKey` — but priority 6 (custom bucket + isMp4Source) has NO raw fallback and returns 404. Any self-hosted install using a custom bucket with `isMp4Source` gets a permanent playback 404 after processing. | `apps/web/workflows/process-video.ts:37`, `apps/web/app/api/playlist/route.ts:priority-6` | C |
+| 3 | C3 | Upload orphan on import network failure: if `uploadWithTarget` throws mid-upload, `ImportFilePage.tsx` catch (line 382) shows a toast but never cleans up the `videos` row or `videoUploads` row created at line 260. Row stays at `phase:uploading` forever; no retry path exists for this state from the dashboard. | `apps/web/app/(org)/dashboard/import/file/ImportFilePage.tsx:260,382` | B |
+| 4 | C4 | Extension dead-letter queue: `moveToDeadLetter` writes to `capExtDeadLetterQueue` in `chrome.storage.local` but there is zero code anywhere to read, drain, or clear it. Failed upload parts accumulate silently indefinitely. User sees a notification but has no way to retry. | `apps/browser-extension/src/background/upload.ts` | B |
+| 5 | C5 | Extension `kind:"part"` RetryItem stores no blob bytes — the retry handler re-reads the bytes from `inMemoryBuffer` which is already cleared after finalization. Every failed part goes straight to dead-letter on the first retry attempt. | `apps/browser-extension/src/background/upload.ts:scheduleRetry` | B |
+| 6 | C6 | AI chat is completely unauthenticated: `POST /api/video/ai/chat` has no auth check. Any anonymous user can query the transcript and drain the video-owner's Gemini API key. Rate limiter is an in-process Map — resets on deploy, not shared across instances. | `apps/web/app/api/video/ai/chat/route.ts` | F |
+| 7 | C7 | No audio chunking for transcription: the entire extracted MP3 is sent as a single URL to Gemini. Very-long videos (>60 min audio) will hit Gemini's file-size/token limits and fail with `transcriptionStatus=ERROR` — the retry button re-runs the same full-file request. | `apps/web/workflows/transcribe.ts:290-342` | H |
+| 8 | C8 | Camera-denied and screen-share-cancelled show the same generic toast ("Could not start recording.") — no actionable differentiation. Also, a 0-second recording (accidental start+stop, empty blob) is only caught at `recording-upload.ts` (`blob.size === 0` check) for buffered path; the streaming-webm path has no such guard and will attempt multipart complete with 0 parts. | `apps/web/app/(org)/dashboard/caps/components/web-recorder-dialog/recording-upload.ts`, `web-recorder-dialog/useWebRecorder.ts` | H |
+
+---
+
+## Table A — Platform Map (Core Video Pipeline)
+
+| Area | Screen / Route | Entity | Main user actions | Related screens | Risk |
+|---|---|---|---|---|---|
+| Record — Web | `/dashboard/caps` → Web Recorder Dialog | Video, MediaStream, videoUploads | Select source (screen/window/tab/camera), configure mic, start, pause, stop, cancel | Dashboard | Critical |
+| Record — Extension | Chrome MV3 extension popup / recorder tab | Video, MediaRecorder chunks, RetryItem | Start screen/tab/meet recording, stop, auto-upload | Dashboard | Critical |
+| Record — Desktop (Tauri) | Native desktop app (external binary) | Video, desktop segments | Record, finalize via `/api/upload/recording-complete` | Dashboard | High |
+| Upload / Create | `/api/upload/multipart/*`, `actions/video/create-for-processing.ts`, `actions/video/upload.ts` | Video, videoUploads, S3 objects | Initiate multipart, presign parts, complete, abort; single-part upload | All recording paths | Critical |
+| Import — File | `/dashboard/import/file` | Video, videoUploads | Drag/drop video file, optional client-side trim, upload | Dashboard | High |
+| Import — Loom | `/dashboard/import/loom` | Video, videoUploads | Paste Loom URL, bulk CSV import | Dashboard | Medium |
+| Trim | `/dashboard/import/file` → PreUploadTrimmer (client-side) | Video (new), trimmed File | Set in/out points (lossless or precise), upload trimmed result as new Video | Import, Dashboard | Medium |
+| Play / Playlist | `/api/playlist/route.ts`, `/s/[videoId]` | Video, S3 objects (result.mp4 / raw-upload / segments) | Request video source, adaptive fallback selection | Viewer | Critical |
+| Viewer — Share page | `/s/[videoId]` | Video, Comment, Reaction, TranscriptChunk, AiSummary | Watch video, view tabs (Summary/Action Items/Transcript/Refined), comment, react, AI chat | Share | Critical |
+| Transcript | `workflows/transcribe.ts`, `GET /api/video/transcribe/status` | TranscriptChunk | Auto-transcribe on page load, retry | Viewer | Critical |
+| AI Analysis | `workflows/generate-ai.ts`, `GET /api/video/ai`, `POST retry-ai` | AiSummary (summary, chapters, action items, refined transcript) | Auto-run after transcription (gated), manual "Start AI analysis", retry | Viewer | Critical |
+| AI Chat | `/api/video/ai/chat`, `AIChatPopup.tsx` | ChatMessage, TranscriptChunk | Converse with AI about video content | Viewer | High |
+| Share / Viewer — Comments | `actions/videos/new-comment.ts`, Sidebar | Comment | Post comment (guest or auth), delete own, react | Viewer | High |
+
+---
+
+## Table B — Entity Lifecycle Matrix (Core Video Pipeline)
+
+| Entity | Create | Read / List | Edit | Delete / Archive | Manage / Configure | Missing logic | Priority |
+|---|---|---|---|---|---|---|---|
+| Video | ✅ `createVideoAndGetUploadUrl` / `createVideoForServerProcessing` at `actions/video/upload.ts:109`, `actions/video/create-for-processing.ts:33` | ✅ dashboard grid, `/s/[videoId]` server query | ✅ rename, settings | ✅ `deleteVideo` action (cascades S3 delete) | ✅ visibility, password, folder | Orphan row if upload never completes and user never returns; no self-healing expiry | Critical |
+| Upload (raw) / videoUploads | ✅ `db.insert(videoUploads)` on multipart initiate or create-for-processing | ✅ polling via `rpc.GetUploadProgress` | ✅ phase progression (`uploading→processing→deleted`) | ✅ deleted by `processVideoWorkflow` (happy path) or abort endpoint | ❌ no manual retry/cleanup from dashboard | Rows stuck at `phase:uploading` forever if upload fails or browser crashes mid-upload; no expiry cron | Critical |
+| Transcript | ✅ `workflows/transcribe.ts` writes VTT to S3 + `transcriptChunks` rows | ✅ `TranscriptPanel`, `GET /api/video/transcribe/status` | ❌ not editable | ⚠️ retry does NOT delete old `transcriptChunks` rows first (`transcribe.ts:47-102`) | ✅ retry button in `GenerateAiPanel.tsx:209` | Old transcript chunks accumulate on retry → duplicate RAG context; no purge step | High |
+| AI Analysis (summary / action-items / chapters) | ✅ `workflows/generate-ai.ts:133` via `startAiGeneration` | ✅ `SummaryPanel`, `TasksPanel`, `BelowVideoTabs.tsx` | ❌ not editable post-generation | ❌ no delete; only overwrite via regenerate | ✅ retry (`POST /api/videos/[videoId]/retry-ai`) + manual trigger (`GenerateAiPanel.tsx:236`) | Auto-trigger gated on `aiGenerationEnabled` flag in job payload — missing from several upload paths (see C1 gap); no ownership check on `GET /api/video/ai` (IDOR) | Critical |
+| Comment | ✅ `actions/videos/new-comment.ts` (guest or auth) | ✅ loaded server-side at page load, static (no real-time) | ❌ no edit for guest comments | ✅ auth'd delete (own or video owner) | ❌ `commentsDisabled` flag NOT enforced server-side | Guest can post even when `commentsDisabled=true`; no server-side auth guard on create; static (no push/SSE — multi-viewer sees stale list) | High |
+
+---
+
+## Table C — Flow Inventory (Core Video Pipeline)
+
+| # | Flow | Trigger | Steps | Expected result | Edge cases | Gap type | Critical? | Smoke? |
+|---|---|---|---|---|---|---|---|---|
+| **RECORD** | | | | | | | | |
+| R-01 | Web recorder: screen + mic, streaming-webm path | User opens web recorder dialog, selects screen source | `getDisplayMedia` → `getUserMedia(audio)` → `MediaRecorder.start()` → chunks stream to `InstantRecordingUploader` → multipart presign-part PUT per 5 MB → stop → finalize → multipart complete → `startVideoProcessingWorkflow` auto-triggered via `isRawRecorderUpload` check | Recording appears in dashboard; playable immediately | `apps/web/app/(org)/dashboard/caps/components/web-recorder-dialog/useWebRecorder.ts:683` | — | YES | YES |
+| R-02 | Web recorder: screen permission denied | User cancels `getDisplayMedia` dialog | `NotAllowedError` / `AbortError` caught by `isUserCancellationError()` → generic `toast.error("Could not start recording.")` | Distinct "permission denied" message vs "you cancelled" | Both errors produce identical toast; no actionable guidance | H | YES | YES |
+| R-03 | Web recorder: camera permission denied | Camera mode, user denies camera access | `getUserMedia` → `NotAllowedError` → `useMediaPermission` state `"denied"` → re-thrown → generic toast | "Allow camera access in browser settings" message | Generic toast only; `CameraSelector` pill shows denied but user may not see it | H | NO | YES |
+| R-04 | Web recorder: mic unavailable | Mic fails after screen share succeeds | `getUserMedia(audio)` fails → `toast.warning("Microphone unavailable. Recording without audio.")` → continues | Warning toast + silent-mic icon | Icon only (`<MicOff>`), no banner; user may not notice recording is silent | H | NO | YES |
+| R-05 | Web recorder: 0-second / empty recording (buffered-raw path) | Accidental start+immediate stop | `blob.size === 0` check in `recording-upload.ts` → `throw "Cannot upload empty file"` | User sees clear error, no upload attempted | Caught and shown as toast; ✅ handled | — | NO | NO |
+| R-06 | Web recorder: 0-chunk recording (streaming-webm path) | Start + immediate stop before first 5 MB chunk | `InstantRecordingUploader.finalize()` called with no parts uploaded; multipart complete sent with 0 ETags | Error surfaced to user | S3 may reject 0-part complete; no guard in `InstantRecordingUploader`; behaviour depends on S3 impl | H | YES | YES |
+| R-07 | Web recorder: very short recording (<1 s) | Quick start+stop | Blob created, upload proceeds | Upload succeeds; short video playable | No minimum-duration guard in either path; a 200 ms blob uploads and plays fine (blank frames) | — | NO | NO |
+| R-08 | Web recorder: browser crash / tab close during streaming upload | Tab killed mid-recording | IndexedDB spool (`recoverBlob`) contains partial data; on next open, recovery toast shown | Full recording recovered or partial clearly labelled | Partial blob returned silently without byte count; user doesn't know how much was saved | H | NO | NO |
+| R-09 | Extension: tab/screen recording start | Extension popup → "Record" | `chrome.tabCapture.getMediaStreamId` / `getDisplayMedia` → offscreen recorder → `RECORDER_STARTED` → `initializeUpload` → chunks via `RECORDER_CHUNK` | Recording begins; upload starts | No minimum-size check; very-short recording sends `totalBytes < 10 KB` → `finalizeUpload` catches and errors (✅ guard exists at `upload.ts`) | — | YES | YES |
+| R-10 | Extension: Google Meet auto-detect and nudge | User joins Meet call | `meet-detect.ts` MutationObserver + `setInterval` polls `isInMeeting()` → shows nudge card | Nudge shown; user can start recording | Google changes "Leave call" selector → detection breaks; no fallback | H | NO | NO |
+| R-11 | Extension: upload part network failure → dead-letter | A multipart PUT fails after 6 retries | `moveToDeadLetter` appends to `capExtDeadLetterQueue` in `chrome.storage.local` | User can see and retry failed parts | Dead-letter queue is write-only; never drained; `kind:"part"` RetryItem has no blob → dead-letter on first retry | B | YES | NO |
+| R-12 | Extension: late `RECORDER_STARTED` after cancel | User cancels then a delayed `RECORDER_STARTED` arrives | SW `sw.ts:694`: state not `"arming"` → silently falls back to mode `"instruction"` with undefined IDs | Orphan upload rejected | Orphan upload initialized with undefined videoId/uploadId | H | NO | NO |
+| R-13 | Extension: MIME type unsupported | Browser lacks all codec candidates | `pickMimeType()` returns `"video/webm"` regardless of `isTypeSupported` result | Error surfaced | Silent fallback to unsupported type; `MediaRecorder` will throw on start | H | NO | NO |
+| **UPLOAD / CREATE** | | | | | | | | |
+| U-01 | Multipart upload: full happy path | Web recorder streaming-webm stop | `POST /multipart/initiate` → `POST /multipart/presign-part` × N → `PUT` parts to S3 → `POST /multipart/complete` → `isRawRecorderUpload` → `startVideoProcessingWorkflow` → `processVideoWorkflow` deletes `videoUploads` row | Video row exists, `videoUploads` deleted, video playable | — | — | YES | YES |
+| U-02 | Multipart upload: browser navigates away before complete | User closes tab during upload | No `beforeunload` guard in web app; multipart left open in S3; `videoUploads` row stays `phase:uploading` | Stale row cleaned by cron or user retry | No cron to abort stale S3 multiparts; row stuck forever | B | YES | YES |
+| U-03 | File import: upload fails mid-way | `uploadWithTarget` throws | `ImportFilePage.tsx:382` catch shows toast, returns false | `videos` + `videoUploads` rows cleaned up | Both rows orphaned; no cleanup | B | HIGH | YES |
+| U-04 | File import: `@remotion/media-parser` fails | Unusual video codec | Parse error silently swallowed at line 252-256 | Duration/resolution stored | Upload proceeds with no metadata; pro gate (300s limit) cannot fire | H | NO | NO |
+| U-05 | File import: `triggerVideoProcessing` fails | S3 `headObject` retries exhausted | `triggerVideoProcessing` throws; `ImportFilePage.tsx:375` shows toast | `videoUploads` phase set to `error` | Phase stays `uploading`, not `error`; retry logic (`shouldForceRetryProcessing`) won't apply for 90 s | D | HIGH | YES |
+| U-06 | `processVideoWorkflow`: deletes videoUploads, never creates result.mp4 | Any upload path triggers processing | `process-video.ts:37` deletes row; returns "skipped" | result.mp4 created by transcoding | No transcoding; raw file IS the served file; naming is vestigial | — | YES | YES |
+| U-07 | `processVideoWorkflow`: DB delete fails | `db().delete(videoUploads)` throws | `setProcessingError` called → tries to UPDATE deleted row → 0 rows affected → error state not persisted | Error state written to DB | Silent: error never recorded | H | NO | NO |
+| U-08 | Loom import: `retryVideoProcessing` passes empty `loomDownloadUrl` | Loom video retry triggered | `retry-processing.ts:97` passes `loomDownloadUrl:""` | Non-empty URL passed | Empty string is a contract violation; `importLoomVideoWorkflow` re-fetches via `fetchFreshLoomDownloadUrl` so it works today, but fragile | H | NO | NO |
+| **TRIM** | | | | | | | | |
+| T-01 | Client-side lossless trim (pre-upload) | User trims before import | ffmpeg.wasm `-c copy -avoid_negative_ts make_zero` → trimmed `File` → `createVideoForServerProcessing` (new Video row) → upload to `raw-upload.mp4` | Trimmed video uploaded as new cap | Cut on nearest keyframe, not frame-accurate; user may see a few extra frames | — | NO | YES |
+| T-02 | Client-side precise trim | User selects "precise" mode | ffmpeg.wasm full re-encode (`libx264/aac`) → new Video row → upload | Frame-accurate trim | Slow for long videos (client-side CPU); no progress indicator during re-encode | H | NO | NO |
+| T-03 | Trim of already-uploaded video (post-upload) | Search for post-upload trim | No post-upload trim dialog found in codebase; `PreUploadTrimmer` is only in import flow | Post-upload trim available | ❌ Post-upload trim does not exist as a separate flow; "Edit/trim cap" in dashboard CapCard dropdown navigates to a route that may not implement server-side trim | A | NO | NO |
+| T-04 | Trim cancel mid-ffmpeg | User cancels during re-encode | ffmpeg.wasm has no cancel API in current usage; browser tab must be closed | Cancel button aborts operation | No cancel possible during encode; UX freezes | H | NO | NO |
+| **PLAY / PLAYLIST** | | | | | | | | |
+| P-01 | Viewer loads; video plays (S3, mp4 type, result.mp4 missing → raw fallback) | User opens `/s/[videoId]` | `GET /api/playlist?videoId=...` → priority 3: checks result.mp4 → zero-size/missing → `resolveRawPreviewKey` → 302 redirect to raw-upload signed URL | Video plays | `resolveRawPreviewKey` probes `raw-upload.mp4` then `.webm` via `headObject`; if both missing, 404 | — | YES | YES |
+| P-02 | Viewer: custom bucket + isMp4Source → no raw fallback | Self-hosted custom bucket | Playlist priority 6: `result.mp4` only; no `resolveRawPreviewKey` fallback | 404 → "Could not load a playable video source" | Since `processVideoWorkflow` never creates result.mp4, ALL custom-bucket installs get permanent playback 404 | C | YES | YES |
+| P-03 | Viewer: video still uploading / processing | User opens share link before processing done | `useUploadProgress` polls `rpc.GetUploadProgress`; player shows progress ring + status text | Playback starts when ready | Polling stops when `videoUploads` row deleted (by `processVideoWorkflow`) — player transitions to playing | — | YES | YES |
+| P-04 | Viewer: upload stalled > 5 min | Upload hung | `useUploadProgress` detects stall → "Upload stalled before processing finished" overlay | User can retry | No retry button shown from this state; user must navigate to dashboard | H | NO | NO |
+| P-05 | Viewer: `segments` type HLS | Desktop app recording | Playlist reads `segments/manifest.json`; returns HLS playlists; player uses hls.js | HLS plays | If `manifest.is_complete=false` and `requireComplete` set, 404 | — | YES | YES |
+| P-06 | Viewer: deep-link `/s/[videoId]` opens correct video | User receives share link | Server component reads `params.videoId` → DB query → render | Correct video shown | Wrong videoId → policy returns `true` (IDOR) then `notFound()` | F | YES | YES |
+| P-07 | Viewer: video with no audio track | Video recorded without mic | Player renders; no audio control; VTT transcript may be empty | Clear "no audio" indicator | No visual indicator that audio is absent; `NO_AUDIO` transcription status not surfaced as user message | H | NO | NO |
+| P-08 | Viewer: very long video playback | Video > 2 hours | Signed URL expiry vs playback duration | URL valid for full playback | S3 presigned URL default expiry (typically 1 hr) may expire mid-playback for very long videos | H | NO | NO |
+| **TRANSCRIPT** | | | | | | | | |
+| TR-01 | Auto-transcription triggered on page load | `/s/[videoId]` first load | `GET /api/video/transcribe/status` (client) or server-side trigger → `transcribeVideoWorkflow` → Gemini → VTT → `transcriptChunks` | Transcript appears | Race: multiple viewers simultaneously trigger transcription; no distributed lock | H | YES | YES |
+| TR-02 | Transcription: no audio in video | Video has no audio track | `extractAudio` → `checkHasAudioTrack` → `transcriptionStatus = "NO_AUDIO"` | "No audio" message in UI | `NO_AUDIO` status not surfaced as user-visible message in viewer (`GenerateAiPanel.tsx` may hide button) | H | YES | YES |
+| TR-03 | Transcription: very long video (> ~60 min) | User uploads long lecture/meeting | Entire MP3 sent as single URL to Gemini; no chunking | Chunked transcription | Gemini file size / token limit hit → `transcriptionStatus = "ERROR"`; retry re-runs same full-file request; no chunking fallback | H | YES | YES |
+| TR-04 | Transcription fails (Gemini error / quota) | Gemini API error | Outer catch sets `transcriptionStatus = "ERROR"` | "Retry" button shown | `GenerateAiPanel.tsx:209` shows Retry ✅; stale-jobs cron recovers stuck `PROCESSING` → `ERROR` ✅ | — | YES | YES |
+| TR-05 | Retry transcription: old chunks not deleted | User clicks "Retry" | `POST retry-transcription` resets status → re-queues | Old `transcriptChunks` purged before re-run | Old chunks NOT deleted; RAG embedding accumulates duplicates → AI chat gives stale/doubled context | B | NO | YES |
+| TR-06 | Transcript panel renders | User opens Transcript tab | `TranscriptPanel` renders `transcriptChunks` | Transcript with timestamps shown | No empty-state message when transcript is empty but status is not yet started | H | NO | YES |
+| **AI ANALYSIS** | | | | | | | | |
+| AI-01 | Auto-AI after transcription: gated by `aiGenerationEnabled` flag | Transcription completes | `transcribe.ts:97-99`: if `aiGenerationEnabled` → `queueAiGeneration()` | AI runs automatically | Flag set only if passed in original job payload; import path and desktop path may not set it → user must manually click "Start AI analysis" | G | YES | YES |
+| AI-02 | Manual "Start AI analysis" trigger | User clicks button in `GenerateAiPanel.tsx:236` | `POST /api/videos/[videoId]/generate` → `startAiGeneration` → `QUEUED` → `PROCESSING` → `COMPLETE` | Summary, chapters, action items generated | No ownership check on endpoint; any authenticated user can trigger AI on any video (IDOR-write, billed to owner's Gemini quota) | F | YES | YES |
+| AI-03 | AI analysis: BUDGET_EXCEEDED | Gemini billing limit reached | `aiGenerationStatus = "BUDGET_EXCEEDED"` | Clear "quota exceeded" message + link to add Gemini key | Status stored but `GenerateAiPanel.tsx` may show generic error; no tailored UI path found | H | NO | YES |
+| AI-04 | AI generation fails (Gemini error) | Gemini API error | `aiGenerationStatus = "ERROR"` | Retry button shown | `GenerateAiPanel.tsx:209` shows Retry ✅; stale-jobs cron recovers stuck `PROCESSING` ✅ | — | YES | YES |
+| AI-05 | View Summary tab | User opens Summary tab | `SummaryPanel` renders `aiSummary.summary`; `SummaryChapters` renders chapters list | Summary + chapters shown | Chapters clickable → player seeks ✅; empty state if AI not yet run shown as `GenerateAiPanel` | — | NO | YES |
+| AI-06 | View Action Items tab | User opens Action Items tab | `TasksPanel` renders `aiSummary.tasks` | Tasks listed with checkboxes | Toggle calls `POST /api/video/tasks/toggle` which does NOT exist → 404; tasks appear interactive but are not | I | YES | YES |
+| AI-07 | AI chat: unauthenticated | Anonymous user opens AI chat FAB | `POST /api/video/ai/chat` — no auth check | Auth required | No auth guard; drains video owner's Gemini key; exposes transcript | F | YES | YES |
+| AI-08 | AI chat: chat before transcript ready | User sends message before transcription | Empty `transcriptChunks` → Gemini has no context → hallucinated response | "Transcript not ready" guard | No guard; Gemini responds with fabricated content | H | YES | YES |
+| AI-09 | AI chat: rate limit | User sends 21st message in 60 s | In-memory Map → HTTP 429 | Rate limit persists across server restarts | Map resets on each deploy/restart; not shared across instances | H | NO | NO |
+| AI-10 | Stale-jobs cron recovers stuck AI/transcript jobs | `PROCESSING` job hangs > N minutes | `app/api/cron/recover-stale-ai-jobs/route.ts:65,79` sets status to `ERROR` | Recovery fires; user sees error + retry | ✅ cron exists; retry path works | — | NO | NO |
+| **SHARE / VIEWER** | | | | | | | | |
+| S-01 | Deep-link to `/s/[videoId]` opens correct video | User taps share link | Server query by `videoId` → render video page | Correct video shown | ✅ correct | — | YES | YES |
+| S-02 | Viewer: refresh mid-playback | User presses F5 at timestamp 45 s | Page reloads; player starts from 0 (no persisted position) | Player resumes at last position | No playback position persistence | H | NO | YES |
+| S-03 | Kill + relaunch browser, open share link | Browser killed; user reopens link | Fresh page load; video loads from start | Session-independent; video loads | ✅ stateless share link works | — | YES | YES |
+| S-04 | Viewer: server error during page load | DB unreachable | Next.js error boundary or 500 page | Friendly error page | Standard Next.js 500 shown | — | NO | YES |
+| S-05 | Viewer: long/special-char video title | Title contains `<script>` or 4000-char string | Title rendered in `<h1>` via React (escaped) | XSS blocked; title truncated | React escapes HTML ✅; no length cap in DB schema found | — | NO | NO |
+| S-06 | Viewer: comment submission server error | DB write fails in `newComment` | Error caught in server action → `console.error` only | Error toast shown to user | Silent failure; no user feedback | H | YES | YES |
+| S-07 | Viewer: comment posted when commentsDisabled=true | Guest posts comment on video with commentsDisabled | Server action `new-comment.ts` does NOT check `commentsDisabled` flag | Comment rejected server-side | Comment saved regardless of setting | B+F | YES | NO |
+| S-08 | Viewer: cancel share dialog mid-flow | User opens SharingDialog, partially changes settings, closes | Dialog close without save | Changes discarded | ✅ no auto-save; close = discard | — | NO | NO |
+| S-09 | Viewer: very long video streaming | User plays 3-hour recording | S3 signed URL redirect; player streams | Playback works end-to-end | Signed URL may expire (default 1 hr) before video ends; player gets 403 mid-playback; no refresh mechanism | H | NO | YES |
+| S-10 | Viewer: tabs (Summary/Action Items/Transcript/Refined) render and navigate | User clicks each tab | `BelowVideoTabs.tsx` shows/hides panel; URL `?tab=` updated | Correct panel shown | Action Items tab shows interactive checkboxes that 404 on click; Refined tab only shown if `refinedTranscript` exists | I | YES | YES |
+
+---
+
+---
+
 # QA_FLOWS.md — Ustoz / Cap fork — Full Flow Inventory
 
 **Generated:** 2026-06-20 · **Re-verified:** 2026-06-24

@@ -183,4 +183,43 @@ Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'video.mp4':
 			}),
 		).toBe("compress");
 	});
+
+	it("does not copy codecs that are risky in browser MP4 playback", async () => {
+		const { chooseVideoOptimizationStrategy } = await import(
+			"@/lib/video-convert"
+		);
+
+		expect(
+			chooseVideoOptimizationStrategy({
+				durationSec: 300,
+				width: 1280,
+				height: 720,
+				videoCodec: "vp9",
+				audioCodec: "opus",
+				bitrateBps: 1200000,
+			}),
+		).toBe("compress");
+
+		expect(
+			chooseVideoOptimizationStrategy({
+				durationSec: 300,
+				width: 1280,
+				height: 720,
+				videoCodec: "hevc",
+				audioCodec: "aac",
+				bitrateBps: 1200000,
+			}),
+		).toBe("compress");
+
+		expect(
+			chooseVideoOptimizationStrategy({
+				durationSec: 300,
+				width: 1280,
+				height: 720,
+				videoCodec: "h264",
+				audioCodec: null,
+				bitrateBps: 1200000,
+			}),
+		).toBe("copy");
+	});
 });

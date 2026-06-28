@@ -15,6 +15,8 @@ export interface VideoConversionResult {
 const FFMPEG_TIMEOUT_MS = 5 * 60 * 1000;
 const HIGH_BITRATE_BPS = 2_500_000;
 const HIGH_RESOLUTION_MAX_EDGE = 1280;
+const MP4_SAFE_VIDEO_CODECS = new Set(["avc1", "h264"]);
+const MP4_SAFE_AUDIO_CODECS = new Set(["aac"]);
 
 export interface VideoProbeMetadata {
 	durationSec: number | null;
@@ -150,9 +152,28 @@ export function parseVideoProbeMetadata(stderr: string): VideoProbeMetadata {
 	};
 }
 
+function normalizeCodec(codec: string | null): string | null {
+	return codec?.toLowerCase().split(/[.\s(]/)[0] ?? null;
+}
+
+function isBrowserSafeMp4Codec(metadata: VideoProbeMetadata): boolean {
+	const videoCodec = normalizeCodec(metadata.videoCodec);
+	const audioCodec = normalizeCodec(metadata.audioCodec);
+
+	if (!videoCodec || !MP4_SAFE_VIDEO_CODECS.has(videoCodec)) {
+		return false;
+	}
+
+	return audioCodec == null || MP4_SAFE_AUDIO_CODECS.has(audioCodec);
+}
+
 export function chooseVideoOptimizationStrategy(
 	metadata: VideoProbeMetadata,
 ): VideoOptimizationStrategy {
+	if (!isBrowserSafeMp4Codec(metadata)) {
+		return "compress";
+	}
+
 	const maxEdge =
 		metadata.width != null && metadata.height != null
 			? Math.max(metadata.width, metadata.height)
@@ -398,7 +419,7 @@ async function optimizeRemoteVideoToMp4FileInternal(
 		"-crf",
 		"28",
 		"-vf",
-		"scale='min(1280,iw)':-2",
+		"scale='if(gt(iw,ih),min(1280,iw),-2)':'if(gt(iw,ih),-2,min(1280,ih))'",
 		"-pix_fmt",
 		"yuv420p",
 		"-c:a",

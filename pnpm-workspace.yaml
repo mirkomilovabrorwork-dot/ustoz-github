@@ -1,3 +1,16 @@
 packages:
   - "apps/*"
   - "packages/*"
+allowBuilds:
+  '@nestjs/core': set this to true or false
+  '@parcel/watcher': set this to true or false
+  '@swc/core': set this to true or false
+  aws-sdk: set this to true or false
+  cbor-extract: set this to true or false
+  core-js: set this to true or false
+  esbuild: set this to true or false
+  ffmpeg-static: set this to true or false
+  msgpackr-extract: set this to true or false
+  protobufjs: set this to true or false
+  sharp: set this to true or false
+  unrs-resolver: set this to true or false

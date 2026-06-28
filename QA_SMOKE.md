@@ -1,3 +1,20 @@
+# QA Smoke — RUN 3 (core video pipeline) — 2026-06-25
+
+Build-health gate before full execution. Evidence = live prod (read-only) + static gate.
+
+| Smoke # | Check | Status | Evidence | Notes |
+|---|---|---|---|---|
+| 1 | Static gate — ROOT `pnpm typecheck` | ✅ | `EXIT=0` (next typegen + tsc -b) | green incl. the shipped transcription fix |
+| 2 | App alive — `/api/health` | ✅ | `{"status":"ok","checks":{"db":"ok","storage":"ok"}}` | DB + R2 reachable |
+| 3 | Auth entry — `/login` / `/dashboard` | ✅ | `/login=200`, `/dashboard=307` | login renders; dashboard auth-gated |
+| 4 | Public viewer — `/s/a4tg5m8r6yz2bhe` | ✅ | `HTTP 200` | share page SSR ok (working 1-min video) |
+| 5 | Playback source resolves — `/api/playlist?...&videoType=mp4` | ✅ | `302` redirect to R2 signed URL | raw-upload fallback path live |
+| 6 | Transcription produced | ✅ | Railway logs: `[transcribe] ... Stored transcript chunks` (a4tg5m8r6yz2bhe 64s + dbn7ejy5zywsr3z 606s) | logs are the right evidence; the vtt HTTP probe redirects to mp4 by route design |
+
+**RUN 3 result: 6 of 6 smoke passed.** Build not broken-broken. Ready for Step 3.
+
+---
+
 # QA Smoke Gate — Ustoz / data365
 
 **Verdict: PASS** (app healthy) — re-run 2026-06-24. The deployed app type-checks clean (REAL root gate), builds (Railway deployed the new build — verified live), and serves all core public routes. 515/561 unit tests pass; the 20 failures are PRE-EXISTING workflow/AI test debt (proven not from this session). Proceeding to Step 3.

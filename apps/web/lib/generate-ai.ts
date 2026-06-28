@@ -95,6 +95,7 @@ export async function startAiGeneration(
 		await assertAiBudgetAvailable({
 			orgId: video.orgId,
 			userId,
+			videoId,
 		});
 
 		await db()

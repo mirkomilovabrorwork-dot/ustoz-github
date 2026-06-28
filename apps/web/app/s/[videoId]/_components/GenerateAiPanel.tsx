@@ -78,12 +78,20 @@ function deriveProgressState(
   return { label: "Preparing…", phase: "idle" };
 }
 
+export function getAiAnalysisNotice(duration?: number | null): string | null {
+  if (!duration || duration <= 30 * 60) return null;
+  if (duration >= 60 * 60) {
+    return "Long video: transcription runs in smaller chunks, and AI analysis can take longer. It only starts after you click.";
+  }
+  return "Longer video: AI analysis may take extra time and budget. It only starts after you click.";
+}
+
 export function GenerateAiPanel({
   videoId,
   canGenerate,
   transcriptionStatus,
   aiGenerationStatus,
-  duration: _duration,
+  duration,
   onStarted,
 }: GenerateAiPanelProps) {
   const [loading, setLoading] = useState(false);
@@ -104,6 +112,7 @@ export function GenerateAiPanel({
 
   const hasError =
     transcriptionStatus === "ERROR" || aiGenerationStatus === "ERROR";
+  const aiNotice = getAiAnalysisNotice(duration);
 
   const handleStart = async () => {
     setLoading(true);
@@ -224,6 +233,11 @@ export function GenerateAiPanel({
         <p className="text-sm text-gray-12">
           AI analysis has not been run for this video yet.
         </p>
+        {aiNotice && (
+          <p className="text-xs text-gray-10">
+            {aiNotice}
+          </p>
+        )}
         {error && (
           <p className="text-xs text-red-10">{error}</p>
         )}
