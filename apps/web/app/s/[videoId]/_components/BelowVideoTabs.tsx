@@ -185,7 +185,7 @@ export function BelowVideoTabs({
 							}}
 						/>
 					</h2>
-					{activeContent}
+					<div className="pr-10 sm:pr-0">{activeContent}</div>
 					<div aria-hidden="true" className="h-24 sm:hidden" />
 				</section>
 			</div>
