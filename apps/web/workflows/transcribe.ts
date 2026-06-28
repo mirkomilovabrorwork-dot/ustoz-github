@@ -14,6 +14,7 @@ import type { Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
 import { FatalError } from "workflow";
 import { withCostGuard } from "@/lib/ai-cost-guard";
+import { shouldStartAiAfterTranscription } from "@/lib/ai-generation-request";
 import {
 	ENHANCED_AUDIO_CONTENT_TYPE,
 	ENHANCED_AUDIO_EXTENSION,
@@ -106,7 +107,7 @@ export async function transcribeVideoWorkflow(
 
 	await cleanupTempAudioKeys(tempAudioKeys, videoData.video);
 
-	if (aiGenerationEnabled) {
+	if (await shouldQueueAiGeneration(videoId, aiGenerationEnabled)) {
 		await queueAiGeneration(videoId, userId);
 	}
 
@@ -318,7 +319,7 @@ async function extractAudio(
 
 async function resolveVideoSourceUrl(
 	videoId: string,
-	userId: string,
+	_userId: string,
 	video: typeof videos.$inferSelect,
 ): Promise<string> {
 	const [resolvedBucket] =
@@ -450,7 +451,7 @@ async function transcribeAudioChunks(
 
 async function saveTranscription(
 	videoId: string,
-	userId: string,
+	_userId: string,
 	video: typeof videos.$inferSelect,
 	transcription: string,
 ): Promise<void> {
@@ -503,6 +504,26 @@ async function queueAiGeneration(
 	"use step";
 
 	await startAiGeneration(videoId as Video.VideoId, userId);
+}
+
+async function shouldQueueAiGeneration(
+	videoId: string,
+	aiGenerationEnabled: boolean,
+): Promise<boolean> {
+	"use step";
+
+	if (aiGenerationEnabled) return true;
+
+	const [video] = await db()
+		.select({ metadata: videos.metadata })
+		.from(videos)
+		.where(eq(videos.id, videoId as Video.VideoId))
+		.limit(1);
+
+	return shouldStartAiAfterTranscription({
+		metadata: (video?.metadata as VideoMetadata) || {},
+		aiGenerationEnabled,
+	});
 }
 
 async function _markEnhancedAudioProcessing(videoId: string): Promise<void> {

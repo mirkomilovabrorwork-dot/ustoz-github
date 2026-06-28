@@ -1,3 +1,5 @@
+import { normalizeWebVttVoiceText } from "@/lib/transcript-vtt";
+
 export function getActiveCaptionText(
 	activeCues: TextTrackCueList | null | undefined,
 ): string {
@@ -20,8 +22,8 @@ export function getActiveCaptionText(
 		}
 	}
 
-	const raw = selectedCue?.text.replace(/<[^>]*>/g, "") ?? "";
-	return raw
+	const normalized = normalizeWebVttVoiceText(selectedCue?.text ?? "");
+	return normalized.text
 		.replace(/^Speaker\s*\d+:\s*/i, "")
 		.replace(/\*\*(.*?)\*\*/g, "$1")
 		.trim();

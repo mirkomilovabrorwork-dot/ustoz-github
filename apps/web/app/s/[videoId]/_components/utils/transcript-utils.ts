@@ -1,4 +1,5 @@
 // Utility functions for transcript formatting
+import { normalizeWebVttVoiceText } from "@/lib/transcript-vtt";
 
 export interface TranscriptEntry {
 	id: number;
@@ -167,8 +168,11 @@ export const parseVTT = (vttContent: string): TranscriptEntry[] => {
 				trimmedLine.startsWith('"') && trimmedLine.endsWith('"')
 					? trimmedLine.slice(1, -1)
 					: trimmedLine;
+			const normalized = normalizeWebVttVoiceText(textContent);
 
-			currentEntry.text = textContent;
+			currentEntry.text = normalized.speaker
+				? `${normalized.speaker}: ${normalized.text}`
+				: normalized.text;
 			if (
 				currentEntry.id !== undefined &&
 				currentEntry.timestamp &&

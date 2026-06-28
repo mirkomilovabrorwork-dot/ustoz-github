@@ -16,6 +16,7 @@ import { z } from "zod";
 import { BudgetExceededError, withCostGuard } from "@/lib/ai-cost-guard";
 import { withGeminiRetry } from "@/lib/gemini-retry";
 import { runPromise } from "@/lib/server";
+import { normalizeWebVttVoiceText } from "@/lib/transcript-vtt";
 import { getStorageAccessForVideo } from "@/lib/video-storage";
 
 interface GenerateAiWorkflowPayload {
@@ -347,7 +348,11 @@ export function getAiLanguageInstruction(
 	language: AiGenerationLanguage,
 ): string {
 	if (language === AI_GENERATION_LANGUAGE_AUTO) {
-		return "Write the title, summary, chapter titles, section summaries, and key points in the same language as the transcript.";
+		return [
+			"Detect the dominant spoken language from the transcript and write the title, summary, chapter titles, section summaries, and key points in that same language.",
+			"If the transcript is Uzbek or mixed Uzbek/English/Russian, write Uzbek Latin output and keep English/Russian technical words exactly as spoken.",
+			"Do not translate the meeting into English just because the app UI or schema examples are English.",
+		].join(" ");
 	}
 
 	return `Write the title, summary, chapter titles, section summaries, and key points in ${getAiGenerationLanguageName(language)}.`;
@@ -565,7 +570,13 @@ function parseVttWithTimestamps(vttContent: string): VttSegment[] {
 				.replace(/^[\s\-–—:>]+/, "")
 				.trim();
 			if (inlineText && !/^\d{1,2}:\d{2}/.test(inlineText)) {
-				segments.push({ start: currentStart, text: inlineText });
+				const normalized = normalizeWebVttVoiceText(inlineText);
+				segments.push({
+					start: currentStart,
+					text: normalized.speaker
+						? `${normalized.speaker}: ${normalized.text}`
+						: normalized.text,
+				});
 			}
 		} else if (
 			line &&
@@ -573,7 +584,13 @@ function parseVttWithTimestamps(vttContent: string): VttSegment[] {
 			!/^\d+$/.test(line) &&
 			!line.includes("-->")
 		) {
-			segments.push({ start: currentStart, text: line });
+			const normalized = normalizeWebVttVoiceText(line);
+			segments.push({
+				start: currentStart,
+				text: normalized.speaker
+					? `${normalized.speaker}: ${normalized.text}`
+					: normalized.text,
+			});
 		}
 	}
 

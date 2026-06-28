@@ -1,3 +1,5 @@
+import { normalizeWebVttVoiceText } from "@/lib/transcript-vtt";
+
 interface VttCue {
 	startMs: number;
 	endMs: number;
@@ -38,13 +40,8 @@ function parseTimestampMs(ts: string): number {
 }
 
 function extractSpeaker(rawText: string): { speaker: string | null; text: string } {
-	const speakerMatch = rawText.match(/^<v\s+([^>]+)>(.*)/);
-	if (speakerMatch) {
-		return {
-			speaker: speakerMatch[1]?.trim() ?? null,
-			text: speakerMatch[2]?.replace(/<\/v>/, "").trim() ?? rawText,
-		};
-	}
+	const normalized = normalizeWebVttVoiceText(rawText);
+	if (normalized.text !== rawText || normalized.speaker) return normalized;
 
 	const colonMatch = rawText.match(/^([^:]{1,30}):\s+(.+)$/);
 	if (colonMatch) {

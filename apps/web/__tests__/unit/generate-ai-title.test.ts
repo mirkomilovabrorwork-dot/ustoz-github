@@ -117,9 +117,11 @@ describe("shouldReplaceVideoTitle", () => {
 
 describe("getAiLanguageInstruction", () => {
 	it("uses transcript language when auto-detect is selected", () => {
-		expect(getAiLanguageInstruction("auto")).toContain(
-			"same language as the transcript",
-		);
+		const instruction = getAiLanguageInstruction("auto");
+
+		expect(instruction).toContain("dominant spoken language");
+		expect(instruction).toContain("Uzbek Latin");
+		expect(instruction).toContain("Do not translate the meeting into English");
 	});
 
 	it("uses the selected language name", () => {

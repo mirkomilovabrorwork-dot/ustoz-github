@@ -27,6 +27,7 @@ This is the practical backlog after the long-video transcription, manual-only AI
 5. AI spend controls
    - Lazy chat indexing now avoids embedding cost until chat is used.
    - Still useful: per-video max budget, clearer "this may cost" UI for long videos, and chunk-level retry/resume for long transcripts.
+   - Keep summary/chat/embedding-style extras manual or lazy. Plainly: AI should spend money only after a user asks for that specific output.
 
 6. Branding cleanup
    - Some legacy Cap/cap.so wording remains in support/messenger/docs/developer-oriented areas.
@@ -40,3 +41,7 @@ This is the practical backlog after the long-video transcription, manual-only AI
 8. Test debt
    - Some older integration mocks are stale.
    - Do not fake green; fix mocks only when the test proves a real behavior.
+
+9. Uzbek interface coverage
+   - Locale switching already exists in Settings, with `uz`, `en`, and `ru` message files.
+   - Still needed: replace remaining hardcoded dashboard/viewer strings with translation keys so switching to Uzbek affects the whole app, not only the already-localized surfaces.

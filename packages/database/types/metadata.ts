@@ -51,6 +51,9 @@ export interface VideoMetadata {
 		| "COMPLETE"
 		| "ERROR"
 		| "SKIPPED";
+	aiGenerationRequestedAt?: string;
+	aiGenerationRequestedBy?: string;
+	aiGenerationError?: string;
 	enhancedAudioStatus?: "PROCESSING" | "COMPLETE" | "ERROR" | "SKIPPED";
 	isDemo?: boolean;
 	aiSummary?: AiSummary | null;

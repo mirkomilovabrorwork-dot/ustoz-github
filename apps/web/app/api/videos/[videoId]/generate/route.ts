@@ -1,18 +1,19 @@
 import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { organizationMembers, organizations, videos } from "@cap/database/schema";
-import { Video } from "@cap/web-domain";
+import type { VideoMetadata } from "@cap/database/types";
+import type { Video } from "@cap/web-domain";
 import { and, eq, isNull } from "drizzle-orm";
 import type { NextRequest } from "next/server";
-import { getEffectiveOrganizationRole } from "@/lib/permissions/roles";
+import { requestAiGenerationAfterTranscription } from "@/lib/ai-generation-request";
 import { startAiGeneration } from "@/lib/generate-ai";
+import { getEffectiveOrganizationRole } from "@/lib/permissions/roles";
 import { transcribeVideo } from "@/lib/transcribe";
-import type { VideoMetadata } from "@cap/database/types";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ videoId: string }> },
 ) {
   try {
@@ -74,9 +75,24 @@ export async function POST(
       return Response.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // If transcription is still running, nothing to do yet
+    // If transcription is still running, remember the user's explicit AI
+    // request so the workflow starts AI analysis as soon as the transcript
+    // finishes. Do not set aiGenerationStatus=QUEUED here: startAiGeneration
+    // uses that status to mean a real AI workflow has already been launched.
     if (video.transcriptionStatus === "PROCESSING") {
-      return Response.json({ alreadyRunning: true });
+      const metadata = (video.metadata as VideoMetadata) || {};
+      await db()
+        .update(videos)
+        .set({
+          metadata: requestAiGenerationAfterTranscription({
+            metadata,
+            requestedAt: new Date().toISOString(),
+            requestedBy: user.id,
+          }),
+        })
+        .where(eq(videos.id, videoId));
+
+      return Response.json({ alreadyRunning: true, queuedAfterTranscription: true });
     }
 
     // If transcription is COMPLETE, check whether AI generation still needs to run

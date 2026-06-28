@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { normalizeWebVttVoiceText } from "@/lib/transcript-vtt";
 import { clampStartSec, formatTimeMinutes } from "../utils/transcript-utils";
 import { renderMarkdownBold } from "./markdownBold";
 
@@ -144,13 +145,9 @@ function extractSpeaker(text: string): {
 	speaker: string | null;
 	text: string;
 } {
-	const match = text.match(/^<v\s+([^>]+)>(.*)$/);
-	if (match) {
-		return {
-			speaker: match[1]?.trim() ?? "Speaker",
-			text: (match[2]?.trim() ?? text).replace(/<\/v>$/i, "").trim(),
-		};
-	}
+	const normalized = normalizeWebVttVoiceText(text);
+	if (normalized.text !== text || normalized.speaker) return normalized;
+
 	const colonMatch = text.match(/^([^:]{1,30}):\s+(.+)$/);
 	if (colonMatch) {
 		return {

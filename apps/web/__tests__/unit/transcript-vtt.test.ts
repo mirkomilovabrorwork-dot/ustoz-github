@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	normalizeWebVttVoiceText,
 	normalizeTranscriptCueText,
 	updateVttEntryText,
 } from "@/lib/transcript-vtt";
@@ -24,6 +25,26 @@ describe("normalizeTranscriptCueText", () => {
 		expect(normalizeTranscriptCueText("  hello\n\nthere\tfriend  ")).toBe(
 			"hello there friend",
 		);
+	});
+});
+
+describe("normalizeWebVttVoiceText", () => {
+	it("extracts a single speaker voice tag", () => {
+		expect(normalizeWebVttVoiceText("<v Speaker 1>Salom.</v>")).toEqual({
+			speaker: "Speaker 1",
+			text: "Salom.",
+		});
+	});
+
+	it("turns multiple inline speaker voice tags into readable text", () => {
+		const normalized = normalizeWebVttVoiceText(
+			"<v Speaker 1>Ha.</v> <v Speaker 2>Qarang",
+		);
+
+		expect(normalized.speaker).toBeNull();
+		expect(normalized.text).toBe("Speaker 1: Ha. Speaker 2: Qarang");
+		expect(normalized.text).not.toContain("</v>");
+		expect(normalized.text).not.toContain("<v");
 	});
 });
 

@@ -94,6 +94,21 @@ Speaker 1: Keyin **CRM** integratsiyani ko'ramiz.
 		expect(chunks[0]?.text).toContain("Speaker 1: Login bugini");
 		expect(chunks[0]?.text).toContain("Speaker 2: Ha, **deadline**gacha");
 	});
+
+	it("does not leak raw WebVTT voice tags when one cue contains speaker changes", () => {
+		const chunks = chunkTranscript(`WEBVTT
+
+00:00:00.000 --> 00:00:08.000
+<v Speaker 1>Ko'rdingizmi?</v> <v Speaker 2>Qarang.
+`);
+
+		expect(chunks).toHaveLength(1);
+		expect(chunks[0]?.speaker).toBeNull();
+		expect(chunks[0]?.text).toContain("Speaker 1: Ko'rdingizmi?");
+		expect(chunks[0]?.text).toContain("Speaker 2: Qarang.");
+		expect(chunks[0]?.text).not.toContain("</v>");
+		expect(chunks[0]?.text).not.toContain("<v");
+	});
 });
 
 describe("Gemini retry classification", () => {
