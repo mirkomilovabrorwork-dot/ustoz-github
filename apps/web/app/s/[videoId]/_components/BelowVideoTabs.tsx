@@ -96,8 +96,7 @@ export function BelowVideoTabs({
 			>
 				{TABS.map((tab) => {
 					const isActive = activeTab === tab.id;
-					const hiddenOnDesktop =
-						hideTranscriptTab && tab.id === "transcript";
+					const hiddenOnDesktop = hideTranscriptTab && tab.id === "transcript";
 					return (
 						<button
 							key={tab.id}
@@ -187,6 +186,7 @@ export function BelowVideoTabs({
 						/>
 					</h2>
 					{activeContent}
+					<div aria-hidden="true" className="h-24 sm:hidden" />
 				</section>
 			</div>
 		</div>
