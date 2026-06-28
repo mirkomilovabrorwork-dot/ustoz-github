@@ -151,7 +151,7 @@ export function PreUploadTrimmer({ file, onConfirm, onCancel }: Props) {
 								checked={mode === "lossless"}
 								onChange={() => setMode("lossless")}
 							/>
-							<span>Lossless (instant)</span>
+							<span>Fast trim, same quality</span>
 						</label>
 						<label className="flex items-center gap-2 cursor-pointer">
 							<input
@@ -159,7 +159,7 @@ export function PreUploadTrimmer({ file, onConfirm, onCancel }: Props) {
 								checked={mode === "precise"}
 								onChange={() => setMode("precise")}
 							/>
-							<span>Precise (frame-accurate)</span>
+							<span>Precise trim, slower</span>
 						</label>
 					</div>
 					<div className="text-xs text-gray-10">

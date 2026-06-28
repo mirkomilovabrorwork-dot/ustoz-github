@@ -40,12 +40,12 @@ const FaqAccordion = () => {
 		{
 			id: "what-is-cap",
 			q: "What is a recording?",
-			a: "A recording is a quick video of your screen, camera, or both that you can share instantly with a link.",
+			a: "A recording is a quick video of your screen, camera, or both. On supported browsers, data365 uploads chunks while you record so the share link is ready faster after you stop.",
 		},
 		{
 			id: "how-it-works",
 			q: "How does it work?",
-			a: "On compatible browsers, your capture uploads in the background while you record. Otherwise it records first and uploads immediately after you stop, so your link is ready right away.",
+			a: "On compatible browsers, your capture uploads in the background while you record. Otherwise it records first and uploads after you stop. AI analysis is manual: open the video and press Start AI analysis.",
 		},
 		{
 			id: "browsers",

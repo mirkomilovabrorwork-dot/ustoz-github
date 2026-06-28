@@ -133,4 +133,54 @@ describe("video-convert", () => {
 		expect(spawnArgs[1]?.args).toContain("26");
 		expect(spawnArgs[1]?.args).toContain("aac");
 	});
+
+	it("parses ffmpeg probe output and keeps already-small videos as copy", async () => {
+		const { chooseVideoOptimizationStrategy, parseVideoProbeMetadata } =
+			await import("@/lib/video-convert");
+
+		const metadata = parseVideoProbeMetadata(`
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'video.mp4':
+  Duration: 00:42:03.45, start: 0.000000, bitrate: 1420 kb/s
+  Stream #0:0: Video: h264 (High), yuv420p, 1280x720, 30 fps
+  Stream #0:1: Audio: aac (LC), 48000 Hz, stereo
+`);
+
+		expect(metadata).toMatchObject({
+			durationSec: 2523.45,
+			width: 1280,
+			height: 720,
+			videoCodec: "h264",
+			audioCodec: "aac",
+			bitrateBps: 1420000,
+		});
+		expect(chooseVideoOptimizationStrategy(metadata)).toBe("copy");
+	});
+
+	it("compresses videos with very high bitrate or resolution", async () => {
+		const { chooseVideoOptimizationStrategy } = await import(
+			"@/lib/video-convert"
+		);
+
+		expect(
+			chooseVideoOptimizationStrategy({
+				durationSec: 300,
+				width: 1920,
+				height: 1080,
+				videoCodec: "h264",
+				audioCodec: "aac",
+				bitrateBps: 1800000,
+			}),
+		).toBe("compress");
+
+		expect(
+			chooseVideoOptimizationStrategy({
+				durationSec: 300,
+				width: 1280,
+				height: 720,
+				videoCodec: "h264",
+				audioCodec: "aac",
+				bitrateBps: 4500000,
+			}),
+		).toBe("compress");
+	});
 });

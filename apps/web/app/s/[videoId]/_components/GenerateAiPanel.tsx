@@ -63,8 +63,8 @@ function deriveProgressState(
 
   if (transcriptionStatus === "COMPLETE") {
     return {
-      label: "Transcript ready — starting AI…",
-      phase: "queued",
+      label: "Transcript ready. Start AI analysis when you need it.",
+      phase: "idle",
     };
   }
 
@@ -222,7 +222,7 @@ export function GenerateAiPanel({
     return (
       <div className="flex flex-col gap-3 rounded-xl border border-blue-6 bg-blue-3 px-4 py-4">
         <p className="text-sm text-gray-12">
-          AI analysis hasn't been run for this video yet.
+          AI analysis has not been run for this video yet.
         </p>
         {error && (
           <p className="text-xs text-red-10">{error}</p>

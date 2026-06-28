@@ -6,6 +6,9 @@ vi.mock("ffmpeg-static", () => ({
 }));
 
 const mockUnlink = vi.fn(() => Promise.resolve(undefined));
+const mockMkdtemp = vi.fn(async () => "/tmp/audio-chunks-test");
+const mockReaddir = vi.fn(async () => ["audio-001.mp3", "audio-000.mp3"]);
+const mockRm = vi.fn(async () => undefined);
 vi.mock("node:fs", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("node:fs")>();
 	return {
@@ -13,6 +16,9 @@ vi.mock("node:fs", async (importOriginal) => {
 		existsSync: (path: string) => path === "/usr/local/bin/ffmpeg",
 		promises: {
 			...actual.promises,
+			mkdtemp: () => mockMkdtemp(),
+			readdir: () => mockReaddir(),
+			rm: () => mockRm(),
 			unlink: () => mockUnlink(),
 		},
 	};
@@ -139,7 +145,7 @@ describe("audio-extract", () => {
 			expect(args).toContain("-acodec");
 			expect(args).toContain("libmp3lame");
 			expect(args).toContain("-b:a");
-			expect(args).toContain("128k");
+			expect(args).toContain("64k");
 		});
 
 		it("returns audio/mpeg mime type", async () => {
@@ -203,6 +209,44 @@ describe("audio-extract", () => {
 			}, 10);
 
 			await expect(resultPromise).rejects.toThrow("Audio extraction failed");
+		});
+	});
+
+	describe("extractAudioChunksFromUrl", () => {
+		it("uses ffmpeg segment output for long recordings", async () => {
+			const { extractAudioChunksFromUrl } = await import("@/lib/audio-extract");
+
+			const resultPromise = extractAudioChunksFromUrl(
+				"https://example.com/video.mp4",
+				{ chunkDurationSec: 900, totalDurationSec: 1900 },
+			);
+
+			setTimeout(() => {
+				mockProcess.emit("close", 0);
+			}, 10);
+
+			const result = await resultPromise;
+
+			const args = spawnArgs[0]?.args ?? [];
+			expect(args).toContain("-f");
+			expect(args).toContain("segment");
+			expect(args).toContain("-segment_time");
+			expect(args).toContain("900");
+			expect(args).toContain("-reset_timestamps");
+			expect(result.chunks).toEqual([
+				{
+					filePath: expect.stringContaining("audio-000.mp3"),
+					startSec: 0,
+					durationSec: 900,
+				},
+				{
+					filePath: expect.stringContaining("audio-001.mp3"),
+					startSec: 900,
+					durationSec: 900,
+				},
+			]);
+			await result.cleanup();
+			expect(mockRm).toHaveBeenCalled();
 		});
 	});
 

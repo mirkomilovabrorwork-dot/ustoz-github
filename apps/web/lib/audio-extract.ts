@@ -56,6 +56,18 @@ export interface AudioExtractionResult {
 	cleanup: () => Promise<void>;
 }
 
+export interface AudioChunkExtractionResult {
+	chunks: Array<{
+		filePath: string;
+		startSec: number;
+		durationSec: number | null;
+	}>;
+	mimeType: string;
+	cleanup: () => Promise<void>;
+}
+
+const DEFAULT_AUDIO_BITRATE = "64k";
+
 export async function extractAudioFromUrl(
 	videoUrl: string,
 ): Promise<AudioExtractionResult> {
@@ -73,7 +85,7 @@ export async function extractAudioFromUrl(
 		"-acodec",
 		"libmp3lame",
 		"-b:a",
-		"64k",
+		DEFAULT_AUDIO_BITRATE,
 		"-f",
 		"mp3",
 		"-y",
@@ -115,6 +127,103 @@ export async function extractAudioFromUrl(
 	});
 }
 
+export async function extractAudioChunksFromUrl(
+	videoUrl: string,
+	{
+		chunkDurationSec,
+		totalDurationSec,
+	}: {
+		chunkDurationSec: number;
+		totalDurationSec: number | null;
+	},
+): Promise<AudioChunkExtractionResult> {
+	const ffmpeg = getFfmpegPath();
+	const dirPath = await fs.mkdtemp(join(tmpdir(), "audio-chunks-"));
+	const outputPattern = join(dirPath, "audio-%03d.mp3");
+
+	const ffmpegArgs = [
+		"-i",
+		videoUrl,
+		"-vn",
+		"-ac",
+		"1",
+		"-ar",
+		"24000",
+		"-acodec",
+		"libmp3lame",
+		"-b:a",
+		DEFAULT_AUDIO_BITRATE,
+		"-f",
+		"segment",
+		"-segment_time",
+		String(chunkDurationSec),
+		"-reset_timestamps",
+		"1",
+		"-y",
+		outputPattern,
+	];
+
+	try {
+		await new Promise<void>((resolve, reject) => {
+			const proc = spawn(ffmpeg, ffmpegArgs, {
+				stdio: ["pipe", "pipe", "pipe"],
+			});
+			let stderr = "";
+
+			proc.stderr?.on("data", (data: Buffer) => {
+				stderr += data.toString();
+			});
+
+			proc.on("error", (err: Error) => {
+				reject(new Error(`Audio chunk extraction failed: ${err.message}`));
+			});
+
+			proc.on("close", (code: number | null) => {
+				if (code === 0) {
+					resolve();
+					return;
+				}
+				reject(
+					new Error(
+						`Audio chunk extraction failed with code ${code}: ${stderr}`,
+					),
+				);
+			});
+		});
+
+		const files = (await fs.readdir(dirPath))
+			.filter((file) => /^audio-\d+\.mp3$/.test(file))
+			.sort();
+
+		if (files.length === 0) {
+			throw new Error("Audio chunk extraction produced no files");
+		}
+
+		return {
+			chunks: files.map((file, index) => {
+				const startSec = index * chunkDurationSec;
+				const remaining =
+					totalDurationSec == null ? null : Math.max(0, totalDurationSec - startSec);
+				return {
+					filePath: join(dirPath, file),
+					startSec,
+					durationSec:
+						remaining == null ? null : Math.min(chunkDurationSec, remaining),
+				};
+			}),
+			mimeType: "audio/mpeg",
+			cleanup: async () => {
+				try {
+					await fs.rm(dirPath, { force: true, recursive: true });
+				} catch {}
+			},
+		};
+	} catch (error) {
+		await fs.rm(dirPath, { force: true, recursive: true }).catch(() => {});
+		throw error;
+	}
+}
+
 export async function extractAudioToBuffer(videoUrl: string): Promise<Buffer> {
 	const ffmpeg = getFfmpegPath();
 	const ffmpegArgs = [
@@ -128,7 +237,7 @@ export async function extractAudioToBuffer(videoUrl: string): Promise<Buffer> {
 		"-acodec",
 		"libmp3lame",
 		"-b:a",
-		"64k",
+		DEFAULT_AUDIO_BITRATE,
 		"-f",
 		"mp3",
 		"-pipe:1",
@@ -226,7 +335,7 @@ function parseDurationFromStderr(stderr: string): number | null {
 	const match = stderr.match(/Duration:\s*(\d+):(\d+):(\d+)\.(\d+)/);
 	if (!match) return null;
 	const [, h, m, s, cs] = match;
-	return Number(h) * 3600 + Number(m) * 60 + Number(s) + Number(cs) / 100;
+	return Number(h) * 3600 + Number(m) * 60 + Number(s) + Number(`0.${cs}`);
 }
 
 export async function checkHasAudioTrack(

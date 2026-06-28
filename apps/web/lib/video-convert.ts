@@ -9,9 +9,23 @@ export interface VideoConversionResult {
 	filePath: string;
 	mimeType: string;
 	cleanup: () => Promise<void>;
+	metadata?: VideoProbeMetadata;
 }
 
 const FFMPEG_TIMEOUT_MS = 5 * 60 * 1000;
+const HIGH_BITRATE_BPS = 2_500_000;
+const HIGH_RESOLUTION_MAX_EDGE = 1280;
+
+export interface VideoProbeMetadata {
+	durationSec: number | null;
+	width: number | null;
+	height: number | null;
+	videoCodec: string | null;
+	audioCodec: string | null;
+	bitrateBps: number | null;
+}
+
+export type VideoOptimizationStrategy = "copy" | "compress";
 
 function runFfmpeg(args: string[]): Promise<void> {
 	const ffmpeg = getFfmpegPath();
@@ -58,6 +72,106 @@ function runFfmpeg(args: string[]): Promise<void> {
 			);
 		});
 	});
+}
+
+function runFfmpegForStderr(args: string[]): Promise<string> {
+	const ffmpeg = getFfmpegPath();
+
+	return new Promise((resolve, reject) => {
+		const proc = spawn(ffmpeg, args, { stdio: ["ignore", "ignore", "pipe"] });
+		let settled = false;
+		let stderr = "";
+
+		const timeout = setTimeout(() => {
+			if (settled) return;
+			settled = true;
+			proc.kill("SIGKILL");
+			reject(new Error("Video probe timed out"));
+		}, FFMPEG_TIMEOUT_MS);
+
+		proc.stderr?.on("data", (data: Buffer) => {
+			stderr += data.toString();
+		});
+
+		proc.on("error", (err: Error) => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timeout);
+			reject(new Error(`Video probe failed: ${err.message}`));
+		});
+
+		proc.on("close", () => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timeout);
+			resolve(stderr);
+		});
+	});
+}
+
+function parseDurationSeconds(stderr: string): number | null {
+	const match = stderr.match(/Duration:\s*(\d+):(\d+):(\d+)\.(\d+)/);
+	if (!match) return null;
+	const [, h, m, s, cs] = match;
+	return Number(h) * 3600 + Number(m) * 60 + Number(s) + Number(`0.${cs}`);
+}
+
+function parseBitrateBps(stderr: string): number | null {
+	const match = stderr.match(/bitrate:\s*(\d+)\s*kb\/s/i);
+	if (!match?.[1]) return null;
+	return Number(match[1]) * 1000;
+}
+
+function parseVideoStream(stderr: string) {
+	const match = stderr.match(
+		/Stream #\d+:\d+.*Video:\s*([^,\s]+).*?(\d{2,5})x(\d{2,5})/i,
+	);
+	return {
+		videoCodec: match?.[1] ?? null,
+		width: match?.[2] ? Number(match[2]) : null,
+		height: match?.[3] ? Number(match[3]) : null,
+	};
+}
+
+function parseAudioCodec(stderr: string): string | null {
+	const match = stderr.match(/Stream #\d+:\d+.*Audio:\s*([^,\s]+)/i);
+	return match?.[1] ?? null;
+}
+
+export function parseVideoProbeMetadata(stderr: string): VideoProbeMetadata {
+	const video = parseVideoStream(stderr);
+	return {
+		durationSec: parseDurationSeconds(stderr),
+		width: video.width,
+		height: video.height,
+		videoCodec: video.videoCodec,
+		audioCodec: parseAudioCodec(stderr),
+		bitrateBps: parseBitrateBps(stderr),
+	};
+}
+
+export function chooseVideoOptimizationStrategy(
+	metadata: VideoProbeMetadata,
+): VideoOptimizationStrategy {
+	const maxEdge =
+		metadata.width != null && metadata.height != null
+			? Math.max(metadata.width, metadata.height)
+			: null;
+
+	if (maxEdge != null && maxEdge > HIGH_RESOLUTION_MAX_EDGE) {
+		return "compress";
+	}
+
+	if (metadata.bitrateBps != null && metadata.bitrateBps > HIGH_BITRATE_BPS) {
+		return "compress";
+	}
+
+	return "copy";
+}
+
+async function probeRemoteVideo(videoUrl: string): Promise<VideoProbeMetadata> {
+	const stderr = await runFfmpegForStderr(["-hide_banner", "-i", videoUrl]);
+	return parseVideoProbeMetadata(stderr);
 }
 
 function isHlsUrl(url: string): boolean {
@@ -263,6 +377,40 @@ async function convertRemoteVideoToMp4FileInternal(
 	}
 }
 
+async function optimizeRemoteVideoToMp4FileInternal(
+	videoUrl: string,
+	outputPath: string,
+	strategy: VideoOptimizationStrategy,
+): Promise<void> {
+	if (strategy === "copy") {
+		await convertRemoteVideoToMp4FileInternal(videoUrl, outputPath);
+		return;
+	}
+
+	await runFfmpeg([
+		"-y",
+		"-i",
+		videoUrl,
+		"-c:v",
+		"libx264",
+		"-preset",
+		"veryfast",
+		"-crf",
+		"28",
+		"-vf",
+		"scale='min(1280,iw)':-2",
+		"-pix_fmt",
+		"yuv420p",
+		"-c:a",
+		"aac",
+		"-b:a",
+		"96k",
+		"-movflags",
+		"+faststart",
+		outputPath,
+	]);
+}
+
 export async function convertRemoteVideoToMp4(
 	videoUrl: string,
 ): Promise<VideoConversionResult> {
@@ -276,6 +424,34 @@ export async function convertRemoteVideoToMp4(
 		return {
 			filePath,
 			mimeType: "video/mp4",
+			cleanup: async () => {
+				try {
+					await fs.rm(dirPath, { force: true, recursive: true });
+				} catch {}
+			},
+		};
+	} catch (error) {
+		await fs.rm(dirPath, { force: true, recursive: true }).catch(() => {});
+		throw error;
+	}
+}
+
+export async function optimizeRemoteVideoToMp4(
+	videoUrl: string,
+): Promise<VideoConversionResult> {
+	const dirPath = await fs.mkdtemp(join(tmpdir(), "cap-video-"));
+	const filePath = join(dirPath, `video-${randomUUID()}.mp4`);
+
+	try {
+		const inputPath = await materializeStreamingInput(videoUrl, dirPath);
+		const metadata = await probeRemoteVideo(inputPath);
+		const strategy = chooseVideoOptimizationStrategy(metadata);
+		await optimizeRemoteVideoToMp4FileInternal(inputPath, filePath, strategy);
+
+		return {
+			filePath,
+			mimeType: "video/mp4",
+			metadata,
 			cleanup: async () => {
 				try {
 					await fs.rm(dirPath, { force: true, recursive: true });

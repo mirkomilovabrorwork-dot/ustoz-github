@@ -231,6 +231,55 @@ export function normalizeToWebVtt(raw: string, audioDurationSec: number): string
 	return vtt;
 }
 
+export function mergeChunkedWebVtt(
+	chunks: Array<{ vtt: string; offsetSec: number }>,
+): string {
+	let output = "WEBVTT\n\n";
+	let cueIndex = 1;
+	const timingLine = new RegExp(`(${TS})\\s*-->\\s*(${TS})`);
+
+	for (const chunk of chunks) {
+		const blocks = chunk.vtt.split(/\r?\n\r?\n/);
+
+		for (const block of blocks) {
+			const lines = block
+				.split(/\r?\n/)
+				.map((line) => line.trim())
+				.filter(Boolean);
+
+			if (lines.length === 0 || /^WEBVTT/i.test(lines[0] ?? "")) {
+				continue;
+			}
+
+			const timingIndex = lines.findIndex((line) => line.includes("-->"));
+			if (timingIndex === -1) {
+				continue;
+			}
+
+			const match = lines[timingIndex]?.match(timingLine);
+			if (!match) {
+				continue;
+			}
+
+			const start = parseTimestampToSeconds(match[1] ?? "");
+			const end = parseTimestampToSeconds(match[2] ?? "");
+			if (start == null || end == null || end <= start) {
+				continue;
+			}
+
+			const textLines = lines.slice(timingIndex + 1);
+			if (textLines.length === 0) {
+				continue;
+			}
+
+			output += `${cueIndex}\n${formatVttTimestamp(start + chunk.offsetSec)} --> ${formatVttTimestamp(end + chunk.offsetSec)}\n${textLines.join("\n")}\n\n`;
+			cueIndex++;
+		}
+	}
+
+	return output;
+}
+
 import { isTransientGeminiError, withGeminiRetry } from "@/lib/gemini-retry";
 
 const GEMINI_TRANSCRIBE_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"] as const;

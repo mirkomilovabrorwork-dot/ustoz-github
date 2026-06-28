@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { isTransientGeminiError } from "@/lib/gemini-retry";
-import { buildTranscriptionPrompt } from "@/lib/gemini-transcribe";
+import {
+	buildTranscriptionPrompt,
+	mergeChunkedWebVtt,
+} from "@/lib/gemini-transcribe";
 import { chunkTranscript } from "@/lib/transcript-chunk";
 
 describe("transcription prompt", () => {
@@ -19,6 +22,43 @@ describe("transcription prompt", () => {
 			"Bugun **dashboard** **deadline** bor, **сразу** qilamiz.",
 		);
 		expect(prompt).not.toContain("This meeting has multiple speakers");
+	});
+});
+
+describe("chunked transcript merge", () => {
+	it("offsets chunk timestamps and renumbers cues", () => {
+		const merged = mergeChunkedWebVtt([
+			{
+				offsetSec: 0,
+				vtt: `WEBVTT
+
+1
+00:00:01.000 --> 00:00:03.000
+First chunk
+`,
+			},
+			{
+				offsetSec: 900,
+				vtt: `WEBVTT
+
+1
+00:00:02.000 --> 00:00:04.500
+Second chunk
+`,
+			},
+		]);
+
+		expect(merged).toBe(`WEBVTT
+
+1
+00:00:01.000 --> 00:00:03.000
+First chunk
+
+2
+00:15:02.000 --> 00:15:04.500
+Second chunk
+
+`);
 	});
 });
 

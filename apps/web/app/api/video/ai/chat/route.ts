@@ -1,17 +1,18 @@
 import { db } from "@cap/database";
 import { decrypt } from "@cap/database/crypto";
 import { getCurrentUser } from "@cap/database/auth/session";
-import { transcriptChunks, users, videos } from "@cap/database/schema";
+import { users, videos } from "@cap/database/schema";
 import { serverEnv } from "@cap/env";
 import { provideOptionalAuth, VideosPolicy } from "@cap/web-backend";
 import { Policy, Video } from "@cap/web-domain";
-import { and, eq, isNotNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 import type { NextRequest } from "next/server";
 import { BudgetExceededError, withCostGuard } from "@/lib/ai-cost-guard";
 import { EMBED_MODEL, embedChunksWithUsage } from "@/lib/gemini-embed";
 import { withGeminiRetry } from "@/lib/gemini-retry";
 import { runPromise } from "@/lib/server";
+import { ensureTranscriptIndex } from "@/lib/transcript-index";
 import { retrieveTopK } from "@/lib/transcript-retrieve";
 
 export const dynamic = "force-dynamic";
@@ -169,11 +170,7 @@ export async function POST(request: NextRequest) {
 	}
 
 	const [video] = await db()
-		.select({
-			ownerId: videos.ownerId,
-			orgId: videos.orgId,
-			metadata: videos.metadata,
-		})
+		.select()
 		.from(videos)
 		.where(eq(videos.id, Video.VideoId.make(videoId)))
 		.limit(1);
@@ -182,26 +179,6 @@ export async function POST(request: NextRequest) {
 		return new Response(JSON.stringify({ error: "Video not found" }), {
 			status: 404,
 		});
-	}
-
-	const [indexedChunk] = await db()
-		.select({ id: transcriptChunks.id })
-		.from(transcriptChunks)
-		.where(
-			and(
-				eq(transcriptChunks.videoId, Video.VideoId.make(videoId)),
-				isNotNull(transcriptChunks.embedding),
-			),
-		)
-		.limit(1);
-
-	if (!indexedChunk) {
-		return new Response(
-			JSON.stringify({
-				error: "AI index not ready yet. Generate the transcript/AI index first, then try again.",
-			}),
-			{ status: 409 },
-		);
 	}
 
 	const [owner] = await db()
@@ -243,6 +220,25 @@ export async function POST(request: NextRequest) {
 			};
 
 			try {
+				const indexReady = await ensureTranscriptIndex({
+					videoId,
+					video,
+					apiKey: resolvedApiKey,
+					userId: video.ownerId,
+				});
+
+				if (!indexReady) {
+					send(
+						JSON.stringify({
+							error:
+								"Transcript index is not ready because the transcript is missing or empty.",
+						}),
+					);
+					send("[DONE]");
+					controller.close();
+					return;
+				}
+
 				const embedResult = await withCostGuard({
 					orgId: video.orgId,
 					userId: video.ownerId,

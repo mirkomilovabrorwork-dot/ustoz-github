@@ -20,7 +20,6 @@ import {
 	normalizeKeepRanges,
 } from "@/lib/video-edits";
 import { decodeStorageVideo } from "@/lib/video-storage";
-import { isAiGenerationEnabled } from "@/utils/flags";
 import { editVideoWorkflow } from "@/workflows/edit-video";
 
 const ACTIVE_PHASES = [
@@ -234,8 +233,6 @@ export async function saveVideoEdits(
 		return { ok: false, error: message };
 	}
 
-	const aiGenerationEnabled = await isAiGenerationEnabled(user);
-
 	await markEditProcessing({ videoId, sourceKey });
 
 	editVideoWorkflow({
@@ -245,7 +242,7 @@ export async function saveVideoEdits(
 		previousSpec,
 		editSpec: normalizedEditSpec,
 		keepRanges: normalizedEditSpec.keepRanges,
-		aiGenerationEnabled,
+		aiGenerationEnabled: false,
 	}).catch((err) => {
 		console.error("[saveVideoEdits] Inline workflow failed", err);
 	});

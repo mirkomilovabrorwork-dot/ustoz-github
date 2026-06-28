@@ -9,7 +9,7 @@ const recordingModes = [
 		name: "Instant Mode",
 		icon: <Zap fill="yellow" className="mb-4 size-8" strokeWidth={1.5} />,
 		description:
-			"Hit record, stop, share link. Your video is live in seconds with automatically generated captions, a title, summary, chapters, and more. Perfect for quick feedback, bug reports, or when you just need to show something fast.",
+			"Record while data365 uploads in small chunks. When you stop, the link can be ready much faster because most of the upload already happened. AI analysis starts only when you press the button.",
 	},
 	{
 		name: "Studio Mode",

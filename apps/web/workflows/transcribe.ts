@@ -1,10 +1,8 @@
 import { promises as fs } from "node:fs";
 import { db } from "@cap/database";
 import { decrypt } from "@cap/database/crypto";
-import { nanoId } from "@cap/database/helpers";
 import {
 	organizations,
-	transcriptChunks,
 	users,
 	videos,
 	videoUploads,
@@ -21,12 +19,17 @@ import {
 	ENHANCED_AUDIO_EXTENSION,
 	enhanceAudioFromUrl,
 } from "@/lib/audio-enhance";
-import { checkHasAudioTrack, extractAudioFromUrl } from "@/lib/audio-extract";
-import { EMBED_MODEL, embedChunksWithUsage } from "@/lib/gemini-embed";
-import { transcribeWithGemini } from "@/lib/gemini-transcribe";
+import {
+	checkHasAudioTrack,
+	extractAudioChunksFromUrl,
+	extractAudioFromUrl,
+} from "@/lib/audio-extract";
+import {
+	mergeChunkedWebVtt,
+	transcribeWithGemini,
+} from "@/lib/gemini-transcribe";
 import { startAiGeneration } from "@/lib/generate-ai";
 import { runPromise } from "@/lib/server";
-import { chunkTranscript } from "@/lib/transcript-chunk";
 import { isTranscriptionDisabled } from "@/lib/transcription-settings";
 import { getStorageAccessForVideo } from "@/lib/video-storage";
 
@@ -44,6 +47,21 @@ interface VideoData {
 	orgId: string;
 }
 
+interface ExtractedAudioChunk {
+	key: string;
+	url: string;
+	startSec: number;
+	durationSec: number | null;
+}
+
+interface ExtractedAudio {
+	chunks: ExtractedAudioChunk[];
+	totalDurationSec: number | null;
+}
+
+const LONG_AUDIO_CHUNK_DURATION_SEC = 15 * 60;
+const LONG_AUDIO_CHUNK_THRESHOLD_SEC = 30 * 60;
+
 export async function transcribeVideoWorkflow(
 	payload: TranscribeWorkflowPayload,
 ) {
@@ -58,10 +76,12 @@ export async function transcribeVideoWorkflow(
 		return { success: true, message: "Transcription disabled - skipped" };
 	}
 
-	try {
-		const audioUrl = await extractAudio(videoId, userId, videoData.video);
+	let tempAudioKeys: string[] = [];
 
-		if (!audioUrl) {
+	try {
+		const audio = await extractAudio(videoId, userId, videoData.video);
+
+		if (!audio) {
 			await markNoAudio(videoId);
 			return {
 				success: true,
@@ -69,30 +89,22 @@ export async function transcribeVideoWorkflow(
 			};
 		}
 
-		const [transcription] = await Promise.all([
-			transcribeAudio(
-				audioUrl,
-				videoData.video.duration,
-				videoData.ownerEncryptedGeminiKey,
-				{ userId, orgId: videoData.orgId, videoId },
-			),
-		]);
+		tempAudioKeys = audio.chunks.map((chunk) => chunk.key);
+
+		const transcription = await transcribeAudioChunks(
+			audio,
+			videoData.ownerEncryptedGeminiKey,
+			{ userId, orgId: videoData.orgId, videoId },
+		);
 
 		await saveTranscription(videoId, userId, videoData.video, transcription);
-
-		await chunkEmbedAndStore(
-			videoId,
-			transcription,
-			videoData.ownerEncryptedGeminiKey,
-			{ userId, orgId: videoData.orgId },
-		);
 	} catch (error) {
 		await markError(videoId);
-		await cleanupTempAudio(videoId, userId, videoData.video);
+		await cleanupTempAudioKeys(tempAudioKeys, videoData.video);
 		throw error;
 	}
 
-	await cleanupTempAudio(videoId, userId, videoData.video);
+	await cleanupTempAudioKeys(tempAudioKeys, videoData.video);
 
 	if (aiGenerationEnabled) {
 		await queueAiGeneration(videoId, userId);
@@ -187,7 +199,7 @@ async function extractAudio(
 	videoId: string,
 	userId: string,
 	video: typeof videos.$inferSelect,
-): Promise<string | null> {
+): Promise<ExtractedAudio | null> {
 	"use step";
 
 	const [bucket] = await getStorageAccessForVideo(video).pipe(runPromise);
@@ -195,8 +207,6 @@ async function extractAudio(
 	const videoUrl = await resolveVideoSourceUrl(videoId, userId, video);
 
 	// Media server removed — single-file MP4, no server-side processing
-	let audioBuffer: Buffer;
-
 	const probe = await checkHasAudioTrack(videoUrl);
 	console.log(
 		`[transcribe] Local ffmpeg audio check for ${videoId}: hasAudio=${probe.hasAudio}, durationSec=${probe.durationSec}`,
@@ -213,8 +223,59 @@ async function extractAudio(
 		return null;
 	}
 
+	const totalDurationSec = probe.durationSec ?? video.duration ?? null;
+
+	if (
+		totalDurationSec != null &&
+		totalDurationSec > LONG_AUDIO_CHUNK_THRESHOLD_SEC
+	) {
+		const result = await extractAudioChunksFromUrl(videoUrl, {
+			chunkDurationSec: LONG_AUDIO_CHUNK_DURATION_SEC,
+			totalDurationSec,
+		});
+		const chunks: ExtractedAudioChunk[] = [];
+
+		try {
+			for (const [index, chunk] of result.chunks.entries()) {
+				const audioBuffer = await fs.readFile(chunk.filePath);
+				const audioKey = `${userId}/${videoId}/audio-temp-${String(index).padStart(3, "0")}.mp3`;
+
+				await bucket
+					.putObject(audioKey, audioBuffer, {
+						contentType: result.mimeType,
+					})
+					.pipe(runPromise);
+
+				const audioSignedUrl = await bucket
+					.getInternalSignedObjectUrl(audioKey)
+					.pipe(runPromise);
+
+				chunks.push({
+					key: audioKey,
+					url: audioSignedUrl,
+					startSec: chunk.startSec,
+					durationSec: chunk.durationSec,
+				});
+			}
+
+			console.log(
+				`[transcribe] Extracted ${chunks.length} audio chunks for ${videoId}`,
+			);
+
+			return { chunks, totalDurationSec };
+		} catch (error) {
+			for (const chunk of chunks) {
+				await bucket.deleteObject(chunk.key).pipe(runPromise).catch(() => {});
+			}
+			throw error;
+		} finally {
+			await result.cleanup();
+		}
+	}
+
 	const result = await extractAudioFromUrl(videoUrl);
 
+	let audioBuffer: Buffer;
 	try {
 		audioBuffer = await fs.readFile(result.filePath);
 	} finally {
@@ -227,17 +288,32 @@ async function extractAudio(
 
 	const audioKey = `${userId}/${videoId}/audio-temp.mp3`;
 
-	await bucket
-		.putObject(audioKey, audioBuffer, {
-			contentType: "audio/mpeg",
-		})
-		.pipe(runPromise);
+	try {
+		await bucket
+			.putObject(audioKey, audioBuffer, {
+				contentType: "audio/mpeg",
+			})
+			.pipe(runPromise);
 
-	const audioSignedUrl = await bucket
-		.getInternalSignedObjectUrl(audioKey)
-		.pipe(runPromise);
+		const audioSignedUrl = await bucket
+			.getInternalSignedObjectUrl(audioKey)
+			.pipe(runPromise);
 
-	return audioSignedUrl;
+		return {
+			chunks: [
+				{
+					key: audioKey,
+					url: audioSignedUrl,
+					startSec: 0,
+					durationSec: totalDurationSec,
+				},
+			],
+			totalDurationSec,
+		};
+	} catch (error) {
+		await bucket.deleteObject(audioKey).pipe(runPromise).catch(() => {});
+		throw error;
+	}
 }
 
 async function resolveVideoSourceUrl(
@@ -289,7 +365,7 @@ async function resolveVideoSourceUrl(
 
 async function transcribeAudio(
 	audioUrl: string,
-	videoDuration: number | null,
+	audioDurationSec: number | null,
 	ownerEncryptedGeminiKey: string | null,
 	context: { userId: string; orgId: string; videoId: string },
 ): Promise<string> {
@@ -328,7 +404,7 @@ async function transcribeAudio(
 		fn: async () => {
 			const res = await transcribeWithGemini(audioUrl, {
 				apiKey: resolvedApiKey,
-				audioDurationSec: videoDuration ?? undefined,
+				audioDurationSec: audioDurationSec ?? undefined,
 			});
 			return {
 				transcriptVtt: res.transcriptVtt,
@@ -339,6 +415,37 @@ async function transcribeAudio(
 	});
 
 	return result.transcriptVtt;
+}
+
+async function transcribeAudioChunks(
+	audio: ExtractedAudio,
+	ownerEncryptedGeminiKey: string | null,
+	context: { userId: string; orgId: string; videoId: string },
+): Promise<string> {
+	if (audio.chunks.length === 1) {
+		const chunk = audio.chunks[0];
+		if (!chunk) return "WEBVTT\n\n";
+		return await transcribeAudio(
+			chunk.url,
+			chunk.durationSec ?? audio.totalDurationSec,
+			ownerEncryptedGeminiKey,
+			context,
+		);
+	}
+
+	const transcribedChunks: Array<{ vtt: string; offsetSec: number }> = [];
+
+	for (const chunk of audio.chunks) {
+		const vtt = await transcribeAudio(
+			chunk.url,
+			chunk.durationSec,
+			ownerEncryptedGeminiKey,
+			context,
+		);
+		transcribedChunks.push({ vtt, offsetSec: chunk.startSec });
+	}
+
+	return mergeChunkedWebVtt(transcribedChunks);
 }
 
 async function saveTranscription(
@@ -363,106 +470,29 @@ async function saveTranscription(
 		.where(eq(videos.id, videoId as Video.VideoId));
 }
 
-async function chunkEmbedAndStore(
-	videoId: string,
-	vttContent: string,
-	ownerEncryptedGeminiKey: string | null,
-	context: { userId: string; orgId: string },
-): Promise<void> {
-	"use step";
-
-	try {
-		let apiKey: string | undefined;
-
-		if (ownerEncryptedGeminiKey) {
-			try {
-				apiKey = await decrypt(ownerEncryptedGeminiKey);
-			} catch {
-				console.error(
-					"[transcribe] Failed to decrypt user Gemini key for embeddings, falling back to server key",
-				);
-			}
-		}
-
-		if (!apiKey) {
-			apiKey = serverEnv().GEMINI_API_KEY;
-		}
-
-		if (!apiKey) {
-			console.warn(
-				"[transcribe] No Gemini API key available for embeddings, skipping RAG indexing",
-			);
-			return;
-		}
-
-		const chunks = chunkTranscript(vttContent);
-		if (chunks.length === 0) {
-			console.log(`[transcribe] No chunks produced for video ${videoId}`);
-			return;
-		}
-
-		const resolvedApiKey = apiKey;
-
-		const { embeddings } = await withCostGuard({
-			orgId: context.orgId,
-			userId: context.userId,
-			videoId,
-			operation: "embedding",
-			model: EMBED_MODEL,
-			fn: async () => {
-				const result = await embedChunksWithUsage(chunks, resolvedApiKey);
-				return {
-					embeddings: result.embeddings,
-					inputTokens: result.totalTokens,
-					outputTokens: 0,
-				};
-			},
-		});
-
-		const rows = chunks.map((chunk, i) => ({
-			id: nanoId(),
-			videoId: videoId as Video.VideoId,
-			chunkIndex: i,
-			startMs: chunk.startMs,
-			endMs: chunk.endMs,
-			speaker: chunk.speaker,
-			text: chunk.text,
-			tokens: chunk.tokens,
-			embedding: embeddings[i] ?? null,
-			embeddingModel: EMBED_MODEL,
-		}));
-
-		await db().insert(transcriptChunks).values(rows);
-
-		console.log(
-			`[transcribe] Stored ${rows.length} transcript chunks for video ${videoId}`,
-		);
-	} catch (error) {
-		console.error(
-			`[transcribe] RAG indexing failed for video ${videoId}, transcription still COMPLETE:`,
-			error,
-		);
-	}
-}
-
-async function cleanupTempAudio(
-	videoId: string,
-	userId: string,
+async function cleanupTempAudioKeys(
+	audioKeys: string[],
 	video: typeof videos.$inferSelect,
 ): Promise<void> {
 	"use step";
 
-	const audioKey = `${userId}/${videoId}/audio-temp.mp3`;
+	if (audioKeys.length === 0) return;
 
 	try {
 		const [bucket] = await getStorageAccessForVideo(video).pipe(runPromise);
 
-		await bucket.deleteObject(audioKey).pipe(runPromise);
+		for (const audioKey of audioKeys) {
+			try {
+				await bucket.deleteObject(audioKey).pipe(runPromise);
+			} catch (error) {
+				console.error(
+					`[transcribe] Failed to cleanup temp audio file: ${audioKey}`,
+					error,
+				);
+			}
+		}
 	} catch (error) {
-		console.error(
-			`[transcribe] Failed to cleanup temp audio file: ${audioKey}`,
-			error,
-		);
+		console.error("[transcribe] Failed to access storage for audio cleanup", error);
 	}
 }
 

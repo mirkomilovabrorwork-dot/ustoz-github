@@ -257,7 +257,7 @@ const useVideoStatus = (
 						!data.summary &&
 						!data.chapters?.length
 					) {
-						return true;
+						return false;
 					}
 
 					return false;
@@ -290,9 +290,6 @@ export const Share = ({
 	const effectiveDate: Date = data.metadata?.customCreatedAt
 		? new Date(data.metadata.customCreatedAt)
 		: data.createdAt;
-
-	const olderThanFiveMin =
-		Date.now() - effectiveDate.getTime() > 5 * 60 * 1000;
 
 	const playerRef = useRef<HTMLVideoElement | null>(null);
 	const activityRef = useRef<{ scrollToBottom: () => void }>(null);
@@ -358,54 +355,6 @@ export const Share = ({
 		isDisabled("disableComments") &&
 		isDisabled("disableSummary") &&
 		isDisabled("disableTranscript");
-
-	const shouldShowLoading = () => {
-		const hasVisibleAiSection = !isSummaryDisabled || !areChaptersDisabled;
-		const hasAiData = Boolean(aiData.summary || aiData.chapters?.length);
-
-		if (!hasVisibleAiSection || !aiGenerationAvailable || hasAiData) {
-			return false;
-		}
-
-		if (!transcriptionStatus) {
-			return transcriptionGenerationAvailable;
-		}
-
-		if (transcriptionStatus === "PROCESSING") {
-			return true;
-		}
-
-		if (
-			transcriptionStatus === "ERROR" ||
-			transcriptionStatus === "SKIPPED" ||
-			transcriptionStatus === "NO_AUDIO"
-		) {
-			return false;
-		}
-
-		if (transcriptionStatus === "COMPLETE") {
-			if (
-				aiData.aiGenerationStatus === "SKIPPED" ||
-				aiData.aiGenerationStatus === "ERROR" ||
-				aiData.aiGenerationStatus === "COMPLETE"
-			) {
-				return false;
-			}
-			if (
-				aiData.aiGenerationStatus === "QUEUED" ||
-				aiData.aiGenerationStatus === "PROCESSING"
-			) {
-				return !olderThanFiveMin;
-			}
-			if (!aiData.aiGenerationStatus) {
-				return true;
-			}
-		}
-
-		return false;
-	};
-
-	const aiLoading = shouldShowLoading();
 
 	const searchParams = useSearchParams();
 	const initialSeekDone = useRef(false);
