@@ -10,7 +10,6 @@ export interface VideoConversionResult {
 	mimeType: string;
 	cleanup: () => Promise<void>;
 	metadata?: VideoProbeMetadata;
-	strategy?: VideoOptimizationStrategy;
 }
 
 const FFMPEG_TIMEOUT_MS = 5 * 60 * 1000;
@@ -418,7 +417,7 @@ async function optimizeRemoteVideoToMp4FileInternal(
 		"-preset",
 		"veryfast",
 		"-crf",
-		"23",
+		"28",
 		"-vf",
 		"scale='if(gt(iw,ih),min(1280,iw),-2)':'if(gt(iw,ih),-2,min(1280,ih))'",
 		"-pix_fmt",
@@ -426,7 +425,7 @@ async function optimizeRemoteVideoToMp4FileInternal(
 		"-c:a",
 		"aac",
 		"-b:a",
-		"128k",
+		"96k",
 		"-movflags",
 		"+faststart",
 		outputPath,
@@ -474,7 +473,6 @@ export async function optimizeRemoteVideoToMp4(
 			filePath,
 			mimeType: "video/mp4",
 			metadata,
-			strategy,
 			cleanup: async () => {
 				try {
 					await fs.rm(dirPath, { force: true, recursive: true });

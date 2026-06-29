@@ -222,34 +222,4 @@ Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'video.mp4':
 			}),
 		).toBe("copy");
 	});
-
-	it("returns strategy in optimizeRemoteVideoToMp4 result", async () => {
-		const { optimizeRemoteVideoToMp4 } = await import("@/lib/video-convert");
-
-		const resultPromise = optimizeRemoteVideoToMp4(
-			"https://example.com/video.m3u8",
-		);
-
-		// The probe call returns stderr with a small efficient video → strategy = "copy"
-		// First spawn: probe (ffmpeg -hide_banner -i ...) → close 0
-		setTimeout(() => {
-			// Simulate ffmpeg probe stderr with efficient h264/aac/low-bitrate
-			spawnedProcesses[0]?.stderr.emit(
-				"data",
-				Buffer.from(
-					'Input #0, mp4:\n  Duration: 00:01:00.00, start: 0, bitrate: 1000 kb/s\n  Stream #0:0: Video: h264, yuv420p, 640x480\n  Stream #0:1: Audio: aac',
-				),
-			);
-			spawnedProcesses[0]?.emit("close", 0);
-			// Second spawn: copy (ffmpeg -y -i ... -c copy ...) → close 0
-			setTimeout(() => {
-				spawnedProcesses[1]?.emit("close", 0);
-			}, 10);
-		}, 10);
-
-		const result = await resultPromise;
-
-		expect(result.strategy).toBe("copy");
-		expect(result.metadata).toBeDefined();
-	});
 });
