@@ -327,13 +327,11 @@ Rules:
 
 4. Add real, accurate timestamps from the audio. Do not use sample, fake, guessed, estimated, or template timestamps.
 
-Put cue boundaries only where they exactly match the recording:
-- at the beginning,
-- when the speaker changes,
-- when a new topic or section starts,
-- when decisions, tasks, objections, or important points appear,
-- when there is a meaningful pause or transition,
-- and when needed to keep long speech easy to navigate.
+Cue granularity — match how Loom / YouTube / Whisper subtitle a recording:
+- Aim for short, readable cues. Most cues should be 3–10 seconds long and 1–2 sentences of text. Never let a single cue span more than ~15 seconds of audio.
+- Start a NEW cue at every sentence boundary, at every natural pause longer than ~0.5s, when the speaker changes, and whenever the topic shifts. Do not pack multiple sentences from different moments into one cue.
+- Cue ranges must NEVER overlap. Each cue's start must be ≥ the previous cue's end. Cues should also be roughly continuous (small gaps for silence are fine).
+- Cover the recording end-to-end: the first cue should begin near 00:00, and the last cue's end should be at or near the actual audio duration. Do not leave large unexplained gaps at the beginning or middle.
 
 5. Clean the transcript professionally:
 - remove filler sounds like "umm", "aa", "eee", "э"
