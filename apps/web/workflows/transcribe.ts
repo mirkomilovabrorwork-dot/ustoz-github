@@ -418,10 +418,11 @@ async function transcribeAudio(
 	return result.transcriptVtt;
 }
 
-async function transcribeAudioChunks(
+export async function transcribeAudioChunks(
 	audio: ExtractedAudio,
 	ownerEncryptedGeminiKey: string | null,
 	context: { userId: string; orgId: string; videoId: string },
+	transcribeChunk: typeof transcribeAudioChunkWithRetry = transcribeAudioChunkWithRetry,
 ): Promise<string> {
 	if (audio.chunks.length === 1) {
 		const chunk = audio.chunks[0];
@@ -439,7 +440,7 @@ async function transcribeAudioChunks(
 
 	for (const chunk of audio.chunks) {
 		try {
-			const vtt = await transcribeAudioChunkWithRetry({
+			const vtt = await transcribeChunk({
 				chunk,
 				ownerEncryptedGeminiKey,
 				context,
@@ -474,21 +475,24 @@ async function transcribeAudioChunks(
 	return mergeChunkedWebVtt(transcribedChunks);
 }
 
-async function transcribeAudioChunkWithRetry({
-	chunk,
-	ownerEncryptedGeminiKey,
-	context,
-}: {
-	chunk: ExtractedAudioChunk;
-	ownerEncryptedGeminiKey: string | null;
-	context: { userId: string; orgId: string; videoId: string };
-}): Promise<string> {
+export async function transcribeAudioChunkWithRetry(
+	{
+		chunk,
+		ownerEncryptedGeminiKey,
+		context,
+	}: {
+		chunk: ExtractedAudioChunk;
+		ownerEncryptedGeminiKey: string | null;
+		context: { userId: string; orgId: string; videoId: string };
+	},
+	transcribeFn: typeof transcribeAudio = transcribeAudio,
+): Promise<string> {
 	const maxAttempts = 4;
 	let lastError: unknown;
 
 	for (let attempt = 1; attempt <= maxAttempts; attempt++) {
 		try {
-			return await transcribeAudio(
+			return await transcribeFn(
 				chunk.url,
 				chunk.durationSec,
 				ownerEncryptedGeminiKey,
