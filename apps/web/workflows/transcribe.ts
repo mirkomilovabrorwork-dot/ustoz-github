@@ -437,16 +437,49 @@ async function transcribeAudioChunks(
 	const transcribedChunks: Array<{ vtt: string; offsetSec: number }> = [];
 
 	for (const chunk of audio.chunks) {
-		const vtt = await transcribeAudio(
-			chunk.url,
-			chunk.durationSec,
+		const vtt = await transcribeAudioChunkWithRetry({
+			chunk,
 			ownerEncryptedGeminiKey,
 			context,
-		);
+		});
 		transcribedChunks.push({ vtt, offsetSec: chunk.startSec });
 	}
 
 	return mergeChunkedWebVtt(transcribedChunks);
+}
+
+async function transcribeAudioChunkWithRetry({
+	chunk,
+	ownerEncryptedGeminiKey,
+	context,
+}: {
+	chunk: ExtractedAudioChunk;
+	ownerEncryptedGeminiKey: string | null;
+	context: { userId: string; orgId: string; videoId: string };
+}): Promise<string> {
+	const maxAttempts = 2;
+	let lastError: unknown;
+
+	for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+		try {
+			return await transcribeAudio(
+				chunk.url,
+				chunk.durationSec,
+				ownerEncryptedGeminiKey,
+				context,
+			);
+		} catch (error) {
+			lastError = error;
+			if (error instanceof FatalError || attempt === maxAttempts) {
+				break;
+			}
+			console.warn(
+				`[transcribe] Retrying audio chunk at ${chunk.startSec}s for ${context.videoId} after failed attempt ${attempt}`,
+			);
+		}
+	}
+
+	throw lastError;
 }
 
 async function saveTranscription(

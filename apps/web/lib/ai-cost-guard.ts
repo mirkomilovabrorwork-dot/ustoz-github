@@ -12,7 +12,7 @@ import { and, eq, sql } from "drizzle-orm";
 
 export class BudgetExceededError extends Error {
 	constructor(
-		public scope: "user" | "org",
+		public scope: "user" | "org" | "video",
 		public currentMicros: number,
 		public capMicros: number,
 	) {
@@ -32,7 +32,27 @@ export class BudgetExceededError extends Error {
 // runaway-loop backstop instead; owners who want a tighter cap can set a
 // per-org/user budget in settings (org.settings.aiBudget / user prefs).
 const DEFAULT_AI_BUDGET_CAP_MICROS = 100_000_000; // $100 / month
+const DEFAULT_AI_VIDEO_BUDGET_CAP_MICROS = 20_000_000; // $20 / video
 
+export function hasBudgetBeenReached({
+	currentMicros,
+	capMicros,
+}: {
+	currentMicros: number;
+	capMicros: number | null;
+}): boolean {
+	return capMicros != null && capMicros > 0 && currentMicros >= capMicros;
+}
+
+export function previousSpendBeforeRecordedEvent({
+	currentSpendMicros,
+	eventCostMicros,
+}: {
+	currentSpendMicros: number;
+	eventCostMicros: number;
+}): number {
+	return Math.max(0, currentSpendMicros - eventCostMicros);
+}
 
 function currentBillingMonth(): string {
 	const now = new Date();
@@ -57,6 +77,17 @@ async function getMonthlySpendMicros(
 		})
 		.from(aiUsageEvents)
 		.where(and(idCondition, eq(aiUsageEvents.billingMonth, billingMonth)));
+
+	return Number(result?.total ?? 0);
+}
+
+async function getVideoSpendMicros(videoId: string): Promise<number> {
+	const [result] = await db()
+		.select({
+			total: sql<number>`COALESCE(SUM(${aiUsageEvents.costUsdMicros}), 0)`,
+		})
+		.from(aiUsageEvents)
+		.where(eq(aiUsageEvents.videoId, videoId as Video.VideoId));
 
 	return Number(result?.total ?? 0);
 }
@@ -104,9 +135,11 @@ export async function getAiBudgetCapsMicros({
 export async function assertAiBudgetAvailable({
 	orgId,
 	userId,
+	videoId,
 }: {
 	orgId: string;
 	userId: string;
+	videoId?: string;
 }): Promise<void> {
 	const billingMonth = currentBillingMonth();
 	const { budgetCapUserMicros, budgetCapOrgMicros } =
@@ -122,15 +155,41 @@ export async function assertAiBudgetAvailable({
 			userId,
 			billingMonth,
 		);
-		if (userSpend >= budgetCapUserMicros) {
+		if (
+			hasBudgetBeenReached({
+				currentMicros: userSpend,
+				capMicros: budgetCapUserMicros,
+			})
+		) {
 			throw new BudgetExceededError("user", userSpend, budgetCapUserMicros);
 		}
 	}
 
 	if (effectiveBudgetCapOrgMicros != null && effectiveBudgetCapOrgMicros > 0) {
 		const orgSpend = await getMonthlySpendMicros("orgId", orgId, billingMonth);
-		if (orgSpend >= effectiveBudgetCapOrgMicros) {
+		if (
+			hasBudgetBeenReached({
+				currentMicros: orgSpend,
+				capMicros: effectiveBudgetCapOrgMicros,
+			})
+		) {
 			throw new BudgetExceededError("org", orgSpend, effectiveBudgetCapOrgMicros);
+		}
+	}
+
+	if (videoId) {
+		const videoSpend = await getVideoSpendMicros(videoId);
+		if (
+			hasBudgetBeenReached({
+				currentMicros: videoSpend,
+				capMicros: DEFAULT_AI_VIDEO_BUDGET_CAP_MICROS,
+			})
+		) {
+			throw new BudgetExceededError(
+				"video",
+				videoSpend,
+				DEFAULT_AI_VIDEO_BUDGET_CAP_MICROS,
+			);
 		}
 	}
 }
@@ -170,7 +229,12 @@ export async function withCostGuard<T>(
 			options.userId,
 			billingMonth,
 		);
-		if (userSpend >= budgetCapUserMicros) {
+		if (
+			hasBudgetBeenReached({
+				currentMicros: userSpend,
+				capMicros: budgetCapUserMicros,
+			})
+		) {
 			throw new BudgetExceededError("user", userSpend, budgetCapUserMicros);
 		}
 	}
@@ -181,8 +245,29 @@ export async function withCostGuard<T>(
 			options.orgId,
 			billingMonth,
 		);
-		if (orgSpend >= budgetCapOrgMicros) {
+		if (
+			hasBudgetBeenReached({
+				currentMicros: orgSpend,
+				capMicros: budgetCapOrgMicros,
+			})
+		) {
 			throw new BudgetExceededError("org", orgSpend, budgetCapOrgMicros);
+		}
+	}
+
+	if (options.videoId) {
+		const videoSpend = await getVideoSpendMicros(options.videoId);
+		if (
+			hasBudgetBeenReached({
+				currentMicros: videoSpend,
+				capMicros: DEFAULT_AI_VIDEO_BUDGET_CAP_MICROS,
+			})
+		) {
+			throw new BudgetExceededError(
+				"video",
+				videoSpend,
+				DEFAULT_AI_VIDEO_BUDGET_CAP_MICROS,
+			);
 		}
 	}
 
@@ -212,12 +297,16 @@ export async function withCostGuard<T>(
 
 	// Check budget thresholds and create alerts
 	if (budgetCapUserMicros != null && budgetCapUserMicros > 0) {
-		const prevSpend = await getMonthlySpendMicros(
+		const currentSpend = await getMonthlySpendMicros(
 			"userId",
 			options.userId,
 			billingMonth,
 		);
-		const newSpend = prevSpend + costUsdMicros;
+		const prevSpend = previousSpendBeforeRecordedEvent({
+			currentSpendMicros: currentSpend,
+			eventCostMicros: costUsdMicros,
+		});
+		const newSpend = currentSpend;
 
 		const prevPct = (prevSpend / budgetCapUserMicros) * 100;
 		const newPct = (newSpend / budgetCapUserMicros) * 100;
@@ -245,12 +334,16 @@ export async function withCostGuard<T>(
 	}
 
 	if (budgetCapOrgMicros != null && budgetCapOrgMicros > 0) {
-		const prevSpend = await getMonthlySpendMicros(
+		const currentSpend = await getMonthlySpendMicros(
 			"orgId",
 			options.orgId,
 			billingMonth,
 		);
-		const newSpend = prevSpend + costUsdMicros;
+		const prevSpend = previousSpendBeforeRecordedEvent({
+			currentSpendMicros: currentSpend,
+			eventCostMicros: costUsdMicros,
+		});
+		const newSpend = currentSpend;
 
 		const prevPct = (prevSpend / budgetCapOrgMicros) * 100;
 		const newPct = (newSpend / budgetCapOrgMicros) * 100;

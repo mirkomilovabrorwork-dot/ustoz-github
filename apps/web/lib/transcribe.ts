@@ -140,6 +140,7 @@ export async function transcribeVideo(
 		await assertAiBudgetAvailable({
 			orgId: video.orgId,
 			userId,
+			videoId,
 		});
 
 		console.log(
