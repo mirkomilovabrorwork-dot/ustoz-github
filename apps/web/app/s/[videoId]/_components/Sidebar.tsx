@@ -113,7 +113,8 @@ const SidebarAnalytics = ({
 			{isOwner && (
 				<Link
 					href={`/dashboard/analytics?capId=${videoId}`}
-					className="text-xs text-blue-600 hover:underline"
+					className="text-xs hover:underline"
+					style={{ color: "var(--blue-11)" }}
 				>
 					View analytics
 				</Link>
@@ -208,6 +209,18 @@ export const Sidebar = forwardRef<{ scrollToBottom: () => void }, SidebarProps>(
 			}
 			return map;
 		}, [optimisticComments]);
+
+		const totalActivityItems = optimisticComments.length;
+		const isActivityEmpty = totalActivityItems === 0;
+		const [activityExpanded, setActivityExpanded] = useState<boolean>(!isActivityEmpty);
+
+		// Auto-expand when the first comment/reaction arrives (0 → >0 transition).
+		// Never auto-collapse — the user's choice to collapse is sticky.
+		useEffect(() => {
+			if (totalActivityItems > 0 && !activityExpanded) {
+				setActivityExpanded(true);
+			}
+		}, [totalActivityItems, activityExpanded]);
 
 		const handleEmojiReact = async (emoji: string) => {
 			if (!canReact) return;
@@ -312,13 +325,10 @@ export const Sidebar = forwardRef<{ scrollToBottom: () => void }, SidebarProps>(
 					<div
 						style={{
 							borderRadius: "14px",
-							background:
-								"linear-gradient(135deg, var(--blue-3) 0%, var(--gray-2) 100%)",
-							border: "1px solid rgba(37, 99, 235, .15)",
+							background: "var(--gray-1)",
+							border: "1px solid var(--gray-4)",
 							boxShadow:
 								"0 1px 2px rgba(15,23,42,.06), 0 2px 6px rgba(15,23,42,.07)",
-							backdropFilter: "blur(8px)",
-							WebkitBackdropFilter: "blur(8px)",
 							overflow: "hidden",
 						}}
 					>
@@ -336,50 +346,69 @@ export const Sidebar = forwardRef<{ scrollToBottom: () => void }, SidebarProps>(
 							"0 2px 6px rgba(15,23,42,.06), 0 8px 20px rgba(15,23,42,.10), 0 16px 32px -8px rgba(15,23,42,.08)",
 					}}
 				>
-					<div
-						className="flex items-center px-4 py-3"
-						style={{ borderBottom: "1px solid var(--gray-4)" }}
-					>
-						<span className="text-sm font-semibold text-gray-12">Activity</span>
-					</div>
+					{isActivityEmpty && !activityExpanded ? (
+						<button
+							type="button"
+							onClick={() => setActivityExpanded(true)}
+							className="flex w-full items-center justify-between px-4 py-2 text-left"
+							style={{ minHeight: "44px", cursor: "pointer" }}
+							aria-label="Expand activity"
+						>
+							<span className="text-sm font-semibold text-gray-12">
+								Activity <span className="text-gray-10 font-normal">(0)</span>
+							</span>
+							<span aria-hidden="true" className="text-xs text-gray-10">
+								Comment
+							</span>
+						</button>
+					) : (
+						<>
+							<div
+								className="flex items-center px-4 py-3"
+								style={{ borderBottom: "1px solid var(--gray-4)" }}
+							>
+								<span className="text-sm font-semibold text-gray-12">Activity</span>
+							</div>
 
-					{user && isOwnerOrMember && (
-						<Suspense fallback={null}>
-							<SidebarAnalytics
-								videoId={data.id}
-								views={views}
-								comments={optimisticComments}
-								isOwner={isOwner}
+							{user && isOwnerOrMember && (
+								<Suspense fallback={null}>
+									<SidebarAnalytics
+										videoId={data.id}
+										views={views}
+										comments={optimisticComments}
+										isOwner={isOwner}
+									/>
+								</Suspense>
+							)}
+
+							<div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+								<Comments
+									ref={ref}
+									handleCommentSuccess={handleCommentSuccess}
+									optimisticComments={optimisticComments}
+									setOptimisticComments={setOptimisticComments}
+									setComments={setCommentsData}
+									videoId={videoId}
+									setShowAuthOverlay={setShowAuthOverlay}
+									onSeek={onSeek}
+									commentsDisabled={commentsDisabled}
+									videoOwnerId={data.owner.id}
+								/>
+							</div>
+
+							{canReact && (
+								<ReactionsBlock
+									reactions={reactionsByEmoji}
+									onReact={handleEmojiReact}
+								/>
+							)}
+
+							<AuthOverlay
+								isOpen={showAuthOverlay}
+								onClose={() => setShowAuthOverlay(false)}
 							/>
-						</Suspense>
+						</>
 					)}
-
-					<div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-						<Comments
-							ref={ref}
-							handleCommentSuccess={handleCommentSuccess}
-							optimisticComments={optimisticComments}
-							setOptimisticComments={setOptimisticComments}
-							setComments={setCommentsData}
-							videoId={videoId}
-							setShowAuthOverlay={setShowAuthOverlay}
-							onSeek={onSeek}
-							commentsDisabled={commentsDisabled}
-							videoOwnerId={data.owner.id}
-						/>
-					</div>
-
-					{canReact && (
-						<ReactionsBlock
-							reactions={reactionsByEmoji}
-							onReact={handleEmojiReact}
-						/>
-					)}
-
-					<AuthOverlay
-						isOpen={showAuthOverlay}
-						onClose={() => setShowAuthOverlay(false)}
-					/>
 				</div>
 			</div>
 		);

@@ -283,6 +283,10 @@ export function TranscriptPanel({
 
 	const activeCueId = cues.find((c) => isActive(c, currentTime))?.id ?? null;
 
+	const hasAnySpeaker = useChapterMode
+		? chapterSections.some((s) => s.cues.some((c) => c.speaker !== null))
+		: groups.some((g) => g.speaker !== null);
+
 	// biome-ignore lint/correctness/useExhaustiveDependencies: activeCueId drives which DOM node activeRef points to; re-running when it changes is intentional
 	useEffect(() => {
 		if (activeRef.current) {
@@ -325,32 +329,40 @@ export function TranscriptPanel({
 		const initials = speaker ? speakerInitials(speaker) : "";
 		const avatarBg = `hsl(${hue},55%,55%)`;
 		const active = cue.id === activeCueId;
+		const showAvatarCol = hasAnySpeaker;
 
 		return (
 			<div
 				key={`cue-${gi}-${ci}`}
 				ref={active ? activeRef : undefined}
 				className="group"
+				onMouseEnter={(e) => {
+					if (!active) e.currentTarget.style.background = "var(--gray-2)";
+				}}
+				onMouseLeave={(e) => {
+					if (!active) e.currentTarget.style.background = "transparent";
+				}}
 				style={{
 					display: "grid",
-					gridTemplateColumns: "52px minmax(0,1fr) 38px",
+					gridTemplateColumns: showAvatarCol
+						? "52px minmax(0,1fr) 38px"
+						: "56px minmax(0,1fr) 28px",
 					gap: "14px",
 					alignItems: "start",
-					padding: "14px 16px",
-					marginBottom: "6px",
-					borderRadius: "16px",
-					background: active ? "var(--blue-3)" : "var(--gray-1)",
-					border: active
-						? "1px solid var(--blue-6)"
-						: "1px solid var(--gray-4)",
+					padding: "8px 12px",
+					marginBottom: "2px",
+					borderRadius: "8px",
+					background: active ? "var(--blue-3)" : "transparent",
+					borderLeft: active
+						? "3px solid var(--blue-9)"
+						: "3px solid transparent",
 					position: "relative",
 					cursor: "default",
-					transition: "background 320ms, border-color 320ms, box-shadow 320ms",
-					boxShadow: active ? undefined : "0 1px 3px rgba(15,23,42,.08)",
+					transition: "background 160ms, border-color 160ms",
 				}}
 			>
 				<div className="flex flex-col items-center gap-1 pt-0.5">
-					{speaker ? (
+					{showAvatarCol && speaker ? (
 						<div
 							className="flex items-center justify-center text-[13px] font-bold text-white shrink-0"
 							style={{
@@ -358,8 +370,6 @@ export function TranscriptPanel({
 								height: "42px",
 								borderRadius: "13px",
 								backgroundColor: avatarBg,
-								boxShadow:
-									"inset 0 0 0 1px rgba(255,255,255,.22), 0 2px 6px rgba(15,23,42,.12)",
 								flexShrink: 0,
 							}}
 							title={speaker}
@@ -370,12 +380,14 @@ export function TranscriptPanel({
 					<span
 						style={{
 							fontSize: "11px",
-							fontWeight: 600,
+							fontWeight: 500,
 							color: "var(--gray-11)",
 							fontVariantNumeric: "tabular-nums",
 							background: "var(--gray-3)",
 							padding: "2px 8px",
 							borderRadius: "999px",
+							fontFamily:
+								"ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
 						}}
 					>
 						{cue.timestamp}
@@ -383,8 +395,10 @@ export function TranscriptPanel({
 				</div>
 
 				<div className="min-w-0">
-					{speaker ? (
-						<p className="mb-1 text-xs font-semibold text-gray-11">{speaker}</p>
+					{showAvatarCol && speaker ? (
+						<p className="mb-1 text-xs font-semibold text-gray-11">
+							{speaker}
+						</p>
 					) : null}
 					<p
 						className="min-w-0 break-words"
@@ -392,7 +406,7 @@ export function TranscriptPanel({
 							fontSize: "13.5px",
 							lineHeight: 1.72,
 							color: "var(--gray-12)",
-							paddingTop: speaker ? 0 : "4px",
+							paddingTop: showAvatarCol && speaker ? 0 : "4px",
 						}}
 					>
 						{renderMarkdownBold(cue.text)}
@@ -404,7 +418,15 @@ export function TranscriptPanel({
 						type="button"
 						onClick={() => onVideoJump?.(cue.startSeconds)}
 						aria-label={`Jump to ${cue.timestamp}`}
-						className="flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-all duration-150 hover:scale-110"
+						onMouseEnter={(e) => {
+							e.currentTarget.style.background = "var(--blue-3)";
+							e.currentTarget.style.color = "var(--blue-11)";
+						}}
+						onMouseLeave={(e) => {
+							e.currentTarget.style.background = "var(--gray-3)";
+							e.currentTarget.style.color = "var(--gray-11)";
+						}}
+						className="flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-all duration-150"
 						style={{
 							width: "34px",
 							height: "34px",
@@ -454,7 +476,7 @@ export function TranscriptPanel({
 						</div>
 
 						{section.cues.length === 0 ? (
-							<p className="text-xs text-gray-400 px-2 pb-2">
+							<p className="text-xs text-gray-10 px-2 pb-2">
 								No speech in this chapter
 							</p>
 						) : (

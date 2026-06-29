@@ -66,7 +66,6 @@ export function BelowVideoTabs({
 		{ id: "refined", content: refined },
 	];
 
-	const activeLabel = TABS.find((t) => t.id === activeTab)?.label;
 	const activeContent = panels.find((p) => p.id === activeTab)?.content;
 
 	return (
@@ -74,7 +73,7 @@ export function BelowVideoTabs({
 			{/* gentle fade when the active panel changes */}
 			<style>{`@keyframes tabPanelFade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}`}</style>
 
-			{/* Tab bar */}
+			{/* Tab bar — flat row, active = bottom border */}
 			<div
 				role="tablist"
 				aria-label="Video details"
@@ -83,11 +82,7 @@ export function BelowVideoTabs({
 						"-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
 					display: "flex",
 					gap: "4px",
-					padding: "8px",
-					background: "linear-gradient(var(--gray-2), var(--gray-1))",
-					backdropFilter: "blur(6px)",
-					WebkitBackdropFilter: "blur(6px)",
-					borderRadius: "16px 16px 0 0",
+					background: "transparent",
 					borderBottom: "1px solid var(--gray-4)",
 					overflowX: "auto",
 					flexWrap: "nowrap",
@@ -106,27 +101,34 @@ export function BelowVideoTabs({
 							aria-controls={`panel-${tab.id}`}
 							id={`tab-${tab.id}`}
 							onClick={() => handleTabClick(tab.id)}
+							onMouseEnter={(e) => {
+								if (!isActive) e.currentTarget.style.color = "var(--gray-12)";
+							}}
+							onMouseLeave={(e) => {
+								if (!isActive) e.currentTarget.style.color = "var(--gray-11)";
+							}}
 							className={hiddenOnDesktop ? "xl:!hidden" : undefined}
 							style={{
 								flex: "0 0 auto",
 								minWidth: "74px",
 								minHeight: "44px",
-								padding: "9px 10px",
+								padding: "9px 14px",
+								marginBottom: "-1px",
 								fontSize: "13px",
 								fontWeight: 600,
 								whiteSpace: "nowrap",
 								textAlign: "center",
 								cursor: "pointer",
-								color: isActive ? "var(--blue-11)" : "var(--gray-11)",
+								color: isActive ? "var(--gray-12)" : "var(--gray-11)",
 								border: "none",
-								borderRadius: "9px",
-								background: isActive ? "var(--blue-3)" : "none",
-								boxShadow: isActive
-									? "inset 0 0 0 1px rgba(37, 99, 235, .14)"
-									: "none",
+								borderBottom: isActive
+									? "2px solid var(--blue-9)"
+									: "2px solid transparent",
+								borderRadius: 0,
+								background: "transparent",
+								boxShadow: "none",
 								position: "relative",
-								transition:
-									"color 320ms cubic-bezier(.22,.61,.36,1), background 320ms cubic-bezier(.22,.61,.36,1)",
+								transition: "color 200ms ease, border-color 200ms ease",
 							}}
 						>
 							<span className="sm:hidden">{tab.shortLabel}</span>
@@ -136,12 +138,12 @@ export function BelowVideoTabs({
 				})}
 			</div>
 
-			{/* Active panel only */}
+			{/* Active panel only — sits flush with the tab strip */}
 			<div
 				className={
 					hideTranscriptTab && activeTab === "transcript"
-						? "mt-3 xl:hidden"
-						: "mt-3"
+						? "xl:hidden"
+						: undefined
 				}
 			>
 				<section
@@ -151,40 +153,12 @@ export function BelowVideoTabs({
 					aria-labelledby={`tab-${activeTab}`}
 					style={{
 						background: "var(--gray-1)",
-						border: "1px solid var(--gray-4)",
-						borderRadius: "16px",
-						boxShadow:
-							"0 1px 2px rgba(15,23,42,.06), 0 2px 6px rgba(15,23,42,.07)",
+						borderRadius: "0 16px 16px 16px",
 						padding:
 							"clamp(16px, 5vw, 24px) clamp(14px, 5vw, 24px) clamp(18px, 6vw, 28px)",
 						animation: "tabPanelFade .22s ease both",
 					}}
 				>
-					<h2
-						style={{
-							fontFamily:
-								"-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-							fontSize: "11px",
-							fontWeight: 700,
-							letterSpacing: ".07em",
-							textTransform: "uppercase",
-							color: "var(--gray-10)",
-							marginBottom: "12px",
-							display: "flex",
-							alignItems: "center",
-							gap: "8px",
-						}}
-					>
-						{activeLabel}
-						<span
-							style={{
-								flex: 1,
-								height: "1px",
-								background: "var(--gray-4)",
-								display: "block",
-							}}
-						/>
-					</h2>
 					<div className="pr-10 sm:pr-0">{activeContent}</div>
 					<div aria-hidden="true" className="h-24 sm:hidden" />
 				</section>

@@ -1,335 +1,158 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 interface Task {
-	title: string;
-	assignee?: string;
-	priority?: "high" | "medium" | "low";
-	deadline?: string;
-	done: boolean;
+    title: string;
+    assignee?: string;
+    priority?: "high" | "medium" | "low";
+    deadline?: string;
+    done: boolean;
 }
 
 interface TasksPanelProps {
-	videoId: string;
-	tasks?: Task[];
+    videoId: string;
+    tasks?: Task[];
 }
 
-type TasksMode = "board" | "checklist";
-
-function getTasksMode(): TasksMode {
-	const val = document.documentElement.dataset.tasks;
-	if (val === "checklist") return "checklist";
-	return "board";
-}
-
-function priorityColor(priority?: "high" | "medium" | "low"): string {
-	if (priority === "high") return "bg-red-100 text-red-700";
-	if (priority === "medium") return "bg-amber-100 text-amber-700";
-	if (priority === "low") return "bg-green-100 text-green-700";
-	return "bg-gray-100 text-gray-500";
+function priorityChipColors(priority?: "high" | "medium" | "low"): {
+    background: string;
+    color: string;
+} {
+    // amber/green Radix scales not imported in globals.css → fall back to neutral grays.
+    if (priority === "high") return { background: "var(--red-3)", color: "var(--red-11)" };
+    if (priority === "medium") return { background: "var(--gray-3)", color: "var(--gray-11)" };
+    if (priority === "low") return { background: "var(--gray-3)", color: "var(--gray-11)" };
+    return { background: "var(--gray-3)", color: "var(--gray-11)" };
 }
 
 function Initials({ name }: { name: string }) {
-	const parts = name.trim().split(/\s+/);
-	const letters =
-		parts.length >= 2
-			? ((parts[0]?.[0] ?? "") + (parts[parts.length - 1]?.[0] ?? "")).toUpperCase()
-			: name.slice(0, 2).toUpperCase();
-	return (
-		<span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] font-semibold text-gray-700">
-			{letters}
-		</span>
-	);
+    const parts = name.trim().split(/\s+/);
+    const letters =
+        parts.length >= 2
+            ? ((parts[0]?.[0] ?? "") + (parts[parts.length - 1]?.[0] ?? "")).toUpperCase()
+            : name.slice(0, 2).toUpperCase();
+    return (
+        <span
+            className="inline-flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold"
+            style={{ background: "var(--gray-4)", color: "var(--gray-12)" }}
+            title={name}
+        >
+            {letters}
+        </span>
+    );
 }
 
 function DeadlinePill({ deadline }: { deadline: string }) {
-	return (
-		<span className="rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[10px] font-medium text-gray-600">
-			{deadline}
-		</span>
-	);
+    return (
+        <span
+            className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+            style={{ background: "var(--gray-2)", color: "var(--gray-11)" }}
+        >
+            {deadline}
+        </span>
+    );
 }
 
 function PriorityBadge({ priority }: { priority?: "high" | "medium" | "low" }) {
-	if (!priority) return null;
-	return (
-		<span
-			className={`rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${priorityColor(priority)}`}
-		>
-			{priority}
-		</span>
-	);
+    if (!priority) return null;
+    const { background, color } = priorityChipColors(priority);
+    return (
+        <span
+            className="rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize"
+            style={{ background, color }}
+        >
+            {priority}
+        </span>
+    );
 }
 
 function ProgressBar({ done, total }: { done: number; total: number }) {
-	const pct = total === 0 ? 0 : Math.round((done / total) * 100);
-	return (
-		<div className="flex items-center gap-3">
-			<div
-				className="relative flex-1 overflow-hidden rounded-full"
-				style={{ height: "8px", background: "#f0f4f9" }}
-			>
-				<div
-					className="absolute inset-y-0 left-0 rounded-full transition-all duration-600"
-					style={{
-						width: `${pct}%`,
-						background: "linear-gradient(90deg, #2563eb, #1d4ed8)",
-						boxShadow: "0 0 10px rgba(37,99,235,.4)",
-					}}
-				/>
-			</div>
-			<span
-				className="w-10 shrink-0 text-right text-xs font-semibold"
-				style={{ color: "#1d4ed8", fontVariantNumeric: "tabular-nums" }}
-			>
-				{pct}%
-			</span>
-		</div>
-	);
+    const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+    return (
+        <div className="flex items-center gap-3">
+            <div
+                className="relative flex-1 overflow-hidden rounded-full"
+                style={{ height: "6px", background: "var(--gray-3)" }}
+            >
+                <div
+                    className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
+                    style={{
+                        width: `${pct}%`,
+                        background: "var(--blue-9)",
+                    }}
+                />
+            </div>
+            <span
+                className="w-10 shrink-0 text-right text-xs font-semibold"
+                style={{ color: "var(--blue-11)", fontVariantNumeric: "tabular-nums" }}
+            >
+                {pct}%
+            </span>
+        </div>
+    );
 }
 
 export function TasksPanel({
-	videoId,
-	tasks: initialTasks = [],
+    videoId,
+    tasks: initialTasks = [],
 }: TasksPanelProps) {
-	const [mode, setMode] = useState<TasksMode>("board");
-	const [tasks, setTasks] = useState<Task[]>(initialTasks);
-	const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [tasks, setTasks] = useState<Task[]>(initialTasks);
 
-	useEffect(() => {
-		setMode(getTasksMode());
-		const observer = new MutationObserver(() => setMode(getTasksMode()));
-		observer.observe(document.documentElement, {
-			attributes: true,
-			attributeFilter: ["data-tasks"],
-		});
-		return () => observer.disconnect();
-	}, []);
+    const done = tasks.filter((t) => t.done).length;
+    const total = tasks.length;
 
-	const done = tasks.filter((t) => t.done).length;
-	const total = tasks.length;
+    // Local-only toggle — server persistence is not yet implemented.
+    function toggle(index: number) {
+        setTasks((prev) =>
+            prev.map((t, i) => (i === index ? { ...t, done: !t.done } : t)),
+        );
+    }
 
-	function toggle(index: number) {
-		setTasks((prev) => {
-			const next = prev.map((t, i) =>
-				i === index ? { ...t, done: !t.done } : t,
-			);
+    if (total === 0) {
+        return (
+            <p className="text-sm text-gray-11">No action items yet.</p>
+        );
+    }
 
-			if (debounceRef.current) clearTimeout(debounceRef.current);
-			debounceRef.current = setTimeout(() => {
-				fetch("/api/video/tasks/toggle", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						videoId,
-						taskIndex: index,
-						done: next[index]?.done,
-					}),
-				}).catch(() => undefined);
-			}, 400);
-
-			return next;
-		});
-	}
-
-	if (total === 0) {
-		return (
-			<div className="flex flex-col items-center justify-center px-4 py-10 text-center">
-				<p className="text-sm text-gray-500">
-					No tasks extracted from this meeting
-				</p>
-			</div>
-		);
-	}
-
-	return (
-		<div className="flex flex-col gap-4">
-			<ProgressBar done={done} total={total} />
-
-			{mode === "board" ? (
-				<BoardView tasks={tasks} onToggle={toggle} />
-			) : (
-				<ChecklistView
-					tasks={tasks}
-					onToggle={toggle}
-					collapsed={collapsed}
-					onCollapseToggle={(key) =>
-						setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }))
-					}
-				/>
-			)}
-		</div>
-	);
-}
-
-function BoardView({
-	tasks,
-	onToggle,
-}: {
-	tasks: Task[];
-	onToggle: (i: number) => void;
-}) {
-	const todo = tasks
-		.map((t, i) => ({ t, i }))
-		.filter(({ t }) => !t.done && t.priority !== "high");
-	const inProgress = tasks
-		.map((t, i) => ({ t, i }))
-		.filter(({ t }) => !t.done && t.priority === "high");
-	const done = tasks.map((t, i) => ({ t, i })).filter(({ t }) => t.done);
-
-	return (
-		<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-			<Column label="To Do" items={todo} onToggle={onToggle} />
-			<Column label="In Progress" items={inProgress} onToggle={onToggle} />
-			<Column label="Done" items={done} onToggle={onToggle} />
-		</div>
-	);
-}
-
-function Column({
-	label,
-	items,
-	onToggle,
-}: {
-	label: string;
-	items: { t: Task; i: number }[];
-	onToggle: (i: number) => void;
-}) {
-	return (
-		<div className="flex flex-col gap-2 min-h-[120px] overflow-hidden" style={{ background: "#f7f9fc", border: "1px solid #e9edf3", borderRadius: "11px", padding: "16px" }}>
-			<div className="flex items-center gap-2">
-				<span className="text-xs font-semibold text-gray-600">{label}</span>
-				<span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
-					{items.length}
-				</span>
-			</div>
-			<div className="flex flex-col gap-2">
-				{items.map(({ t, i }) => (
-					<TaskCard key={`task-${i}`} task={t} index={i} onToggle={onToggle} />
-				))}
-				{items.length === 0 && (
-					<div className="rounded-xl border border-dashed border-gray-200 p-3 text-center">
-						<span className="text-[11px] text-gray-400">Empty</span>
-					</div>
-				)}
-			</div>
-		</div>
-	);
-}
-
-function TaskCard({
-	task,
-	index,
-	onToggle,
-}: {
-	task: Task;
-	index: number;
-	onToggle: (i: number) => void;
-}) {
-	return (
-		<div
-			className="flex flex-col gap-2 transition-opacity"
-			style={{
-				borderRadius: "12px",
-				border: `1px solid ${task.done ? "#f1f4f9" : "#e9edf3"}`,
-				background: task.done ? "#f7f9fc" : "#fff",
-				padding: "13px 14px",
-				boxShadow: "0 1px 2px rgba(15,23,42,.06), 0 2px 6px rgba(15,23,42,.07), inset 0 1px 0 rgba(255,255,255,.65)",
-				opacity: task.done ? 0.6 : 1,
-			}}
-		>
-			<div className="flex items-start gap-2">
-				<input
-					type="checkbox"
-					checked={task.done}
-					onChange={() => onToggle(index)}
-					className="mt-0.5 size-3.5 shrink-0 cursor-pointer accent-blue-600"
-				/>
-				<span
-					className={`text-xs leading-snug text-gray-900 ${task.done ? "line-through" : ""}`}
-				>
-					{task.title}
-				</span>
-			</div>
-			<div className="flex items-center gap-1.5 flex-wrap">
-				<PriorityBadge priority={task.priority} />
-				{task.assignee && <Initials name={task.assignee} />}
-				{task.deadline && <DeadlinePill deadline={task.deadline} />}
-			</div>
-		</div>
-	);
-}
-
-const PRIORITY_ORDER: Array<"high" | "medium" | "low" | undefined> = [
-	"high",
-	"medium",
-	"low",
-	undefined,
-];
-
-function ChecklistView({
-	tasks,
-	onToggle,
-	collapsed,
-	onCollapseToggle,
-}: {
-	tasks: Task[];
-	onToggle: (i: number) => void;
-	collapsed: Record<string, boolean>;
-	onCollapseToggle: (key: string) => void;
-}) {
-	const groups = PRIORITY_ORDER.map((p) => ({
-		key: p ?? "none",
-		label: p ? p.charAt(0).toUpperCase() + p.slice(1) : "No priority",
-		items: tasks.map((t, i) => ({ t, i })).filter(({ t }) => t.priority === p),
-	})).filter(({ items }) => items.length > 0);
-
-	return (
-		<div className="flex flex-col gap-3">
-			{groups.map(({ key, label, items }) => (
-				<div key={key} className="flex flex-col gap-1">
-					<button
-						type="button"
-						onClick={() => onCollapseToggle(key)}
-						className="flex items-center gap-2 text-left"
-					>
-						<span
-							className={`text-[10px] transition-transform ${collapsed[key] ? "" : "rotate-90"}`}
-						>
-							▶
-						</span>
-						<span className="text-xs font-semibold text-gray-600">{label}</span>
-						<span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
-							{items.length}
-						</span>
-					</button>
-
-					{!collapsed[key] && (
-						<div className="flex flex-col divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white">
-							{items.map(({ t, i }) => (
-								<div key={`cl-${i}`} className="flex items-center gap-3 px-3 py-2.5">
-									<input
-										type="checkbox"
-										checked={t.done}
-										onChange={() => onToggle(i)}
-										className="size-3.5 shrink-0 cursor-pointer accent-blue-600"
-									/>
-									<span
-										className={`flex-1 text-sm text-gray-900 ${t.done ? "line-through opacity-50" : ""}`}
-									>
-										{t.title}
-									</span>
-									<PriorityBadge priority={t.priority} />
-									{t.assignee && <Initials name={t.assignee} />}
-									{t.deadline && <DeadlinePill deadline={t.deadline} />}
-								</div>
-							))}
-						</div>
-					)}
-				</div>
-			))}
-		</div>
-	);
+    return (
+        <div className="flex flex-col gap-3">
+            <ProgressBar done={done} total={total} />
+            <div className="flex flex-col">
+                {tasks.map((task, i) => (
+                    <div
+                        key={`task-${i}`}
+                        className="flex items-center gap-3"
+                        style={{
+                            minHeight: "38px",
+                            padding: "8px 4px",
+                            borderBottom:
+                                i === tasks.length - 1
+                                    ? "none"
+                                    : "1px solid var(--gray-3)",
+                        }}
+                    >
+                        <input
+                            type="checkbox"
+                            checked={task.done}
+                            onChange={() => toggle(i)}
+                            className="size-4 shrink-0 cursor-pointer accent-[var(--blue-9)]"
+                        />
+                        <span
+                            className="flex-1 text-sm"
+                            style={{
+                                color: task.done ? "var(--gray-10)" : "var(--gray-12)",
+                                textDecoration: task.done ? "line-through" : "none",
+                            }}
+                        >
+                            {task.title}
+                        </span>
+                        <PriorityBadge priority={task.priority} />
+                        {task.assignee && <Initials name={task.assignee} />}
+                        {task.deadline && <DeadlinePill deadline={task.deadline} />}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
 }

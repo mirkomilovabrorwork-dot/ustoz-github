@@ -48,11 +48,11 @@ export function MeetingCostPanel({ videoId }: MeetingCostPanelProps) {
 
 	return (
 		<div className="flex flex-col gap-4">
-			<div className="flex flex-col items-center gap-1 rounded-xl border border-gray-200 bg-white px-6 py-5 text-center shadow-sm">
-				<span className="text-xs font-medium text-gray-500">
+			<div className="flex flex-col items-center gap-1 rounded-xl px-6 py-5 text-center shadow-sm" style={{ background: "var(--gray-1)", border: "1px solid var(--gray-4)" }}>
+				<span className="text-xs font-medium" style={{ color: "var(--gray-11)" }}>
 					Meeting cost
 				</span>
-				<span className="text-3xl font-bold text-gray-900">
+				<span className="text-3xl font-bold" style={{ color: "var(--gray-12)" }}>
 					{formatUsd(data.totalUsdCents)}
 				</span>
 			</div>
@@ -64,10 +64,11 @@ export function MeetingCostPanel({ videoId }: MeetingCostPanelProps) {
 						return (
 							<div
 								key={key}
-								className="flex flex-col gap-1 rounded-xl border border-gray-200 bg-white px-3 py-3 shadow-sm"
+								className="flex flex-col gap-1 rounded-xl px-3 py-3 shadow-sm"
+								style={{ background: "var(--gray-1)", border: "1px solid var(--gray-4)" }}
 							>
-								<span className="text-xs font-medium text-gray-500">{label}</span>
-								<span className="text-sm font-semibold text-gray-900">
+								<span className="text-xs font-medium" style={{ color: "var(--gray-11)" }}>{label}</span>
+								<span className="text-sm font-semibold" style={{ color: "var(--gray-12)" }}>
 									{formatUsd(cents)}
 								</span>
 							</div>

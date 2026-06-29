@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { formatTimeMinutes, clampStartSec } from "../utils/transcript-utils";
 
 interface SummaryPanelProps {
@@ -35,20 +36,18 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 
 	return (
 		<div className="flex flex-col gap-5">
-			{/* Overview — lead card */}
+			{/* Overview — lead paragraph, no card */}
 			{aiSummary.overview && (
-				<div
+				<p
 					style={{
-						background: "linear-gradient(135deg, var(--blue-3), var(--gray-2))",
-						border: "1px solid var(--blue-6)",
-						borderRadius: "11px",
-						padding: "16px 18px",
+						fontSize: "15px",
+						lineHeight: 1.65,
+						color: "var(--gray-12)",
+						maxWidth: "70ch",
 					}}
 				>
-					<p className="text-sm leading-relaxed" style={{ color: "var(--gray-12)" }}>
-						{aiSummary.overview}
-					</p>
-				</div>
+					{aiSummary.overview}
+				</p>
 			)}
 
 			{/* Chapters */}
@@ -60,49 +59,18 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 					>
 						Chapters
 					</h3>
-					<div className="flex flex-col gap-2">
-						{chapters.map((chapter) => (
-							<div
-								key={chapter.startSec}
-								style={{
-									display: "grid",
-									gridTemplateColumns: "64px 1fr",
-									gap: "14px",
-									padding: "0 0 18px 0",
-									position: "relative",
-								}}
-							>
-								<button
-									type="button"
-									onClick={() => onVideoJump?.(chapter.startSec)}
-									style={{
-										fontSize: "12px",
-										fontWeight: 700,
-										color: "var(--blue-11)",
-										background: "var(--blue-3)",
-										border: "1px solid var(--blue-6)",
-										borderRadius: "999px",
-										padding: "4px 0",
-										textAlign: "center",
-										cursor: "pointer",
-										transition: "background 320ms, color 320ms, transform 320ms",
-										fontVariantNumeric: "tabular-nums",
-									}}
-								>
-									{formatTimeMinutes(chapter.startSec)}
-								</button>
-								<div className="min-w-0">
-									<p style={{ fontSize: "13.5px", fontWeight: 650, color: "var(--gray-12)", marginBottom: "3px" }}>
-										{chapter.title}
-									</p>
-									{chapter.body && (
-										<p style={{ fontSize: "12.5px", lineHeight: 1.6, color: "var(--gray-11)" }}>
-											{chapter.body}
-										</p>
-									)}
-								</div>
-							</div>
-						))}
+					<div>
+						{chapters.map((chapter, idx) => {
+							const isLast = idx === chapters.length - 1;
+							return (
+								<ChapterRow
+									key={chapter.startSec}
+									chapter={chapter}
+									isLast={isLast}
+									onVideoJump={onVideoJump}
+								/>
+							);
+						})}
 					</div>
 				</div>
 			)}
@@ -118,26 +86,7 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 					</h3>
 					<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
 						{topics.map((topic) => (
-							<div
-								key={topic.title}
-								style={{
-									background: "var(--gray-1)",
-									border: "1px solid var(--gray-4)",
-									borderRadius: "11px",
-									padding: "13px 14px",
-									transition: "transform 320ms, box-shadow 320ms, border-color 320ms",
-								}}
-							>
-								<p
-									className="mb-1"
-									style={{ fontSize: "13px", fontWeight: 650, color: "var(--gray-12)" }}
-								>
-									{topic.title}
-								</p>
-								<p style={{ fontSize: "12.5px", lineHeight: 1.55, color: "var(--gray-11)" }}>
-									{topic.body}
-								</p>
-							</div>
+							<TopicCard key={topic.title} topic={topic} />
 						))}
 					</div>
 				</div>
@@ -152,7 +101,16 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 					>
 						Next Steps
 					</h3>
-					<ol className="flex flex-col gap-2">
+					<ol
+						style={{
+							display: "flex",
+							flexDirection: "column",
+							gap: "10px",
+							listStyle: "none",
+							padding: 0,
+							margin: 0,
+						}}
+					>
 						{nextSteps.map((step, i) => (
 							<li
 								key={i}
@@ -160,19 +118,13 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 									display: "flex",
 									gap: "12px",
 									alignItems: "flex-start",
-									background: "var(--gray-1)",
-									border: "1px solid var(--gray-4)",
-									borderLeft: "3px solid #2563eb",
-									borderRadius: "10px",
-									padding: "12px 14px",
-									transition: "transform 320ms, box-shadow 320ms",
 								}}
 							>
 								<span
 									style={{
 										flexShrink: 0,
-										fontSize: "12px",
-										fontWeight: 750,
+										fontSize: "13px",
+										fontWeight: 700,
 										color: "var(--blue-11)",
 										fontVariantNumeric: "tabular-nums",
 										minWidth: "18px",
@@ -191,6 +143,88 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 			{topics.length === 0 && nextSteps.length === 0 && chapters.length === 0 && !aiSummary.overview && (
 				<p className="text-sm text-gray-10">No content available yet.</p>
 			)}
+		</div>
+	);
+}
+
+function ChapterRow({
+	chapter,
+	isLast,
+	onVideoJump,
+}: {
+	chapter: { startSec: number; title: string; body: string };
+	isLast: boolean;
+	onVideoJump?: (seconds: number) => void;
+}) {
+	const [hovered, setHovered] = useState(false);
+	return (
+		<div
+			style={{
+				display: "grid",
+				gridTemplateColumns: "64px 1fr",
+				gap: "14px",
+				paddingBottom: isLast ? 0 : "14px",
+				borderBottom: isLast ? "none" : "1px solid var(--gray-3)",
+				marginBottom: isLast ? 0 : "14px",
+			}}
+		>
+			<button
+				type="button"
+				onClick={() => onVideoJump?.(chapter.startSec)}
+				onMouseEnter={() => setHovered(true)}
+				onMouseLeave={() => setHovered(false)}
+				style={{
+					fontSize: "11px",
+					fontWeight: 600,
+					color: hovered ? "var(--blue-11)" : "var(--gray-11)",
+					background: hovered ? "var(--blue-3)" : "var(--gray-3)",
+					border: "none",
+					borderRadius: "999px",
+					padding: "4px 0",
+					textAlign: "center",
+					cursor: "pointer",
+					transition: "background 200ms, color 200ms",
+				}}
+			>
+				{formatTimeMinutes(chapter.startSec)}
+			</button>
+			<div className="min-w-0">
+				<p style={{ fontSize: "15px", fontWeight: 600, color: "var(--gray-12)", marginBottom: "3px" }}>
+					{chapter.title}
+				</p>
+				{chapter.body && (
+					<p style={{ fontSize: "13px", lineHeight: 1.6, color: "var(--gray-11)" }}>
+						{chapter.body}
+					</p>
+				)}
+			</div>
+		</div>
+	);
+}
+
+function TopicCard({ topic }: { topic: { title: string; body: string } }) {
+	const [hovered, setHovered] = useState(false);
+	return (
+		<div
+			onMouseEnter={() => setHovered(true)}
+			onMouseLeave={() => setHovered(false)}
+			style={{
+				background: "transparent",
+				border: `1px solid ${hovered ? "var(--gray-6)" : "var(--gray-4)"}`,
+				borderRadius: "11px",
+				padding: "13px 14px",
+				transition: "border-color 200ms",
+			}}
+		>
+			<p
+				className="mb-1"
+				style={{ fontSize: "13px", fontWeight: 600, color: "var(--gray-12)" }}
+			>
+				{topic.title}
+			</p>
+			<p style={{ fontSize: "12.5px", lineHeight: 1.55, color: "var(--gray-11)" }}>
+				{topic.body}
+			</p>
 		</div>
 	);
 }
