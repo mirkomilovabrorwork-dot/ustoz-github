@@ -3,6 +3,7 @@ import { isTransientGeminiError } from "@/lib/gemini-retry";
 import {
 	buildTranscriptionPrompt,
 	mergeChunkedWebVtt,
+	normalizeToWebVtt,
 } from "@/lib/gemini-transcribe";
 import { chunkTranscript } from "@/lib/transcript-chunk";
 
@@ -59,6 +60,47 @@ First chunk
 Second chunk
 
 `);
+	});
+});
+
+describe("hallucinated trailing cue guard", () => {
+	it("drops cues whose start runs past the known audio duration", () => {
+		// 55-second video; Gemini hallucinates a trailing cue at 01:02:20.
+		const raw = `WEBVTT
+
+00:00:01.000 --> 00:00:04.000
+Real opening line.
+
+00:00:50.000 --> 00:00:54.000
+Real closing line.
+
+01:02:20.000 --> 01:02:24.000
+Hallucinated trailing cue.
+`;
+
+		const vtt = normalizeToWebVtt(raw, 55);
+
+		expect(vtt).toContain("Real opening line.");
+		expect(vtt).toContain("Real closing line.");
+		expect(vtt).not.toContain("Hallucinated trailing cue.");
+		expect(vtt).not.toContain("01:02:");
+	});
+
+	it("keeps legitimate end cues within the tolerance window", () => {
+		const raw = `WEBVTT
+
+00:00:01.000 --> 00:00:04.000
+Opening line.
+
+00:00:56.500 --> 00:00:58.000
+Final line just past duration.
+`;
+
+		// Duration 55s; final cue starts at 56.5s, within the 5s tolerance.
+		const vtt = normalizeToWebVtt(raw, 55);
+
+		expect(vtt).toContain("Opening line.");
+		expect(vtt).toContain("Final line just past duration.");
 	});
 });
 
