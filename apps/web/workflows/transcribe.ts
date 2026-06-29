@@ -435,14 +435,40 @@ async function transcribeAudioChunks(
 	}
 
 	const transcribedChunks: Array<{ vtt: string; offsetSec: number }> = [];
+	let failedChunkCount = 0;
 
 	for (const chunk of audio.chunks) {
-		const vtt = await transcribeAudioChunkWithRetry({
-			chunk,
-			ownerEncryptedGeminiKey,
-			context,
-		});
-		transcribedChunks.push({ vtt, offsetSec: chunk.startSec });
+		try {
+			const vtt = await transcribeAudioChunkWithRetry({
+				chunk,
+				ownerEncryptedGeminiKey,
+				context,
+			});
+			transcribedChunks.push({ vtt, offsetSec: chunk.startSec });
+		} catch (error) {
+			// FAULT TOLERANCE (long-video fix): a single bad chunk must NOT discard the
+			// whole transcript. Previously one failed chunk threw -> the outer catch marked
+			// the ENTIRE video ERROR and dropped every successful chunk (root cause of
+			// long-video AI failures). Now: log, keep a gap at this offset, and continue.
+			failedChunkCount++;
+			console.error(
+				`[transcribe] Chunk at ${chunk.startSec}s FAILED for ${context.videoId} after retries; continuing with a gap:`,
+				error,
+			);
+			transcribedChunks.push({ vtt: "WEBVTT\n\n", offsetSec: chunk.startSec });
+		}
+	}
+
+	// Only fail the whole job if EVERY chunk failed (nothing usable to save).
+	if (failedChunkCount === audio.chunks.length) {
+		throw new Error(
+			`All ${failedChunkCount} transcription chunks failed for ${context.videoId}`,
+		);
+	}
+	if (failedChunkCount > 0) {
+		console.warn(
+			`[transcribe] ${failedChunkCount}/${audio.chunks.length} chunks failed for ${context.videoId}; saved a partial transcript.`,
+		);
 	}
 
 	return mergeChunkedWebVtt(transcribedChunks);
@@ -457,7 +483,7 @@ async function transcribeAudioChunkWithRetry({
 	ownerEncryptedGeminiKey: string | null;
 	context: { userId: string; orgId: string; videoId: string };
 }): Promise<string> {
-	const maxAttempts = 2;
+	const maxAttempts = 4;
 	let lastError: unknown;
 
 	for (let attempt = 1; attempt <= maxAttempts; attempt++) {
