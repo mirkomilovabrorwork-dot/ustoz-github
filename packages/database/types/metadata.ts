@@ -57,6 +57,8 @@ export interface VideoMetadata {
 	enhancedAudioStatus?: "PROCESSING" | "COMPLETE" | "ERROR" | "SKIPPED";
 	isDemo?: boolean;
 	aiSummary?: AiSummary | null;
+	transcriptionChunksCompleted?: number;
+	transcriptionChunksTotal?: number;
 }
 
 export type VideoEditRange = {

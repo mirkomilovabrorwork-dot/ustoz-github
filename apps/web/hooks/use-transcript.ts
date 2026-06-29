@@ -25,18 +25,27 @@ export const useTranscript = (
 		queryFn: async () => {
 			const result = await getTranscript(videoId);
 
-			if (result.success && result.content) {
-				return result.content;
+			if (result.success && result.content != null) {
+				return { content: result.content, partial: !!result.partial, progress: result.progress };
 			}
 			if (result.message === "Transcript is not ready yet") {
+				if (transcriptionStatus === "PROCESSING") {
+					return { content: "", partial: true, progress: result.progress };
+				}
 				throw new Error("TRANSCRIPT_NOT_READY");
 			}
 			throw new Error(result.message);
 		},
-		enabled: transcriptionStatus === "COMPLETE",
+		enabled: transcriptionStatus === "COMPLETE" || transcriptionStatus === "PROCESSING",
 		staleTime: 30 * 60 * 1000,
 		gcTime: 60 * 60 * 1000,
 		refetchOnWindowFocus: false,
+		refetchInterval: (query) => {
+			const d = query.state.data;
+			if (d && d.partial === false) return false;
+			if (transcriptionStatus === "PROCESSING") return 4000;
+			return false;
+		},
 		retry: (failureCount, error) => {
 			if (error.message === "TRANSCRIPT_NOT_READY") {
 				return failureCount < 3;

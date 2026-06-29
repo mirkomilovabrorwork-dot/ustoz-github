@@ -130,7 +130,7 @@ export const ShareVideo = forwardRef<
 			data.source.type === "desktopSegments" && (data.hasActiveUpload ?? false),
 		);
 
-		const { data: transcriptContent, error: transcriptError } = useTranscript(
+		const { data: transcript, error: transcriptError } = useTranscript(
 			data.id,
 			data.transcriptionStatus,
 		);
@@ -168,8 +168,8 @@ export const ShareVideo = forwardRef<
 		}, []);
 
 		useEffect(() => {
-			if (transcriptContent) {
-				captionContext.setOriginalVttContent(transcriptContent);
+			if (transcript?.content) {
+				captionContext.setOriginalVttContent(transcript.content);
 			} else if (transcriptError) {
 				console.error(
 					"[Transcript] Transcript error from React Query:",
@@ -177,7 +177,7 @@ export const ShareVideo = forwardRef<
 				);
 			}
 		}, [
-			transcriptContent,
+			transcript,
 			transcriptError,
 			captionContext.setOriginalVttContent,
 		]);
@@ -565,9 +565,15 @@ export const ShareVideo = forwardRef<
 							/>
 						}
 						transcript={
-							transcriptContent ? (
+							<>
+								{transcript?.partial && (transcript.progress?.total ?? 0) > 0 && (
+									<div className="mb-2 inline-flex items-center rounded-full border border-amber-6 bg-amber-3 px-3 py-1 text-xs font-medium text-amber-11">
+										Transcribing… {transcript.progress?.completed}/{transcript.progress?.total}
+									</div>
+								)}
+								{transcript?.content ? (
 								<TranscriptPanel
-									transcriptContent={transcriptContent}
+									transcriptContent={transcript.content}
 									currentTime={currentTime}
 									onVideoJump={handleSeek}
 									duration={data.duration}
@@ -597,7 +603,8 @@ export const ShareVideo = forwardRef<
 										title: c.title,
 									}))}
 								/>
-							)
+							)}
+							</>
 						}
 						refined={
 							<RefinedTranscriptPanel
