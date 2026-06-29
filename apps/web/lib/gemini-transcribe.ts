@@ -307,15 +307,15 @@ async function pollUntilActive(
 }
 
 export function buildTranscriptionPrompt(): string {
-	return `You are a professional Uzbek transcription editor for meeting, instruction video, and voice-note recordings.
+	return `You are a professional transcription editor for meeting, instruction video, and voice-note recordings.
 
-Transcribe the attached audio/video fully and accurately in Uzbek Latin.
+Detect the dominant spoken language from the audio (Uzbek, Russian, or English) and transcribe the attached audio/video fully and accurately in that same language, exactly as spoken. Do not translate the recording into another language just because the app UI or these instructions are in English. A Russian recording must produce a Russian transcript, an English recording an English transcript, and an Uzbek recording an Uzbek transcript.
 
 Rules:
 
 1. Transcribe the entire file from beginning to end. Do not summarize, skip, shorten, or stop halfway.
 
-2. Uzbek words must be written only in Uzbek Latin. Do not write Uzbek words in Cyrillic.
+2. Write each word in the language it is actually spoken. When the dominant language is Uzbek, write Uzbek words only in Uzbek Latin (not Cyrillic). Keep words spoken in another language in that language (see rule 8).
 
 3. Detect the content type from the recording:
 - If it is a multi-speaker online/offline meeting, identify speakers by voice, context, and conversation flow.
@@ -343,18 +343,18 @@ Put cue boundaries only where they exactly match the recording:
 
 6. If the recording contains direct instructions or tasks, transcribe them exactly as spoken. Do not convert them into a task list.
 
-7. If an Uzbek word is unclear, correct it based on surrounding context. If it is impossible to identify, write [noaniq].
+7. If a word is unclear, correct it based on surrounding context. If it is impossible to identify, write [noaniq] (or the equivalent "unclear" marker in the dominant language).
 
-8. Keep foreign words exactly as spoken:
-- Russian words must stay in Cyrillic and be bold, for example **сразу**, **любой**, **дефицит**
-- English words must stay in English/Latin and be bold, for example **deadline**, **CRM**, **dashboard**
+8. Keep words spoken in a language other than the dominant one exactly as spoken:
+- Russian words stay in Cyrillic and bold, for example **сразу**, **любой**, **дефицит**
+- English words stay in English/Latin and bold, for example **deadline**, **CRM**, **dashboard**
 - Technical terms, product names, brand names, code identifiers, and acronyms must stay exactly as spoken.
-- Do not translate foreign words.
+- Do not translate words from one language into another.
 - Do not transliterate Russian words into Latin.
-- Do not convert English/technical words into Uzbek spelling.
-- Bold every foreign word or phrase.
+- Do not convert English/technical words into the dominant language's spelling.
+- Bold every word or phrase spoken in a language other than the dominant one.
 
-Mixed-language examples:
+Mixed-language examples (here the dominant language is Uzbek):
 - Wrong: dedlayn. Correct: **deadline**.
 - Wrong: boshqaruv paneli. Correct: **dashboard**.
 - Wrong: srazu. Correct: **сразу**.

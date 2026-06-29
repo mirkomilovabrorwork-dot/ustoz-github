@@ -21,5 +21,11 @@
 	"settings": {
 		"devMode": "Developer Mode",
 		"devModeDescription": "Eksperimental shisha effektlar va developer vositalarini yoqish."
+	},
+	"generateAi": {
+		"confirmTitle": "AI tahlilini boshlash",
+		"confirmBody": "Bu sizning AI byudjetingizdan (Gemini) foydalanadi. Odatda bir necha sent turadi; uzun videolar ko'proq turadi. Davom etamizmi?",
+		"confirmCancel": "Bekor qilish",
+		"confirmStart": "Ha, boshlash"
 	}
 }

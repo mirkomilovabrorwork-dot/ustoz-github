@@ -21,5 +21,11 @@
 	"settings": {
 		"devMode": "Developer Mode",
 		"devModeDescription": "Enable experimental glass effects and developer tools."
+	},
+	"generateAi": {
+		"confirmTitle": "Start AI analysis",
+		"confirmBody": "This uses your AI budget (Gemini). It usually costs a few cents; long videos cost more. Continue?",
+		"confirmCancel": "Cancel",
+		"confirmStart": "Yes, start"
 	}
 }

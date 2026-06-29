@@ -120,7 +120,13 @@ export function DashboardContexts({
 	const setThemeHandler = useCallback(
 		(newTheme: ITheme, options?: SetThemeOptions) => {
 			setTheme(newTheme);
-			document.body.className = newTheme;
+			// Apply the theme to the DOM immediately so the toggle switches
+			// without a reload. Swap classes via classList (rather than reassigning
+			// className) to stay consistent with theme-script.js, which does
+			// `document.body.classList.add(theme)` on initial load.
+			const otherTheme: ITheme = newTheme === "dark" ? "light" : "dark";
+			document.body.classList.remove(otherTheme);
+			document.body.classList.add(newTheme);
 			if (options?.persist !== false) {
 				Cookies.set("theme", newTheme, {
 					expires: 365,

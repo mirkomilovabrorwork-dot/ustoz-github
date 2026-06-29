@@ -1,7 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@cap/ui";
 import type { Video } from "@cap/web-domain";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
 
 type TranscriptionStatus =
   | "PROCESSING"
@@ -94,8 +102,10 @@ export function GenerateAiPanel({
   duration,
   onStarted,
 }: GenerateAiPanelProps) {
+  const t = useTranslations("generateAi");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const isRunning =
     transcriptionStatus === "PROCESSING" ||
     aiGenerationStatus === "QUEUED" ||
@@ -114,7 +124,15 @@ export function GenerateAiPanel({
     transcriptionStatus === "ERROR" || aiGenerationStatus === "ERROR";
   const aiNotice = getAiAnalysisNotice(duration);
 
+  // Open the cost-confirmation dialog instead of firing AI immediately, so the
+  // user consciously approves the spend before any Gemini budget is used.
+  const requestStart = () => {
+    setError(null);
+    setConfirmOpen(true);
+  };
+
   const handleStart = async () => {
+    setConfirmOpen(false);
     setLoading(true);
     setError(null);
     try {
@@ -133,6 +151,37 @@ export function GenerateAiPanel({
       setLoading(false);
     }
   };
+
+  const confirmDialog = (
+    <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("confirmTitle")}</DialogTitle>
+        </DialogHeader>
+        <p className="px-5 py-4 text-sm text-gray-11">
+          {t("confirmBody")}
+          {aiNotice ? ` ${aiNotice}` : ""}
+        </p>
+        <DialogFooter>
+          <button
+            type="button"
+            onClick={() => setConfirmOpen(false)}
+            className="rounded-lg border border-gray-5 bg-gray-3 px-4 py-2 text-sm font-medium text-gray-12 transition-colors hover:bg-gray-4"
+          >
+            {t("confirmCancel")}
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={handleStart}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
+          >
+            {t("confirmStart")}
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 
   // ── Running state: persisted pipeline stage ──────────────────────────────
   if (isRunning) {
@@ -199,25 +248,28 @@ export function GenerateAiPanel({
   // ── Error state ───────────────────────────────────────────────────────────
   if (hasError && canGenerate) {
     return (
-      <div className="flex flex-col gap-3 rounded-xl border border-red-6 bg-red-3 px-4 py-4">
-        <p className="text-sm text-red-11">
-          AI analysis failed.{" "}
-          {transcriptionStatus === "ERROR"
-            ? "Transcription failed."
-            : "AI generation error."}
-        </p>
-        {error && (
-          <p className="text-xs text-red-10">{error}</p>
-        )}
-        <button
-          type="button"
-          disabled={loading}
-          onClick={handleStart}
-          className="self-start rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-60"
-        >
-          {loading ? "Starting…" : "Retry"}
-        </button>
-      </div>
+      <>
+        <div className="flex flex-col gap-3 rounded-xl border border-red-6 bg-red-3 px-4 py-4">
+          <p className="text-sm text-red-11">
+            AI analysis failed.{" "}
+            {transcriptionStatus === "ERROR"
+              ? "Transcription failed."
+              : "AI generation error."}
+          </p>
+          {error && (
+            <p className="text-xs text-red-10">{error}</p>
+          )}
+          <button
+            type="button"
+            disabled={loading}
+            onClick={requestStart}
+            className="self-start rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-60"
+          >
+            {loading ? "Starting…" : "Retry"}
+          </button>
+        </div>
+        {confirmDialog}
+      </>
     );
   }
 
@@ -229,27 +281,30 @@ export function GenerateAiPanel({
         aiGenerationStatus !== "COMPLETE"))
   ) {
     return (
-      <div className="flex flex-col gap-3 rounded-xl border border-blue-6 bg-blue-3 px-4 py-4">
-        <p className="text-sm text-gray-12">
-          AI analysis has not been run for this video yet.
-        </p>
-        {aiNotice && (
-          <p className="text-xs text-gray-10">
-            {aiNotice}
+      <>
+        <div className="flex flex-col gap-3 rounded-xl border border-blue-6 bg-blue-3 px-4 py-4">
+          <p className="text-sm text-gray-12">
+            AI analysis has not been run for this video yet.
           </p>
-        )}
-        {error && (
-          <p className="text-xs text-red-10">{error}</p>
-        )}
-        <button
-          type="button"
-          disabled={loading}
-          onClick={handleStart}
-          className="self-start rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
-        >
-          {loading ? "Starting…" : "Start AI analysis"}
-        </button>
-      </div>
+          {aiNotice && (
+            <p className="text-xs text-gray-10">
+              {aiNotice}
+            </p>
+          )}
+          {error && (
+            <p className="text-xs text-red-10">{error}</p>
+          )}
+          <button
+            type="button"
+            disabled={loading}
+            onClick={requestStart}
+            className="self-start rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
+          >
+            {loading ? "Starting…" : "Start AI analysis"}
+          </button>
+        </div>
+        {confirmDialog}
+      </>
     );
   }
 
