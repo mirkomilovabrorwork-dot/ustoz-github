@@ -4,6 +4,11 @@
 @import "@radix-ui/colors/gray-alpha.css";
 @import "@radix-ui/colors/gray-dark.css";
 @import "@radix-ui/colors/blue.css";
+@import "@radix-ui/colors/blue-dark.css";
+@import "@radix-ui/colors/amber.css";
+@import "@radix-ui/colors/amber-dark.css";
+@import "@radix-ui/colors/green.css";
+@import "@radix-ui/colors/green-dark.css";
 
 @tailwind base;
 @tailwind components;
