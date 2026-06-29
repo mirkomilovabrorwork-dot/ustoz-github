@@ -1,7 +1,7 @@
 import { db } from "@cap/database";
 import { comments, spaceVideos, videos } from "@cap/database/schema";
 import { Tinybird } from "@cap/web-backend";
-import { and, between, eq, inArray } from "drizzle-orm";
+import { and, between, eq, inArray, isNull } from "drizzle-orm";
 import { sql } from "drizzle-orm/sql";
 import { Effect } from "effect";
 
@@ -93,8 +93,8 @@ const getLifetimeRangeStart = async (
 ): Promise<Date | undefined> => {
 	const whereClause =
 		videoIds && videoIds.length > 0
-			? and(eq(videos.orgId, orgId), inArray(videos.id, videoIds))
-			: eq(videos.orgId, orgId);
+			? and(eq(videos.orgId, orgId), inArray(videos.id, videoIds), isNull(videos.deletedAt))
+			: and(eq(videos.orgId, orgId), isNull(videos.deletedAt));
 
 	const rows = await db()
 		.select({ minCreatedAt: sql<Date>`MIN(${videos.createdAt})` })
@@ -518,7 +518,7 @@ const loadVideoNames = async (videoIds: ReadonlyArray<string>) => {
 	const records = await db()
 		.select({ id: videos.id, name: videos.name })
 		.from(videos)
-		.where(inArray(videos.id, typedVideoIds));
+		.where(and(inArray(videos.id, typedVideoIds), isNull(videos.deletedAt)));
 	return new Map(records.map((record) => [record.id, record.name]));
 };
 
@@ -537,6 +537,7 @@ const queryVideoSeries = async (
 	const conditions = [
 		eq(videos.orgId, orgId),
 		between(videos.createdAt, from, to),
+		isNull(videos.deletedAt),
 	];
 
 	if (spaceVideoIds && spaceVideoIds.length > 0) {

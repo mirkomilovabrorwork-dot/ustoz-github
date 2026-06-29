@@ -24,7 +24,15 @@ export class VideosRepo extends Effect.Service<VideosRepo>()("VideosRepo", {
 		const getById = (id: Video.VideoId) =>
 			Effect.gen(function* () {
 				const [video] = yield* db.use((db) =>
-					db.select().from(Db.videos).where(Dz.eq(Db.videos.id, id)),
+					db
+						.select()
+						.from(Db.videos)
+						.where(
+							Dz.and(
+								Dz.eq(Db.videos.id, id),
+								Dz.isNull(Db.videos.deletedAt),
+							),
+						),
 				);
 
 				return Option.fromNullable(video).pipe(

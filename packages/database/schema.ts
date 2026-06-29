@@ -399,6 +399,7 @@ export const videos = mysqlTable(
 			{ mode: "stored" },
 		),
 		updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
+		deletedAt: timestamp("deletedAt"),
 		// PRIVATE
 		password: encryptedTextNullable("password"),
 		// LEGACY
@@ -428,6 +429,7 @@ export const videos = mysqlTable(
 			table.orgId,
 			table.effectiveCreatedAt,
 		),
+		index("owner_deleted_idx").on(table.ownerId, table.deletedAt),
 	],
 );
 

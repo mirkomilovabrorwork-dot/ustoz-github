@@ -2,7 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { db } from "@cap/database";
 import { videos } from "@cap/database/schema";
 import type { VideoMetadata } from "@cap/database/types";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -44,6 +44,7 @@ export async function GET(request: Request) {
 		.where(
 			and(
 				eq(videos.transcriptionStatus, "PROCESSING"),
+				isNull(videos.deletedAt),
 				sql`JSON_UNQUOTE(JSON_EXTRACT(${videos.metadata}, '$.processingStartedAt')) <= ${staleBeforeIso}`,
 			),
 		);
@@ -53,6 +54,7 @@ export async function GET(request: Request) {
 		.from(videos)
 		.where(
 			and(
+				isNull(videos.deletedAt),
 				sql`JSON_UNQUOTE(JSON_EXTRACT(${videos.metadata}, '$.aiGenerationStatus')) IN ('PROCESSING', 'QUEUED')`,
 				sql`JSON_UNQUOTE(JSON_EXTRACT(${videos.metadata}, '$.aiProcessingStartedAt')) <= ${staleBeforeIso}`,
 			),

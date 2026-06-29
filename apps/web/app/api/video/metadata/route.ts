@@ -1,7 +1,7 @@
 import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { videos } from "@cap/database/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 
 const USER_EDITABLE_METADATA_FIELDS = [
@@ -35,7 +35,10 @@ export async function PUT(request: NextRequest) {
 		return Response.json({ error: true }, { status: 401 });
 	}
 
-	const query = await db().select().from(videos).where(eq(videos.id, videoId));
+	const query = await db()
+		.select()
+		.from(videos)
+		.where(and(eq(videos.id, videoId), isNull(videos.deletedAt)));
 
 	if (query.length === 0) {
 		return Response.json({ error: true }, { status: 401 });
