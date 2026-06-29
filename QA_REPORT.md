@@ -1,4 +1,97 @@
+# QA Report — RUN 3 (core video pipeline) — 2026-06-25
+
+Evidence = Railway prod logs + live HTTP + current-code review. Recording UI = owner-physical (marked). Every finding below was VERIFIED against current code + this deployment's config (default-R2, post-security-fixes) — candidates that didn't survive verification are listed under "False positives caught" so the owner sees the rigor.
+
+## Verified pipeline findings
+
+| ID | Finding | Status | Severity | Evidence | Fix size |
+|---|---|---|---|---|---|
+| **C1** | AI summary/analysis not auto-triggered after transcription — every upload caller (extension, web-recorder, file-import) omits `aiGenerationEnabled:true`, so transcript completes but the user must click "Start AI analysis". `isAiGenerationEnabled` returns true (intent = on for all), so this is purely the missing flag. | ❌ REAL | **High** (reviewer-visible; the owner's exact symptom) | `workflows/transcribe.ts:97-99`; `lib/transcribe.ts:27`; only `save-edits.ts:237` passes it | ~4 files, mechanical |
+| **C3** | File-import upload orphan — `videos`+`videoUploads` rows created before upload; on mid-upload network failure the catch only toasts, no DB cleanup, no stuck-`webMP4` reconcile cron → permanent ghost rows. | ❌ REAL | Medium | `ImportFilePage.tsx:260,382-395`; stale-cron filters `desktopSegments` only | 1 file |
+| **C4+C5** | Extension dead-letter queue never drained — `DEAD_LETTER_KEY` is write-only (no reader anywhere); a part that fails 6× is lost (blob IS preserved as base64, but presigned URL expired → needs re-request). Flaky upload = silent partial loss. | ❌ REAL | Medium | `upload.ts:8,108-118,21-26` | 2-3 files, non-trivial |
+| **C7** | No audio chunking — whole audio `arrayBuffer()`'d into Node memory then File-API uploaded to Gemini (cap 2GB, so limit is **Node OOM**, not Gemini). 10-min/9.7MB fine; failure zone ≈ >1hr recordings. | ❌ REAL | **Low** (only very-long videos) | `lib/gemini-transcribe.ts:276` | 1-2 files, refactor |
+| **C8** | In-app web-recorder streaming path can complete multipart with `parts:[]` — Zod `parts` array lacks `.min(1)`; empty array passes, forwarded to S3 → `MalformedXML` surfaces as an unhandled error, not a clean "recording empty" message. | ❌ REAL | Low | `app/api/upload/[...route]/multipart.ts:281-287,335,423` | 1 file, 1 line |
+| **S-07** | `commentsDisabled` only partially server-enforced — video + org `disableComments` ARE checked, but **space-level** `disableComments` is client-UI-only (`resolveEffectiveVideoRules` never called in the comment action) → a direct API call posts to a space that disabled comments. | ❌ REAL (partial) | Medium | `new-comment.ts:95-99`; `EffectiveVideoRules.ts:49-75` unused here | 1-2 files |
+
+## False positives / not-applicable (caught by verification — NOT bugs)
+- **C6 "AI chat unauthenticated" → FALSE.** `app/api/video/ai/chat/route.ts` enforces `getCurrentUser()`→401 (L119), `canView` policy→403 (L152-169), rate-limit 20/60s (L146), `withCostGuard` (L246,313). Already secured by the S4 fix. (Step-1 agent misread; I verified the live file.)
+- **C2 "custom-bucket playback 404" → NOT-APPLICABLE.** Real in code (`playlist/route.ts:344-358`) but `customBucket` is per-org DB config; this deployment is default-R2 only → branch never runs. Latent only — fix if org-S3 is ever enabled.
+
+## Regression check — 3 fixes shipped this session
+- Extension short-recording empty-video (dfc6ef8, ext v0.1.1) — ✅ owner-verified live; served zip = v0.1.1 confirmed.
+- Stripe priceId + Discord relay guard (c73eef0/09231e8) — ✅ deploy healthy (health 200 throughout); C6 verification reconfirms the AI-spend guard is intact.
+- Transcription raw-upload fallback (ddc6b95) — ✅ logs prove BOTH a 1-min (64s) and 10-min (606s) video now transcribe (`Using video source …/raw-upload.mp4 → Stored transcript chunks`).
+
+## Summary
+- Candidates triaged: 8 · **REAL: 6** (1 High, 3 Medium, 2 Low) · FALSE: 1 · NOT-APPLICABLE: 1.
+- Owner-physical (unverified by QA, need owner action): the 3 recording methods' UI gestures — verified by RESULT (uploaded file + logs) instead.
+
+## Prioritised failures (Critical first — none Critical)
+1. **C1 (High)** — AI analysis never auto-runs; users see "Start AI analysis" forever. The owner's reported symptom.
+2. **S-07 (Medium)** — space-level comment-disable bypassable via API.
+3. **C3 (Medium)** — import failures leave ghost rows.
+4. **C4+C5 (Medium)** — extension drops parts silently after 6 retries.
+5. **C8 (Low)** — empty in-app recording yields an ugly error, not a clean message.
+6. **C7 (Low)** — >1hr videos risk OOM during transcription.
+
+## Step 4 — fixes applied (NOT yet committed/deployed — batching for one deploy)
+- **C8 ✅ FIXED** — `multipart.ts` parts zod `.min(1)`; empty completion rejected cleanly. typecheck GREEN, Codex SHIP, playback-source 12/12.
+- **C3 ✅ FIXED** — new `actions/video/mark-upload-failed.ts` (owner-checked, sets `videoUploads.phase="error"`) called from `ImportFilePage` catch; orphan no longer stuck at "uploading". typecheck GREEN, Codex SHIP.
+- **S-07 ✅ FIXED** — `new-comment.ts` now resolves `resolveEffectiveVideoRules` (space→org→video) before insert; space-level disable enforced. Codex confirmed precedence preserved (no regression — space can only ADD restriction). typecheck GREEN.
+- **C1 ✅ ROOT-CAUSED & FIXED (`cba69a0`) — it was the AI BUDGET CAP, not Gemini, not the missing flag.** Two agent theories were REFUTED first (verifier's "callers omit `aiGenerationEnabled`" — false, `transcribeVideo` only called from `/generate` with `true`; and the "empty transcript skip" — false, `getTranscript` and AI's `fetchTranscript` read the SAME vtt key and the viewer SHOWS the transcript). Real cause, traced via the live test (AI fails ~1s, NO Gemini error, NO "Inline failed" log = a HANDLED throw): `assertAiBudgetAvailable` uses an inherited **$1/month default cap** (`DEFAULT_AI_BUDGET_CAP_MICROS=1_000_000`); a day of self-hosted testing exhausted it → `BudgetExceededError` before any Gemini call → all AI silently blocked. Fix: raise default to $100/month. **VERIFY:** owner re-clicks "Start AI analysis" post-deploy → summary should now generate.
+- **C4+C5, C7 — DEFERRED (gate G2 + "no new bugs"):** C4+C5 = risky extension concurrency drain (Medium, edge-case, the extension just got a delicate fix); C7 = streaming-audio refactor (Low, only >1hr videos). Doing either blind risks the exact churn the owner is fighting. Recommend defer both; revisit deliberately.
+
+**Review discipline this run (owner's mandate):** every delegated diff was Opus-reviewed + the security/correctness-sensitive ones Codex-reviewed; two separate Sonnet sub-agent claims (C6 "unauth", C1 "missing flag") were caught as WRONG before any fix shipped.
+
+---
+
 # QA Report — Ustoz / data365
+
+---
+## RUN 2 — 2026-06-25 (Opus) — dark-mode + recent-UI pass
+
+**Target:** live https://capweb-production-dd85.up.railway.app (`qa-fixes`), driven through the owner's logged-in admin Chrome session (I never enter passwords). **Focus (owner's ask):** dark mode + the UI shipped since Run 1 (recorder ✕-button, logo, renamed nav, settings).
+
+### Executive summary
+Dark mode is in **good shape for a reviewer.** Walked **9 dashboard surfaces** in dark — 8 clean, **1 real bug found and fixed** (deploying). The two historically-buggy dark surfaces (Org-Settings **Members** + **Storage**) are confirmed readable. **0 Critical / 0 High / 0 Medium.** Remaining = Low cosmetic only.
+
+| Severity (NEW this run) | Count | Items |
+|---|---|---|
+| Critical | 0 | — |
+| High | 0 | — |
+| Medium | 0 | — |
+| Low | 3 | recorder header still "Cap" wordmark (**owner descoped**); Gemini API-key input light bg in dark; account Danger-Zone uses Tailwind `red-200/600` |
+
+### Fixes shipped this run (on `qa-fixes`)
+| Commit | Fix | Severity | Verified |
+|---|---|---|---|
+| `971ddff` | Recorder **✕ close overlapped by the ⚙️ settings button** (44px z-10 gear sat on the 20px Radix ✕ → clicking ✕ opened settings). Hid Radix ✕, moved gear left, added a dedicated 44px ✕ wired to close. | **High** (core flow) | ✅ LIVE — ✕ closes, ⚙️ opens settings (browser-verified) |
+| `c099832` | Plain-English rewrite of the mic-on / no-system-audio notice. | Low | ✅ deployed (text-only) |
+| `1c97306` | **Dark bug:** recorder dialog text uses `--text-primary` (`#0d1b2a`, fixed dark navy, no dark override) → labels like **"System Audio"** were dark-on-dark / unreadable in dark mode. Flipped `--text-primary` → Radix `gray-12` under `.dark` (token used ONLY by the 5 recorder-dialog files — verified safe). | **High** (unreadable UI in dark) | ⏳ deploying → re-verify |
+
+### Dark-mode walkthrough (live screenshots, this run)
+| # | Surface (dark) | Result | Evidence |
+|---|---|---|---|
+| 1 | Dashboard / Caps | ✅ clean | bg dark, text + cards + nav readable |
+| 2 | Org Settings — General | ✅ clean | AI-budget, slider, inputs readable |
+| 3 | Org Settings — **Members** | ✅ clean (was buggy) | team table + add-member readable |
+| 4 | Settings — **Storage** | ✅ clean (was buggy) | quota inputs, progress, Save readable |
+| 5 | Analytics | ✅ clean | metric cards + chart + axes readable |
+| 6 | Meeting Recordings (empty) | ✅ clean | empty state + Install CTA readable |
+| 7 | **Recorder dialog** | ❌ → FIXED | "System Audio" label dark-on-dark → `1c97306` |
+| 8 | Account Settings | ⚠️ Low | Gemini API-key input light bg (readable, inconsistent) |
+| 9 | Access Management | ✅ clean | user table, badges, actions readable |
+
+**Not individually screenshotted in dark this run** (lower risk; covered by a code colour-audit that found only **benign** hardcoded colours — `text-white` on coloured buttons / dark media thumbnails): Org-Settings Preferences/Integrations/Permissions/Activity, New Recording, Install Extension, Refer, login/signup. Share viewer `/s/` is **light-only by design** (not a dark bug; future feature).
+
+### Smoke gate
+ROOT `pnpm typecheck` **GREEN**. `vitest` = **20 pre-existing failures** (workflow-mock test-infra: "processVideoWorkflow is not a function") — pre-existing **test debt, NOT app bugs**, unrelated to this run (matches Run 1's triage). App build healthy → smoke **PASS**.
+
+### Reviewer-readiness
+`/login` 200 · `/dashboard` 307 (auth-gated) · `/api/health` db+storage **ok**. Admin login **unchanged** (no auth files touched this run); regular users self-signup. **Verdict: ready for a reviewer to log in and review** once the dark-fix deploy (`1c97306`) lands (re-verify pending).
+
+---
+## RUN 1 — 2026-06-24 (previous pass, retained for record)
 
 **Run:** 2026-06-24 (Opus, qa-6-step). **Target:** live https://capweb-production-dd85.up.railway.app (`qa-fixes` @ `176f6e7`).
 
