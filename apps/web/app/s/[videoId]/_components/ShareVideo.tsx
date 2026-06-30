@@ -656,6 +656,20 @@ export const ShareVideo = forwardRef<
 		const hasCleanTranscript =
 			(activeAiSummary?.refinedTranscript?.chapters?.length ?? 0) > 0;
 
+		// Chapter group headers in the raw-transcript tab: use the TRANSLATED
+		// chapter titles when a non-base language is selected (so the headers match
+		// the translated cue text + the rest of the analysis), else the base ones.
+		const transcriptChapters = useMemo(
+			() =>
+				selectedLanguage !== "base" && (activeAiSummary?.chapters?.length ?? 0) > 0
+					? (activeAiSummary?.chapters ?? []).map((c) => ({
+							startSec: clampStartSec(c.startSec, data.duration ?? undefined),
+							title: c.title,
+						}))
+					: safeChapters.map((c) => ({ startSec: c.start, title: c.title })),
+			[selectedLanguage, activeAiSummary, safeChapters, data.duration],
+		);
+
 		return (
 			<>
 				{/*
@@ -741,10 +755,7 @@ export const ShareVideo = forwardRef<
 									currentTime={currentTime}
 									onVideoJump={handleSeek}
 									duration={data.duration}
-									chapters={safeChapters.map((c) => ({
-										startSec: c.start,
-										title: c.title,
-									}))}
+									chapters={transcriptChapters}
 								/>
 							) : hasCleanTranscript ? (
 								<div className="rounded-xl border border-blue-6 bg-blue-3 px-4 py-5">
@@ -761,10 +772,7 @@ export const ShareVideo = forwardRef<
 									currentTime={currentTime}
 									onVideoJump={handleSeek}
 									duration={data.duration}
-									chapters={safeChapters.map((c) => ({
-										startSec: c.start,
-										title: c.title,
-									}))}
+									chapters={transcriptChapters}
 								/>
 							)}
 							</>
