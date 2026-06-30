@@ -594,6 +594,12 @@ export async function transcribeWithGemini(
 	// Always normalize Gemini's raw output into STANDARD WebVTT before saving,
 	// regardless of the shape it returns (inline cues, single timestamps, etc.).
 	// This keeps the AI workflow's parser happy and keeps HTML <track> captions valid.
+	if (rawText.trim().length === 0) {
+		throw new Error(
+			`[gemini-transcribe] empty transcript from Gemini (finishReason=${finishReason}); not saving as complete`,
+		);
+	}
+
 	const transcriptVtt = normalizeToWebVtt(rawText, audioDurationSec);
 	if (!transcriptVtt.includes("-->")) {
 		console.warn(

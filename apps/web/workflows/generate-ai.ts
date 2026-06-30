@@ -476,10 +476,27 @@ async function saveResults(
 	// the failure placeholder yet still be marked COMPLETE because stale
 	// content existed.
 	const resultSummaryText = result.summary?.trim() ?? "";
-	const resultHasContent =
+	const ai = result.aiSummary;
+	// "Usable" = the actual user-facing summary content (overview / topics /
+	// tasks / chapters / nextSteps) is non-empty. A refined-transcript-only shell
+	// (built when the summary JSON failed or truncated) is NOT usable and must NOT
+	// be reported as COMPLETE — otherwise the page shows a "done" state over empty
+	// summary/chapters/tasks (the silent-empty-but-success bug class).
+	const summaryIsUsable =
 		(resultSummaryText.length > 0 &&
 			resultSummaryText !== AI_SUMMARY_FAILURE_PLACEHOLDER) ||
-		Boolean(result.aiSummary);
+		Boolean(
+			ai &&
+				((ai.overview ?? "").trim().length > 0 ||
+					(ai.topics?.length ?? 0) > 0 ||
+					(ai.tasks?.length ?? 0) > 0 ||
+					(ai.chapters?.length ?? 0) > 0 ||
+					(ai.nextSteps?.length ?? 0) > 0),
+		);
+	// Still PERSIST whatever we produced (e.g. a refined transcript that succeeded
+	// even when the summary JSON failed); only the STATUS reflects usability.
+	const resultHasContent =
+		resultSummaryText.length > 0 || Boolean(result.aiSummary);
 
 	const updatedMetadata: VideoMetadata = resultHasContent
 		? {
@@ -488,7 +505,11 @@ async function saveResults(
 				summary: result.summary || currentMetadata.summary,
 				chapters: result.chapters || currentMetadata.chapters,
 				aiSummary: result.aiSummary ?? currentMetadata.aiSummary,
-				aiGenerationStatus: "COMPLETE",
+				aiGenerationStatus: summaryIsUsable
+					? "COMPLETE"
+					: currentMetadata.summary || currentMetadata.aiSummary
+						? "COMPLETE"
+						: "ERROR",
 			}
 		: {
 				// This run produced nothing usable: preserve any existing
@@ -675,12 +696,16 @@ async function callAiApi(
 							contents: [{ parts: [{ text: prompt }] }],
 							generationConfig: {
 								temperature: 0.2,
-								// The summary JSON is small + bounded (8192 is plenty). The
-								// refined transcript (json:false) is the FULL cleaned text and
-								// can be far longer — capping it at 8192 truncated/dropped it
-								// for longer videos (the refined tab came back empty). Give the
-								// non-JSON cleaning call the model's full output room.
-								maxOutputTokens: json ? 8192 : 65536,
+								// Both calls can produce large output for long videos. The
+								// structured-summary JSON holds a chapter + a task + a topic PER
+								// agenda item, so a ~65-min meeting needs ~8.6k output tokens — the
+								// old 8192 cap TRUNCATED it mid-JSON (finishReason MAX_TOKENS),
+								// JSON.parse then threw and the error was swallowed, so
+								// summary/chapters/tasks came back empty while the (separate)
+								// refined-transcript call survived. Give BOTH calls the model's
+								// full output room (65536). Verified via repro: 8192 -> MAX_TOKENS
+								// + parse fail + 0 chapters/tasks; 65536 -> STOP + 30/30.
+								maxOutputTokens: 65536,
 								...(json ? { responseMimeType: "application/json" } : {}),
 								thinkingConfig: { thinkingBudget: 0 },
 							},
@@ -717,6 +742,9 @@ async function callAiApi(
 					blockReason: data.promptFeedback?.blockReason,
 					candidateCount: data.candidates?.length ?? 0,
 				});
+			}
+			if (data.candidates?.[0]?.finishReason === "MAX_TOKENS") {
+				console.error("[generate-ai] response TRUNCATED (MAX_TOKENS) - raise maxOutputTokens", { json, outputTokens: data.usageMetadata?.candidatesTokenCount ?? 0 });
 			}
 			const content = rawText ?? "{}";
 			const inputTokens = data.usageMetadata?.promptTokenCount ?? 0;
@@ -768,7 +796,7 @@ async function generateSingleChunk(
 
 	// NOTE: refinedTranscript is intentionally NOT requested here. The refined
 	// transcript is (near) the FULL raw transcript and on its own can approach or
-	// exceed the 8192 maxOutputTokens cap. Asking for it together with
+	// exceed the 65536 maxOutputTokens cap. Asking for it together with
 	// summary/tasks/chapters in one JSON response caused the combined output to
 	// overflow the cap and TRUNCATE the refined transcript (or invalidate the
 	// whole JSON). It is generated separately below with its own dedicated call,
@@ -968,7 +996,9 @@ ${chunk.text}`;
 				endTime: chunk.endTime,
 				rawText: chunk.text,
 			});
-		} catch {}
+		} catch {
+			console.error("[generate-ai] per-chunk summary JSON parse FAILED (chunk skipped)", { startTime: chunk.startTime, endTime: chunk.endTime, contentLength: chunkResult.content.length, tail: chunkResult.content.slice(-150) });
+		}
 	}
 
 	// Per-chunk refined cleaning: clean raw transcript text, do NOT summarize.
@@ -1156,6 +1186,7 @@ ${MIXED_LANGUAGE_PRESERVATION_RULES}`;
 			},
 		};
 	} catch {
+		console.error("[generate-ai] final synthesis JSON parse FAILED (likely truncated)", { contentLength: finalResult.content.length, tail: finalResult.content.slice(-150) });
 		const fallbackSummary = chunkSummaries
 			.map((c, i) => `**Part ${i + 1}:** ${c.summary}`)
 			.join("\n\n");
@@ -1206,6 +1237,7 @@ function parseAiResponse(content: string): AiResult {
 			aiSummary: parseAiSummary(data.aiSummary ?? null),
 		};
 	} catch {
+		console.error("[generate-ai] summary JSON parse FAILED (likely truncated)", { contentLength: content.length, tail: content.slice(-150) });
 		return {
 			title: "Generated Title",
 			summary: AI_SUMMARY_FAILURE_PLACEHOLDER,
