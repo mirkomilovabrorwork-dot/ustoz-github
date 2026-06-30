@@ -368,14 +368,14 @@ export function shouldGenerateRefinedTranscript({
 	// The cleaned transcript is generated SEPARATELY from the summary JSON call
 	// (single-chunk: its own non-JSON call; multi-chunk: one non-JSON call per
 	// chunk, each bounded by MAX_CHARS_PER_CHUNK). It therefore does NOT share the
-	// summary token budget, so total transcript length is irrelevant here — the
-	// duration cap alone gates cost. (A char-count cap previously dropped the
-	// refined transcript for every multi-chunk/long video.)
-	return (
-		transcriptCharCount > 0 &&
-		(videoDurationSeconds <= 0 ||
-			videoDurationSeconds <= MAX_REFINED_TRANSCRIPT_AUTO_SECONDS)
-	);
+	// summary token budget. We intentionally do NOT gate on duration: this is a
+	// lessons platform with long (up to ~2h) recordings, and the previous
+	// duration cap (a) excluded every video longer than the cap and (b) tripped
+	// on inflated durations from hallucinated trailing VTT cues — both left the
+	// Refined tab empty. The only requirement is that a transcript exists.
+	// (videoDurationSeconds is kept in the signature for callers/tests.)
+	void videoDurationSeconds;
+	return transcriptCharCount > 0;
 }
 
 const MIXED_LANGUAGE_PRESERVATION_RULES = `Mixed-language preservation rules:

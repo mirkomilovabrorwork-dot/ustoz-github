@@ -130,17 +130,17 @@ describe("getAiLanguageInstruction", () => {
 });
 
 describe("shouldGenerateRefinedTranscript", () => {
-	it("gates the automatic cleaned transcript by duration, not transcript length", () => {
+	it("generates the cleaned transcript whenever a transcript exists, regardless of duration", () => {
+		// A normal-length, short video: yes.
 		expect(
 			shouldGenerateRefinedTranscript({
 				transcriptCharCount: MAX_REFINED_TRANSCRIPT_AUTO_CHARS,
-				videoDurationSeconds: MAX_REFINED_TRANSCRIPT_AUTO_SECONDS,
+				videoDurationSeconds: 60,
 			}),
 		).toBe(true);
 
-		// Long (multi-chunk) transcripts are allowed as long as the video is short
-		// enough: the refined transcript is generated per-chunk, separate from the
-		// summary token budget.
+		// Long (multi-chunk) transcript: yes — generated per-chunk, separate from
+		// the summary token budget.
 		expect(
 			shouldGenerateRefinedTranscript({
 				transcriptCharCount: MAX_REFINED_TRANSCRIPT_AUTO_CHARS * 10,
@@ -148,13 +148,17 @@ describe("shouldGenerateRefinedTranscript", () => {
 			}),
 		).toBe(true);
 
+		// Long-duration video (e.g. a 2h lesson, or a hallucinated trailing-cue
+		// duration): STILL yes — duration must not gate it (this was the bug that
+		// left the Refined tab empty for long videos).
 		expect(
 			shouldGenerateRefinedTranscript({
 				transcriptCharCount: 1000,
-				videoDurationSeconds: MAX_REFINED_TRANSCRIPT_AUTO_SECONDS + 1,
+				videoDurationSeconds: MAX_REFINED_TRANSCRIPT_AUTO_SECONDS * 100,
 			}),
-		).toBe(false);
+		).toBe(true);
 
+		// No transcript: no.
 		expect(
 			shouldGenerateRefinedTranscript({
 				transcriptCharCount: 0,
