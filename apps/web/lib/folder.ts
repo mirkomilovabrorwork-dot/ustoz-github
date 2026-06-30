@@ -234,15 +234,13 @@ export const getVideosByFolderId = Effect.fn(function* (
 					? and(
 							eq(spaceVideos.folderId, folderId),
 							isNull(organizations.tombstoneAt),
-							isNull(videos.deletedAt),
 						)
 					: root.variant === "org"
 						? and(
 								eq(sharedVideos.folderId, folderId),
 								isNull(organizations.tombstoneAt),
-								isNull(videos.deletedAt),
 							)
-						: and(eq(videos.folderId, folderId), isNull(videos.deletedAt)),
+						: eq(videos.folderId, folderId),
 			)
 			.groupBy(
 				videos.id,

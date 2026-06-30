@@ -15,6 +15,10 @@ export const VideosRpcsLive = Video.VideoRpcs.toLayer(
 						"DatabaseError",
 						() => new InternalError({ type: "database" }),
 					),
+					Effect.catchTag(
+						"StorageError",
+						() => new InternalError({ type: "unknown" }),
+					),
 				),
 
 			VideoDuplicate: (videoId) =>

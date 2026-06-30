@@ -5,7 +5,7 @@ import { getCurrentUser } from "@cap/database/auth/session";
 import { videos } from "@cap/database/schema";
 import { Tinybird } from "@cap/web-backend";
 import { Video } from "@cap/web-domain";
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 import { runPromise } from "@/lib/server";
 
@@ -43,9 +43,7 @@ export async function getVideoAnalytics(
 	const [videoRow = { orgId: null, ownerId: null }] = await db()
 		.select({ orgId: videos.orgId, ownerId: videos.ownerId })
 		.from(videos)
-		.where(
-			and(eq(videos.id, Video.VideoId.make(videoId)), isNull(videos.deletedAt)),
-		)
+		.where(eq(videos.id, Video.VideoId.make(videoId)))
 		.limit(1);
 
 	// Only the video owner may read analytics.

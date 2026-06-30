@@ -62,7 +62,7 @@ export async function getUserVideos(spaceId: Space.SpaceIdOrOrganisationId) {
 					.leftJoin(spaces, eq(folders.spaceId, spaces.id))
 					.leftJoin(organizations, eq(videos.orgId, organizations.id))
 					.where(
-						and(eq(videos.ownerId, userId), isNull(organizations.tombstoneAt), isNull(videos.deletedAt)),
+						and(eq(videos.ownerId, userId), isNull(organizations.tombstoneAt)),
 					)
 					.groupBy(
 						videos.id,
@@ -94,7 +94,7 @@ export async function getUserVideos(spaceId: Space.SpaceIdOrOrganisationId) {
 					.leftJoin(spaces, eq(folders.spaceId, spaces.id))
 					.leftJoin(organizations, eq(videos.orgId, organizations.id))
 					.where(
-						and(eq(videos.ownerId, userId), isNull(organizations.tombstoneAt), isNull(videos.deletedAt)),
+						and(eq(videos.ownerId, userId), isNull(organizations.tombstoneAt)),
 					)
 					.groupBy(
 						videos.id,

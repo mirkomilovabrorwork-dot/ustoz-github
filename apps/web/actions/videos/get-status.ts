@@ -5,7 +5,7 @@ import { videos, videoUploads } from "@cap/database/schema";
 import type { AiSummary, VideoMetadata } from "@cap/database/types";
 import { provideOptionalAuth, VideosPolicy } from "@cap/web-backend";
 import { Policy, type Video } from "@cap/web-domain";
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { Effect, Exit } from "effect";
 import {
 	isRetryableDesktopSegmentsFinalizationError,
@@ -65,7 +65,7 @@ export async function getVideoStatus(
 		const videosPolicy = yield* VideosPolicy;
 
 		return yield* Effect.promise(() =>
-			db().select().from(videos).where(and(eq(videos.id, videoId), isNull(videos.deletedAt))),
+			db().select().from(videos).where(eq(videos.id, videoId)),
 		).pipe(Policy.withPublicPolicy(videosPolicy.canView(videoId)));
 	}).pipe(provideOptionalAuth, EffectRuntime.runPromiseExit);
 

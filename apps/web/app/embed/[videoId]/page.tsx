@@ -155,7 +155,6 @@ export default async function EmbedVideoPage(
 					createdAt: videos.createdAt,
 					effectiveCreatedAt: videos.effectiveCreatedAt,
 					updatedAt: videos.updatedAt,
-					deletedAt: videos.deletedAt,
 					bucket: videos.bucket,
 					storageIntegrationId: videos.storageIntegrationId,
 					metadata: videos.metadata,
@@ -190,7 +189,7 @@ export default async function EmbedVideoPage(
 				.leftJoin(sharedVideos, eq(videos.id, sharedVideos.videoId))
 				.leftJoin(videoUploads, eq(videos.id, videoUploads.videoId))
 				.leftJoin(organizations, eq(videos.orgId, organizations.id))
-				.where(and(eq(videos.id, videoId), isNull(organizations.tombstoneAt), isNull(videos.deletedAt))),
+				.where(and(eq(videos.id, videoId), isNull(organizations.tombstoneAt))),
 		).pipe(Policy.withPublicPolicy(videosPolicy.canView(videoId)));
 
 		return Option.fromNullable(video);

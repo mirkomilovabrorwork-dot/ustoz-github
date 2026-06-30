@@ -77,3 +77,7 @@ analysis/plans/
 .ralphy
 tmp/
 tmp-qa/
+
+# Local-only QA import scripts (hardcoded dev paths; do not commit)
+apps/web/scripts/_qa-import.ts
+apps/web/scripts/import-real-video.ts
