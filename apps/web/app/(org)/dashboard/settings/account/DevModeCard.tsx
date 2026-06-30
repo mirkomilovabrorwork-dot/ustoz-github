@@ -1,6 +1,7 @@
 "use client";
 
 import { Card, CardDescription, CardTitle, Switch } from "@cap/ui";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 import { toggleDevMode } from "@/actions/toggle-dev-mode";
@@ -11,6 +12,7 @@ interface DevModeCardProps {
 }
 
 export const DevModeCard = ({ isAdmin, initialEnabled }: DevModeCardProps) => {
+	const t = useTranslations("settings");
 	const [enabled, setEnabled] = useState(initialEnabled);
 	const [pending, setPending] = useState(false);
 
@@ -27,11 +29,11 @@ export const DevModeCard = ({ isAdmin, initialEnabled }: DevModeCardProps) => {
 			setEnabled(result.devModeEnabled);
 			toast.success(
 				result.devModeEnabled
-					? "Developer mode enabled"
-					: "Developer mode disabled",
+					? t("devModeEnabled")
+					: t("devModeDisabled"),
 			);
 		} catch {
-			toast.error("Failed to toggle developer mode");
+			toast.error(t("devModeToggleError"));
 		} finally {
 			setPending(false);
 		}
@@ -40,13 +42,13 @@ export const DevModeCard = ({ isAdmin, initialEnabled }: DevModeCardProps) => {
 	return (
 		<Card className="flex flex-col gap-4">
 			<div className="space-y-1">
-				<CardTitle>Developer Mode</CardTitle>
+				<CardTitle>{t("devMode")}</CardTitle>
 				<CardDescription>
-					Enable experimental glass effects and developer tools.
+					{t("devModeDescription")}
 				</CardDescription>
 			</div>
 			<div className="flex justify-between items-center">
-				<span className="text-sm text-gray-12">Enable developer mode</span>
+				<span className="text-sm text-gray-12">{t("devModeToggleLabel")}</span>
 				<Switch
 					checked={enabled}
 					onCheckedChange={handleToggle}
