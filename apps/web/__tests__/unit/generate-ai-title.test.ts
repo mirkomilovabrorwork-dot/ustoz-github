@@ -130,7 +130,7 @@ describe("getAiLanguageInstruction", () => {
 });
 
 describe("shouldGenerateRefinedTranscript", () => {
-	it("allows automatic cleaned transcript only for short recordings", () => {
+	it("gates the automatic cleaned transcript by duration, not transcript length", () => {
 		expect(
 			shouldGenerateRefinedTranscript({
 				transcriptCharCount: MAX_REFINED_TRANSCRIPT_AUTO_CHARS,
@@ -138,17 +138,27 @@ describe("shouldGenerateRefinedTranscript", () => {
 			}),
 		).toBe(true);
 
+		// Long (multi-chunk) transcripts are allowed as long as the video is short
+		// enough: the refined transcript is generated per-chunk, separate from the
+		// summary token budget.
 		expect(
 			shouldGenerateRefinedTranscript({
-				transcriptCharCount: MAX_REFINED_TRANSCRIPT_AUTO_CHARS + 1,
+				transcriptCharCount: MAX_REFINED_TRANSCRIPT_AUTO_CHARS * 10,
 				videoDurationSeconds: 60,
 			}),
-		).toBe(false);
+		).toBe(true);
 
 		expect(
 			shouldGenerateRefinedTranscript({
 				transcriptCharCount: 1000,
 				videoDurationSeconds: MAX_REFINED_TRANSCRIPT_AUTO_SECONDS + 1,
+			}),
+		).toBe(false);
+
+		expect(
+			shouldGenerateRefinedTranscript({
+				transcriptCharCount: 0,
+				videoDurationSeconds: 60,
 			}),
 		).toBe(false);
 	});

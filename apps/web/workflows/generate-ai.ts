@@ -365,9 +365,14 @@ export function shouldGenerateRefinedTranscript({
 	transcriptCharCount: number;
 	videoDurationSeconds: number;
 }): boolean {
+	// The cleaned transcript is generated SEPARATELY from the summary JSON call
+	// (single-chunk: its own non-JSON call; multi-chunk: one non-JSON call per
+	// chunk, each bounded by MAX_CHARS_PER_CHUNK). It therefore does NOT share the
+	// summary token budget, so total transcript length is irrelevant here — the
+	// duration cap alone gates cost. (A char-count cap previously dropped the
+	// refined transcript for every multi-chunk/long video.)
 	return (
 		transcriptCharCount > 0 &&
-		transcriptCharCount <= MAX_REFINED_TRANSCRIPT_AUTO_CHARS &&
 		(videoDurationSeconds <= 0 ||
 			videoDurationSeconds <= MAX_REFINED_TRANSCRIPT_AUTO_SECONDS)
 	);
@@ -965,23 +970,34 @@ Return ONLY the cleaned text. No JSON. No explanations.
 
 Transcript (${timeLabel}):
 ${chunk.text}`;
-			const refinedResult = await callAiApi(
-				refinedPrompt,
-				{ json: false },
-				context,
-			);
-			totalInputTokens += refinedResult.inputTokens;
-			totalOutputTokens += refinedResult.outputTokens;
-			const cleanedText = refinedResult.content.trim();
-			const paragraphs = cleanedText
-				.split(/\n\s*\n/)
-				.map((p) => p.trim())
-				.filter((p) => p.length > 0);
-			refinedChapters.push({
-				startSec: chunk.startTime,
-				title: chapterTitle,
-				paragraphs: paragraphs.length > 0 ? paragraphs : [cleanedText],
-			});
+			// A single failing chunk call must not abort the whole loop and silently
+			// collapse the refined transcript to []. Skip the failed chunk, keep the
+			// rest.
+			try {
+				const refinedResult = await callAiApi(
+					refinedPrompt,
+					{ json: false },
+					context,
+				);
+				totalInputTokens += refinedResult.inputTokens;
+				totalOutputTokens += refinedResult.outputTokens;
+				const cleanedText = refinedResult.content.trim();
+				if (cleanedText.length === 0) continue;
+				const paragraphs = cleanedText
+					.split(/\n\s*\n/)
+					.map((p) => p.trim())
+					.filter((p) => p.length > 0);
+				refinedChapters.push({
+					startSec: chunk.startTime,
+					title: chapterTitle,
+					paragraphs: paragraphs.length > 0 ? paragraphs : [cleanedText],
+				});
+			} catch (error) {
+				console.warn(
+					`[generate-ai] Refined transcript chunk ${i + 1}/${chunks.length} failed; skipping`,
+					error,
+				);
+			}
 		}
 	}
 
@@ -1066,7 +1082,7 @@ ${MIXED_LANGUAGE_PRESERVATION_RULES}`;
 		};
 		// Override refinedTranscript with the per-chunk cleaned result when this
 		// run intentionally paid for it; otherwise clear any model-invented value.
-		if (includeRefinedTranscript && refinedChapters.length > 0) {
+		if (includeRefinedTranscript) {
 			if (aiSummaryRaw && typeof aiSummaryRaw === "object") {
 				(aiSummaryRaw as Record<string, unknown>).refinedTranscript = {
 					chapters: refinedChapters,
