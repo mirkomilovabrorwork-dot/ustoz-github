@@ -675,7 +675,12 @@ async function callAiApi(
 							contents: [{ parts: [{ text: prompt }] }],
 							generationConfig: {
 								temperature: 0.2,
-								maxOutputTokens: 8192,
+								// The summary JSON is small + bounded (8192 is plenty). The
+								// refined transcript (json:false) is the FULL cleaned text and
+								// can be far longer — capping it at 8192 truncated/dropped it
+								// for longer videos (the refined tab came back empty). Give the
+								// non-JSON cleaning call the model's full output room.
+								maxOutputTokens: json ? 8192 : 65536,
 								...(json ? { responseMimeType: "application/json" } : {}),
 								thinkingConfig: { thinkingBudget: 0 },
 							},
