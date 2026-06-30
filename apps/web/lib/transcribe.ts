@@ -14,6 +14,7 @@ import {
 	BudgetExceededError,
 } from "@/lib/ai-cost-guard";
 import { isTranscriptionDisabled } from "@/lib/transcription-settings";
+import { after } from "next/server";
 import { transcribeVideoWorkflow } from "@/workflows/transcribe";
 
 type TranscribeResult = {
@@ -147,7 +148,7 @@ export async function transcribeVideo(
 			`[transcribeVideo] Triggering transcription workflow for video ${videoId}`,
 		);
 
-		transcribeVideoWorkflow({
+		const runTranscribe = () => transcribeVideoWorkflow({
 			videoId,
 			userId,
 			aiGenerationEnabled,
@@ -157,6 +158,7 @@ export async function transcribeVideo(
 				err,
 			);
 		});
+		try { after(runTranscribe); } catch { void runTranscribe(); }
 
 		return {
 			success: true,

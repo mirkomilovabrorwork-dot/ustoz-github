@@ -7,6 +7,7 @@ import { serverEnv } from "@cap/env";
 import { Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
 import { MESSENGER_ADMIN_EMAIL } from "@/lib/messenger/constants";
+import { after } from "next/server";
 import { adminReprocessVideoWorkflow } from "@/workflows/admin-reprocess-video";
 
 async function requireAdmin() {
@@ -84,9 +85,10 @@ export async function adminReprocessVideo(input: string) {
 			},
 		});
 
-	adminReprocessVideoWorkflow({ videoId }).catch((err) => {
+	const runReprocess = () => adminReprocessVideoWorkflow({ videoId }).catch((err) => {
 		console.error("[adminReprocessVideo] Inline workflow failed", err);
 	});
+	try { after(runReprocess); } catch { void runReprocess(); }
 
 	return {
 		videoId,

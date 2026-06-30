@@ -6,6 +6,7 @@ import { serverEnv } from "@cap/env";
 import type { Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
 import { assertAiBudgetAvailable, BudgetExceededError } from "@/lib/ai-cost-guard";
+import { after } from "next/server";
 import { generateAiWorkflow } from "@/workflows/generate-ai";
 
 type GenerateAiResult = {
@@ -109,7 +110,7 @@ export async function startAiGeneration(
 			})
 			.where(eq(videos.id, videoId));
 
-		generateAiWorkflow({ videoId, userId }).catch(async (err) => {
+		const runGen = () => generateAiWorkflow({ videoId, userId }).catch(async (err) => {
 			console.error(
 				`[startAiGeneration] Inline workflow failed for video ${videoId}:`,
 				err,
@@ -148,6 +149,7 @@ export async function startAiGeneration(
 				);
 			}
 		});
+		try { after(runGen); } catch { void runGen(); }
 
 		return {
 			success: true,
