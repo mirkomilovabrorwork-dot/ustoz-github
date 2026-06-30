@@ -9,7 +9,7 @@ import {
 	videos,
 } from "@cap/database/schema";
 import { Organisation } from "@cap/web-domain";
-import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, lt, sql } from "drizzle-orm";
 import { getOrganizationAccess } from "@/actions/organization/authorization";
 import { canViewOrganizationSettings } from "@/lib/permissions/roles";
 
@@ -170,7 +170,7 @@ export async function getOrgAiSpend(
 			})
 			.from(aiUsageEvents)
 			.leftJoin(users, eq(aiUsageEvents.userId, users.id))
-			.leftJoin(videos, eq(aiUsageEvents.videoId, videos.id))
+			.leftJoin(videos, and(eq(aiUsageEvents.videoId, videos.id), isNull(videos.deletedAt)))
 			.where(and(...whereConditions))
 			.orderBy(desc(aiUsageEvents.createdAt))
 			.limit(limit)

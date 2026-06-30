@@ -204,10 +204,32 @@ export class Videos extends Effect.Service<Videos>()("Videos", {
 			getByIdForViewing,
 
 			/*
-			 * Delete a video. Will fail if the user does not have access.
+			 * Soft-delete a video (move to Trash). The row is marked deleted and
+			 * hidden from all reads, but media + uploads are kept for 7 days so it
+			 * can be restored. Will fail if the user does not have access.
 			 */
 			delete: Effect.fn("Videos.delete")(function* (videoId: Video.VideoId) {
 				const maybeVideo = yield* repo.getById(videoId);
+				if (Option.isNone(maybeVideo))
+					return yield* Effect.fail(new Video.NotFoundError());
+				const [video] = maybeVideo.value;
+
+				yield* repo
+					.softDelete(video.id)
+					.pipe(Policy.withPolicy(policy.isOwner(video.id)));
+
+				yield* Effect.log(`Soft-deleted video ${video.id}`);
+			}),
+
+			/*
+			 * Permanently delete a video and ALL its media (irreversible). Used by
+			 * the Trash "delete now" action and the 7-day purge. Resolves the row
+			 * even when already soft-deleted. Fails if the user does not own it.
+			 */
+			permanentlyDelete: Effect.fn("Videos.permanentlyDelete")(function* (
+				videoId: Video.VideoId,
+			) {
+				const maybeVideo = yield* repo.getByIdIncludingDeleted(videoId);
 				if (Option.isNone(maybeVideo))
 					return yield* Effect.fail(new Video.NotFoundError());
 				const [video] = maybeVideo.value;
@@ -218,7 +240,7 @@ export class Videos extends Effect.Service<Videos>()("Videos", {
 					.delete(video.id)
 					.pipe(Policy.withPolicy(policy.isOwner(video.id)));
 
-				yield* Effect.log(`Deleted video ${video.id}`);
+				yield* Effect.log(`Permanently deleted video ${video.id}`);
 
 				const prefix = `${video.ownerId}/${video.id}/`;
 

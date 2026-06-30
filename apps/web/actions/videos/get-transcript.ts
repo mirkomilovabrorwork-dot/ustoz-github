@@ -6,7 +6,7 @@ import { videos } from "@cap/database/schema";
 import type { VideoMetadata } from "@cap/database/types";
 import { provideOptionalAuth, Storage, VideosPolicy } from "@cap/web-backend";
 import { Policy, type Video } from "@cap/web-domain";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { Effect, Exit, Option } from "effect";
 import { runPromise, runPromiseExit } from "@/lib/server";
 import { decodeStorageVideo } from "@/lib/video-storage";
@@ -26,7 +26,7 @@ export async function getTranscript(
 	const query = await db()
 		.select({ video: videos })
 		.from(videos)
-		.where(eq(videos.id, videoId));
+		.where(and(eq(videos.id, videoId), isNull(videos.deletedAt)));
 
 	if (query.length === 0) {
 		return { success: false, message: "Video not found" };

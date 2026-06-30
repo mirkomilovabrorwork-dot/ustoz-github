@@ -391,6 +391,7 @@ export default async function ShareVideoPage(props: PageProps<"/s/[videoId]">) {
 					createdAt: videos.createdAt,
 					updatedAt: videos.updatedAt,
 					effectiveCreatedAt: videos.effectiveCreatedAt,
+					deletedAt: videos.deletedAt,
 					bucket: videos.bucket,
 					storageIntegrationId: videos.storageIntegrationId,
 					metadata: videos.metadata,
@@ -432,7 +433,7 @@ export default async function ShareVideoPage(props: PageProps<"/s/[videoId]">) {
 				.innerJoin(users, eq(videos.ownerId, users.id))
 				.leftJoin(videoUploads, eq(videos.id, videoUploads.videoId))
 				.leftJoin(organizations, eq(videos.orgId, organizations.id))
-				.where(and(eq(videos.id, videoId), isNull(organizations.tombstoneAt))),
+				.where(and(eq(videos.id, videoId), isNull(videos.deletedAt), isNull(organizations.tombstoneAt))),
 		).pipe(Policy.withPublicPolicy(videosPolicy.canView(videoId)));
 
 		return Option.fromNullable(video);

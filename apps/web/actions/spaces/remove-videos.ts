@@ -4,7 +4,7 @@ import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { sharedVideos, spaceVideos, videos } from "@cap/database/schema";
 import type { Space, Video } from "@cap/web-domain";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireOrganizationSettingsManager } from "@/actions/organization/authorization";
 import { getSpaceAccess } from "@/actions/organization/space-authorization";
@@ -40,7 +40,7 @@ export async function removeVideosFromSpace(
 		const userVideos = await db()
 			.select({ id: videos.id })
 			.from(videos)
-			.where(and(eq(videos.ownerId, user.id), inArray(videos.id, videoIds)));
+			.where(and(eq(videos.ownerId, user.id), inArray(videos.id, videoIds), isNull(videos.deletedAt)));
 
 		const validVideoIds = userVideos.map((v) => v.id);
 

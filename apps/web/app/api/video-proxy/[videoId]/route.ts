@@ -7,7 +7,7 @@ import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { videos, videoUploads } from "@cap/database/schema";
 import { serverEnv } from "@cap/env";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -83,7 +83,12 @@ export async function GET(
 	const [video] = await db()
 		.select()
 		.from(videos)
-		.where(eq(videos.id, videoId as typeof videos.$inferSelect.id))
+		.where(
+			and(
+				eq(videos.id, videoId as typeof videos.$inferSelect.id),
+				isNull(videos.deletedAt),
+			),
+		)
 		.limit(1);
 
 	if (!video || video.ownerId !== user.id) {
