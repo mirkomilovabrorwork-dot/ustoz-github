@@ -28,7 +28,7 @@ export async function POST(
     const [video] = await db()
       .select({ id: videos.id, ownerId: videos.ownerId, orgId: videos.orgId, transcriptionStatus: videos.transcriptionStatus, metadata: videos.metadata })
       .from(videos)
-      .where(eq(videos.id, videoId))
+      .where(and(eq(videos.id, videoId), isNull(videos.deletedAt)))
       .limit(1);
 
     if (!video) {

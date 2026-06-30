@@ -234,11 +234,17 @@ export class Videos extends Effect.Service<Videos>()("Videos", {
 					return yield* Effect.fail(new Video.NotFoundError());
 				const [video] = maybeVideo.value;
 
+				// Authorize against the already-fetched video so ownership is
+				// checked even when the row is soft-deleted (policy.isOwner uses
+				// repo.getById which filters out trashed rows and would always deny).
+				// This also ensures storage is not accessed before authz (Finding 3).
+				const currentUser = yield* CurrentUser;
+				if (video.ownerId !== currentUser.id)
+					return yield* Effect.fail(new Policy.PolicyDeniedError());
+
 				const [bucket] = yield* storage.getAccessForVideo(video);
 
-				yield* repo
-					.delete(video.id)
-					.pipe(Policy.withPolicy(policy.isOwner(video.id)));
+				yield* repo.delete(video.id);
 
 				yield* Effect.log(`Permanently deleted video ${video.id}`);
 

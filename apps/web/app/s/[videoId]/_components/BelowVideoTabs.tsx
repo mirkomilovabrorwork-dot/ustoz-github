@@ -49,7 +49,7 @@ export function BelowVideoTabs({
 		rawParam === "refined" ||
 		rawParam === "summary"
 			? rawParam
-			: "summary";
+			: "transcript";
 
 	const [activeTab, setActiveTab] = useState<TabId>(initialTab);
 
