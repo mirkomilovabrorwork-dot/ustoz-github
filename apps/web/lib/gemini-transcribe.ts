@@ -69,10 +69,31 @@ interface ParsedCue {
 }
 
 function parseTimestampToSeconds(raw: string): number | null {
-	// Accept HH:MM:SS(.mmm) or MM:SS(.mmm)
-	const m = raw
-		.trim()
-		.match(/^(?:(\d{1,2}):)?(\d{1,2}):(\d{1,2})(?:[.,](\d{1,3}))?$/);
+	// Accept HH:MM:SS(.mmm), MM:SS(.mmm), and the Gemini colon-ms forms
+	// MM:SS:mmm and HH:MM:SS:mmm where a trailing colon-separated group of
+	// EXACTLY 3 digits is treated as milliseconds (not a fourth time unit).
+	// Disambiguation: seconds are at most 2 digits; a 3-digit final group = ms.
+	//
+	// Examples:
+	//   00:07:540        -> 7.540 s  (MM:SS:mmm)
+	//   00:00:07.540     -> 7.540 s  (HH:MM:SS.mmm — standard)
+	//   00:00:07:540     -> 7.540 s  (HH:MM:SS:mmm)
+	//   01:02:03         -> 3723 s   (HH:MM:SS)
+	//   01:30            -> 90 s     (MM:SS)
+	const trimmed = raw.trim();
+
+	// Try colon-ms form first: trailing :ddd (exactly 3 digits)
+	const colonMs = trimmed.match(/^(?:(\d{1,2}):)?(\d{1,2}):(\d{1,2}):(\d{3})$/);
+	if (colonMs) {
+		const h = colonMs[1] ? parseInt(colonMs[1], 10) : 0;
+		const min = parseInt(colonMs[2] ?? "0", 10);
+		const s = parseInt(colonMs[3] ?? "0", 10);
+		const ms = parseInt(colonMs[4] ?? "0", 10);
+		return h * 3600 + min * 60 + s + ms / 1000;
+	}
+
+	// Standard form: optional HH: then MM:SS with optional dot/comma ms
+	const m = trimmed.match(/^(?:(\d{1,2}):)?(\d{1,2}):(\d{1,2})(?:[.,](\d{1,3}))?$/);
 	if (!m) return null;
 	const h = m[1] ? parseInt(m[1], 10) : 0;
 	const min = parseInt(m[2] ?? "0", 10);
@@ -101,7 +122,15 @@ function stripCueSettings(text: string): string {
 		.trim();
 }
 
-const TS = "\\d{1,2}:\\d{1,2}(?::\\d{1,2})?(?:[.,]\\d{1,3})?";
+// Matches any timestamp form we accept, including the Gemini colon-ms form
+// where a trailing group of exactly 3 digits (after a colon) is milliseconds:
+//   HH:MM:SS.mmm  MM:SS.mmm  HH:MM:SS  MM:SS  MM:SS:mmm  HH:MM:SS:mmm
+// The colon-ms alternative (`:\d{3}\b`) MUST be tried before the `:\d{1,2}`
+// seconds group; otherwise the 2-digit-seconds group greedily eats the first
+// two digits of a 3-digit ms group (e.g. `00:07:540` -> matches only `00:07:54`,
+// leaving a stray `0` that breaks the `--> ` detection and drops the cue text).
+const TS =
+	"\\d{1,2}:\\d{1,2}(?::\\d{3}\\b|:\\d{1,2})?(?:[.,]\\d{1,3})?";
 
 // Tolerance (seconds) for cue starts that legitimately sit at/just past the
 // reported audio duration. Cues starting beyond duration + this are treated as

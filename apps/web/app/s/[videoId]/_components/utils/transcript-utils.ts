@@ -95,44 +95,70 @@ export const parseVTT = (vttContent: string): TranscriptEntry[] => {
 	let currentEntry: Partial<TranscriptEntry & { startTime: number }> = {};
 	let currentId = 0;
 
+	// Parse a single timestamp string into total seconds.
+	// Accepted forms (C = colon-ms disambiguation: exactly 3 final digits = ms):
+	//   HH:MM:SS           e.g. 01:02:03  -> 3723 s
+	//   HH:MM:SS.mmm       e.g. 00:00:07.540 -> 7.54 s
+	//   HH:MM:SS,mmm       (comma separator)
+	//   MM:SS:mmm          e.g. 00:07:540 -> 7.54 s  (Gemini malformed form)
+	//   MM:SS              e.g. 00:07     -> 7 s
+	//   MM:SS.mmm          e.g. 00:07.540 -> 7.54 s
 	const timeToSeconds = (timeStr: string): number | null => {
-		const parts = timeStr.split(":");
-		if (parts.length !== 3) return null;
+		// Strip optional dot/comma-based milliseconds suffix first
+		let msValue = 0;
+		let core = timeStr.trim();
+		const dotMs = core.match(/^(.*)[.,](\d{1,3})$/);
+		if (dotMs) {
+			core = dotMs[1] ?? "";
+			msValue = parseInt((dotMs[2] ?? "").padEnd(3, "0"), 10) / 1000;
+		}
 
-		const [hoursStr, minutesStr, secondsStr] = parts;
-		if (!hoursStr || !minutesStr || !secondsStr) return null;
-
-		const hours = parseInt(hoursStr, 10);
-		const minutes = parseInt(minutesStr, 10);
-		const seconds = parseInt(secondsStr, 10);
-
-		if (Number.isNaN(hours) || Number.isNaN(minutes) || Number.isNaN(seconds))
-			return null;
-
-		return hours * 3600 + minutes * 60 + seconds;
+		const parts = core.split(":");
+		if (parts.length === 2) {
+			// MM:SS
+			const [mm, ss] = parts;
+			const minutes = parseInt(mm ?? "", 10);
+			const seconds = parseInt(ss ?? "", 10);
+			if (Number.isNaN(minutes) || Number.isNaN(seconds)) return null;
+			return minutes * 60 + seconds + msValue;
+		}
+		if (parts.length === 3) {
+			const [a, b, c] = parts;
+			// Disambiguate: if the last part has exactly 3 digits, treat as ms
+			// (Gemini colon-ms form: MM:SS:mmm). Seconds are at most 2 digits,
+			// so a 3-digit final group cannot be seconds.
+			if ((c ?? "").length === 3 && /^\d{3}$/.test(c ?? "")) {
+				// MM:SS:mmm form — a=MM, b=SS, c=mmm
+				const minutes = parseInt(a ?? "", 10);
+				const seconds = parseInt(b ?? "", 10);
+				const ms = parseInt(c ?? "", 10) / 1000;
+				if (Number.isNaN(minutes) || Number.isNaN(seconds)) return null;
+				return minutes * 60 + seconds + ms + msValue;
+			}
+			// Standard HH:MM:SS form
+			const hours = parseInt(a ?? "", 10);
+			const minutes = parseInt(b ?? "", 10);
+			const seconds = parseInt(c ?? "", 10);
+			if (Number.isNaN(hours) || Number.isNaN(minutes) || Number.isNaN(seconds))
+				return null;
+			return hours * 3600 + minutes * 60 + seconds + msValue;
+		}
+		return null;
 	};
 
 	const parseTimestamp = (
 		timestamp: string,
 	): { mm_ss: string; totalSeconds: number } | null => {
-		const parts = timestamp.split(":");
-		if (parts.length !== 3) return null;
-
-		const [hoursStr, minutesStr, secondsWithMs] = parts;
-		if (!hoursStr || !minutesStr || !secondsWithMs) return null;
-
-		const secondsPart = secondsWithMs.split(".")[0];
-		if (!secondsPart) return null;
-
-		const totalSeconds = timeToSeconds(
-			`${hoursStr}:${minutesStr}:${secondsPart}`,
-		);
+		const totalSeconds = timeToSeconds(timestamp.trim());
 		if (totalSeconds === null) return null;
 
-		return {
-			mm_ss: `${minutesStr}:${secondsPart}`,
-			totalSeconds,
-		};
+		// Build the mm:ss display label from the resolved seconds value
+		const totalSecInt = Math.floor(totalSeconds);
+		const displayMinutes = Math.floor(totalSecInt / 60);
+		const displaySeconds = totalSecInt % 60;
+		const mm_ss = `${String(displayMinutes).padStart(2, "0")}:${String(displaySeconds).padStart(2, "0")}`;
+
+		return { mm_ss, totalSeconds };
 	};
 
 	for (let i = 0; i < lines.length; i++) {
@@ -162,6 +188,14 @@ export const parseVTT = (vttContent: string): TranscriptEntry[] => {
 			}
 			continue;
 		}
+
+		// Guard: never treat metadata/timing lines as transcript text.
+		// Skip lines that are the WEBVTT header, contain "-->", or look like a
+		// standalone timestamp (including the Gemini colon-ms form MM:SS:mmm).
+		if (/^WEBVTT/i.test(trimmedLine)) continue;
+		if (trimmedLine.includes("-->")) continue;
+		// Matches: HH:MM:SS, HH:MM:SS.mmm, MM:SS, MM:SS.mmm, MM:SS:mmm
+		if (/^\d{1,2}:\d{1,2}(?::\d{1,3}|[.,]\d{1,3})?$/.test(trimmedLine)) continue;
 
 		if (currentEntry.timestamp && !currentEntry.text) {
 			const textContent =

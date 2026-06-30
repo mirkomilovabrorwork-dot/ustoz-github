@@ -6,6 +6,7 @@ import {
 	normalizeToWebVtt,
 } from "@/lib/gemini-transcribe";
 import { chunkTranscript } from "@/lib/transcript-chunk";
+import { parseVTT } from "@/app/s/[videoId]/_components/utils/transcript-utils";
 
 describe("transcription prompt", () => {
 	it("keeps Uzbek editing rules while requiring app-compatible WebVTT", () => {
@@ -156,5 +157,66 @@ Speaker 1: Keyin **CRM** integratsiyani ko'ramiz.
 describe("Gemini retry classification", () => {
 	it("treats transient 501 responses as retryable", () => {
 		expect(isTransientGeminiError(501, "temporary backend mismatch")).toBe(true);
+	});
+});
+
+describe("parseTimestampToSeconds — colon-ms form", () => {
+	it("parses 00:07:540 as 7.54 s", () => {
+		const raw = `WEBVTT
+
+1
+00:07:540 --> 00:09:000
+Hello world
+`;
+		const out = normalizeToWebVtt(raw, 600);
+		expect(out).toContain("Hello world");
+		expect(out).toContain("00:00:07.540");
+		expect(out).not.toContain("00:07:540");
+	});
+
+	it("00:00:07.540 still parses correctly", () => {
+		const raw = `WEBVTT
+
+1
+00:00:07.540 --> 00:00:09.000
+Standard form
+`;
+		const out = normalizeToWebVtt(raw, 600);
+		expect(out).toContain("Standard form");
+		expect(out).toContain("00:00:07.540");
+	});
+
+	it("01:02:03 still gives 3723 s", () => {
+		const raw = `WEBVTT
+
+1
+01:02:03.000 --> 01:02:07.000
+Long video
+`;
+		const out = normalizeToWebVtt(raw, 7200);
+		expect(out).toContain("Long video");
+		expect(out).toContain("01:02:03.000");
+	});
+});
+
+describe("parseVTT — malformed VTT guard", () => {
+	it("WEBVTT header does not appear as transcript text", () => {
+		const vtt = "WEBVTT\n\n1\n00:00:07.540 --> 00:00:09.000\nHello world\n";
+		const entries = parseVTT(vtt);
+		expect(entries).toHaveLength(1);
+		expect(entries[0]?.text).toBe("Hello world");
+	});
+
+	it("timing line does not appear as transcript text when malformed", () => {
+		const vtt = "WEBVTT\n\n1\n00:07:540 --> 00:09:000\nGood text\n";
+		const entries = parseVTT(vtt);
+		expect(entries[0]?.text).toBe("Good text");
+	});
+
+	it("stray timestamp line is not emitted as text", () => {
+		const vtt = "WEBVTT\n\n1\n00:00:07.540 --> 00:00:09.000\nReal text\n00:09:000\n";
+		const entries = parseVTT(vtt);
+		const allText = entries.map((e) => e.text).join("\n");
+		expect(allText).not.toContain("00:09:000");
 	});
 });
