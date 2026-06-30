@@ -222,23 +222,6 @@ export class Videos extends Effect.Service<Videos>()("Videos", {
 			}),
 
 			/*
-			 * Restore a soft-deleted video (undo trash). Resolves the row even when
-			 * soft-deleted. Fails if the user does not own it.
-			 */
-			restore: Effect.fn("Videos.restore")(function* (videoId: Video.VideoId) {
-				const maybeVideo = yield* repo.getByIdIncludingDeleted(videoId);
-				if (Option.isNone(maybeVideo))
-					return yield* Effect.fail(new Video.NotFoundError());
-				const [video] = maybeVideo.value;
-
-				yield* repo
-					.restore(video.id)
-					.pipe(Policy.withPolicy(policy.isOwner(video.id)));
-
-				yield* Effect.log(`Restored video ${video.id}`);
-			}),
-
-			/*
 			 * Permanently delete a video and ALL its media (irreversible). Used by
 			 * the Trash "delete now" action and the 7-day purge. Resolves the row
 			 * even when already soft-deleted. Fails if the user does not own it.
@@ -270,43 +253,6 @@ export class Videos extends Effect.Service<Videos>()("Videos", {
 						})),
 					);
 				}
-			}),
-
-			/*
-			 * SYSTEM method — no policy gate (gated by CRON_SECRET at the route).
-			 * Hard-deletes trashed rows whose deletedAt < cutoff and purges their S3 files.
-			 * Returns the count of rows purged.
-			 */
-			purgeExpiredTrash: Effect.fn("Videos.purgeExpiredTrash")(function* (
-				olderThanDays: number,
-				limit: number,
-			) {
-				const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
-				const rows = yield* repo.findExpiredTrashed(cutoff, limit);
-
-				let purged = 0;
-				for (const row of rows) {
-					const maybeVideo = yield* repo.getByIdIncludingDeleted(row.id as Video.VideoId);
-					if (Option.isNone(maybeVideo)) continue;
-					const [video] = maybeVideo.value;
-
-					const [bucket] = yield* storage.getAccessForVideo(video);
-
-					yield* repo.delete(video.id);
-
-					yield* Effect.log(`Purge: permanently deleted video ${video.id}`);
-
-					const prefix = `${video.ownerId}/${video.id}/`;
-					const listedObjects = yield* bucket.listObjects({ prefix });
-					if (listedObjects.Contents) {
-						yield* bucket.deleteObjects(
-							listedObjects.Contents.map((content) => ({ Key: content.Key })),
-						);
-					}
-					purged++;
-				}
-
-				return purged;
 			}),
 
 			/*

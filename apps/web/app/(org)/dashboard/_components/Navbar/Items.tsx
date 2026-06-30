@@ -26,7 +26,7 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import clsx from "clsx";
 import { motion } from "framer-motion";
-import { Check, ChevronDown, Moon, MoreVertical, Plus, Sun, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Moon, MoreVertical, Plus, Sun } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -105,13 +105,6 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 			href: `/dashboard/analytics`,
 			matchChildren: true,
 			icon: <ChartLineIcon />,
-			subNav: [],
-		},
-		{
-			name: t("trash"),
-			href: `/dashboard/trash`,
-			matchChildren: true,
-			icon: <TrashNavIcon />,
 			subNav: [],
 		},
 		{
@@ -758,18 +751,6 @@ const SidebarThemeMenuIcon = forwardRef<
 });
 
 SidebarThemeMenuIcon.displayName = "SidebarThemeMenuIcon";
-
-const TrashNavIcon = forwardRef<
-  DownloadIconHandle,
-  { className?: string; size?: number }
->(({ className, size = 16 }, ref) => {
-  useImperativeHandle(ref, () => ({
-    startAnimation: () => undefined,
-    stopAnimation: () => undefined,
-  }));
-  return <Trash2 className={className} size={size} />;
-});
-TrashNavIcon.displayName = "TrashNavIcon";
 
 const NavItem = ({
 	name,

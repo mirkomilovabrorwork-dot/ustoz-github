@@ -94,33 +94,6 @@ export class VideosRepo extends Effect.Service<VideosRepo>()("VideosRepo", {
 					.where(Dz.eq(Db.videos.id, id));
 			});
 
-		/** Restore: clear deletedAt so the row is visible again. */
-		const restore = (id: Video.VideoId) =>
-			db.use(async (db) => {
-				await db
-					.update(Db.videos)
-					.set({ deletedAt: null })
-					.where(Dz.eq(Db.videos.id, id));
-			});
-
-		/**
-		 * Returns trashed rows whose deletedAt is strictly before `cutoff`.
-		 * Used by the purge cron to hard-delete rows older than N days.
-		 */
-		const findExpiredTrashed = (cutoff: Date, limit: number) =>
-			db.use((db) =>
-				db
-					.select()
-					.from(Db.videos)
-					.where(
-						Dz.and(
-							Dz.isNotNull(Db.videos.deletedAt),
-							Dz.lt(Db.videos.deletedAt, cutoff),
-						),
-					)
-					.limit(limit),
-			);
-
 		const create = (data: CreateVideoInput) =>
 			Effect.gen(function* () {
 				const id = Video.VideoId.make(nanoId());
@@ -203,8 +176,6 @@ export class VideosRepo extends Effect.Service<VideosRepo>()("VideosRepo", {
 			getById,
 			getByIdIncludingDeleted,
 			softDelete,
-			restore,
-			findExpiredTrashed,
 			delete: delete_,
 			create,
 		};
