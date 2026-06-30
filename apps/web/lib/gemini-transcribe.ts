@@ -54,7 +54,7 @@ function plainTextToWebVTT(text: string, durationSec: number): string {
 		const cueDuration = durationSec * fraction;
 		const start = formatVttTimestamp(elapsed);
 		const end = formatVttTimestamp(elapsed + cueDuration);
-		vtt += `${index}\n${start} --> ${end}\n${sentence}\n\n`;
+		vtt += `${index}\n${start} --> ${end}\n${cleanCueText(sentence)}\n\n`;
 		elapsed += cueDuration;
 		index++;
 	}
@@ -104,7 +104,6 @@ function parseTimestampToSeconds(raw: string): number | null {
 
 function cleanCueText(raw: string): string {
 	return raw
-		.replace(/\*\*/g, "")
 		.replace(/^[\s\-–—>]+/, "")
 		.trim();
 }

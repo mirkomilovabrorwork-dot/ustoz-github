@@ -23,7 +23,7 @@ interface Cue {
 	timestamp: string;
 }
 
-function parseVTTCues(vttContent: string): Cue[] {
+export function parseVTTCues(vttContent: string): Cue[] {
 	const lines = vttContent.split(/\r?\n/);
 	const cues: Cue[] = [];
 	let i = 0;
@@ -77,7 +77,7 @@ function parseVTTCues(vttContent: string): Cue[] {
 			const afterEnd = afterArrow.slice(endTokenMatch?.[0]?.length ?? 0);
 			const inlineText = afterEnd
 				.replace(/^[^\]]*\]/, "") // drop up to first ']' (handles closing bracket)
-				.replace(/\*\*/g, "") // remove bold markdown
+				.replace(/^\*\*/, "") // drop the timestamp-wrapper's closing ** marker only
 				.replace(/^[\s\-–—:>]+/, "") // strip leading separators
 				.trim();
 
@@ -244,21 +244,22 @@ function secondsToSRTTime(sec: number): string {
 	return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")},${ms.toString().padStart(3, "0")}`;
 }
 
-function cuesToPlainText(cues: Cue[]): string {
+export function cuesToPlainText(cues: Cue[]): string {
 	return cues
-		.map((c) =>
-			c.speaker
-				? `[${c.timestamp}] ${c.speaker}: ${c.text}`
-				: `[${c.timestamp}] ${c.text}`,
-		)
+		.map((c) => {
+			const text = c.text.replace(/\*\*/g, "");
+			return c.speaker
+				? `[${c.timestamp}] ${c.speaker}: ${text}`
+				: `[${c.timestamp}] ${text}`;
+		})
 		.join("\n");
 }
 
-function cuesToSRT(cues: Cue[]): string {
+export function cuesToSRT(cues: Cue[]): string {
 	return cues
 		.map(
 			(c, i) =>
-				`${i + 1}\n${secondsToSRTTime(c.startSeconds)} --> ${secondsToSRTTime(c.endSeconds)}\n${c.text}\n`,
+				`${i + 1}\n${secondsToSRTTime(c.startSeconds)} --> ${secondsToSRTTime(c.endSeconds)}\n${c.text.replace(/\*\*/g, "")}\n`,
 		)
 		.join("\n");
 }

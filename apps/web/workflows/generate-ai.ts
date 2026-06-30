@@ -883,6 +883,7 @@ RULES (strict):
 - Preserve the speaker's original wording and language (Uzbek/Russian/English mixed is fine).
 - Output clean readable paragraphs separated by blank lines. No bullet points, no headers.
 - This is DIFFERENT from a summary: a summary is short; this must be the full cleaned text.
+- Wrap EVERY foreign/technical/brand/product word or phrase (any word not in the dominant spoken language) in markdown bold: **word**. Example: Bugun **dashboard** **deadline** bor, **сразу** qilamiz.
 ${MIXED_LANGUAGE_PRESERVATION_RULES}
 
 Return ONLY the cleaned text. No JSON. No explanations.
@@ -1029,6 +1030,7 @@ RULES (strict):
 - Preserve the speaker's original wording and language (Uzbek/Russian/English mixed is fine).
 - Output clean readable paragraphs separated by blank lines. No bullet points, no headers.
 - This is DIFFERENT from a summary: a summary is short; this must be the full cleaned text.
+- Wrap EVERY foreign/technical/brand/product word or phrase (any word not in the dominant spoken language) in markdown bold: **word**. Example: Bugun **dashboard** **deadline** bor, **сразу** qilamiz.
 ${MIXED_LANGUAGE_PRESERVATION_RULES}
 
 Return ONLY the cleaned text. No JSON. No explanations.
