@@ -8,35 +8,8 @@ import {
 	LinkIcon,
 	PictureInPictureIcon,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
-const HOW_IT_WORKS_ITEMS = [
-	{
-		title: "Uploads while you record",
-		description:
-			"On compatible browsers, your capture uploads in the background while you record. Otherwise, it records first and uploads right after you stop.",
-		Icon: CloudUploadIcon,
-		accent: "bg-blue-3 text-blue-11 dark:bg-blue-4 dark:text-blue-10",
-	},
-	{
-		title: "Instant shareable link",
-		description:
-			"Stopping the recording finalizes the upload immediately so you can copy your link right away.",
-		Icon: LinkIcon,
-		accent: "bg-green-3 text-green-11 dark:bg-green-4 dark:text-green-10",
-	},
-	{
-		title: "Keep your webcam visible",
-		description:
-			"On compatible browsers, selecting a camera opens a picture‑in‑picture window that's captured when you record fullscreen. We recommend fullscreen to keep it on top. If PiP capture isn't supported, your camera is limited to the recorder page.",
-		Icon: PictureInPictureIcon,
-		accent: "bg-purple-3 text-purple-11 dark:bg-purple-4 dark:text-purple-10",
-	},
-] as const satisfies Array<{
-	title: string;
-	description: string;
-	Icon: LucideIcon;
-	accent: string;
-}>;
 
 interface HowItWorksPanelProps {
 	open: boolean;
@@ -44,6 +17,27 @@ interface HowItWorksPanelProps {
 }
 
 export const HowItWorksPanel = ({ open, onClose }: HowItWorksPanelProps) => {
+	const t = useTranslations("recorder");
+	const items = [
+		{
+			title: t("howItWorksUploadsTitle"),
+			description: t("howItWorksUploadsDesc"),
+			Icon: CloudUploadIcon,
+			accent: "bg-blue-3 text-blue-11 dark:bg-blue-4 dark:text-blue-10",
+		},
+		{
+			title: t("howItWorksLinkTitle"),
+			description: t("howItWorksLinkDesc"),
+			Icon: LinkIcon,
+			accent: "bg-green-3 text-green-11 dark:bg-green-4 dark:text-green-10",
+		},
+		{
+			title: t("howItWorksWebcamTitle"),
+			description: t("howItWorksWebcamDesc"),
+			Icon: PictureInPictureIcon,
+			accent: "bg-purple-3 text-purple-11 dark:bg-purple-4 dark:text-purple-10",
+		},
+	] as const satisfies Array<{ title: string; description: string; Icon: LucideIcon; accent: string }>;
 	return (
 		<AnimatePresence mode="wait">
 			{open && (
@@ -62,16 +56,16 @@ export const HowItWorksPanel = ({ open, onClose }: HowItWorksPanelProps) => {
 							className="flex items-center gap-1.5 text-sm font-medium text-gray-11 transition-colors hover:text-gray-12"
 						>
 							<ArrowLeftIcon className="size-4" />
-							Back
+							{t("back")}
 						</button>
 						<h2 className="text-base font-semibold text-gray-12">
-							How it works
+							{t("howItWorksTitle")}
 						</h2>
 						<span className="h-9 w-9" aria-hidden />
 					</div>
 					<div className="flex-1 min-h-0 overflow-y-auto pr-1 pb-1">
 						<div className="space-y-4">
-							{HOW_IT_WORKS_ITEMS.map(
+							{items.map(
 								({ title, description, Icon, accent }) => (
 									<div
 										key={title}

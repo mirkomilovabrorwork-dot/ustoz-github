@@ -2,6 +2,7 @@
 
 import { Button } from "@cap/ui";
 import CogIcon from "@/app/(org)/dashboard/_components/AnimatedIcons/Cog";
+import { useTranslations } from "next-intl";
 
 interface SettingsButtonProps {
 	visible: boolean;
@@ -9,6 +10,7 @@ interface SettingsButtonProps {
 }
 
 export const SettingsButton = ({ visible, onClick }: SettingsButtonProps) => {
+	const t = useTranslations("recorder");
 	if (!visible) return null;
 
 	return (
@@ -16,7 +18,7 @@ export const SettingsButton = ({ visible, onClick }: SettingsButtonProps) => {
 			type="button"
 			variant="outline"
 			size="icon"
-			aria-label="Open recorder settings"
+			aria-label={t("openSettings")}
 			className="absolute right-16 top-3 z-20 !p-0 h-11 w-11"
 			onClick={onClick}
 		>
