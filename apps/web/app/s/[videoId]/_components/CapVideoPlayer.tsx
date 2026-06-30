@@ -9,6 +9,7 @@ import { skipToken, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertTriangleIcon, InfoIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { retryVideoProcessing } from "@/actions/video/retry-processing";
@@ -95,19 +96,6 @@ function RawPlaybackStatusBadge({
 	);
 }
 
-function getProgressStatusText(
-	status: "uploading" | "processing" | "generating_thumbnail",
-) {
-	switch (status) {
-		case "processing":
-			return "Processing";
-		case "generating_thumbnail":
-			return "Finishing up";
-		default:
-			return "Uploading";
-	}
-}
-
 type EnhancedAudioStatus = "PROCESSING" | "COMPLETE" | "ERROR" | "SKIPPED";
 
 interface Props {
@@ -173,6 +161,19 @@ export function CapVideoPlayer({
 	onUploadComplete,
 	chapters = [],
 }: Props) {
+	const t = useTranslations("share");
+	const getProgressStatusText = (
+		status: "uploading" | "processing" | "generating_thumbnail",
+	) => {
+		switch (status) {
+			case "processing":
+				return t("videoStatusProcessing");
+			case "generating_thumbnail":
+				return t("videoStatusFinishing");
+			default:
+				return t("videoStatusUploading");
+		}
+	};
 	const [currentCue, setCurrentCue] = useState<string>("");
 	const [controlsVisible, setControlsVisible] = useState(false);
 	const [mainControlsVisible, setMainControlsVisible] = useState(false);
@@ -547,16 +548,16 @@ export function CapVideoPlayer({
 			});
 			toast.success(
 				result.status === "started"
-					? "Video processing restarted."
-					: "Video is still processing.",
+					? t("retryProcessingStarted")
+					: t("retryProcessingStillRunning"),
 			);
 		} catch (error) {
 			console.error("Failed to retry video processing", error);
-			toast.error("Could not retry video processing.");
+			toast.error(t("retryProcessingError"));
 		} finally {
 			setIsRetryingProcessing(false);
 		}
-	}, [canRetryUploadProcessing, isRetryingProcessing, queryClient, videoId]);
+	}, [canRetryUploadProcessing, isRetryingProcessing, queryClient, videoId, t]);
 
 	const prevUploadProgress =
 		useRef<typeof uploadProgressRaw>(uploadProgressRaw);
@@ -620,12 +621,12 @@ export function CapVideoPlayer({
 		showPlaybackStatusBadge && resolvedSrc.data?.type === "raw";
 	const rawPlaybackBadgeLabel =
 		uploadProgressRaw?.status === "error"
-			? "Original upload"
-			: "Optimizing video";
+			? t("originalUploadBadge")
+			: t("optimizingVideoBadge");
 	const rawPlaybackBadgeDescription =
 		uploadProgressRaw?.status === "error"
-			? "The processed version is unavailable right now, so this page is playing the original uploaded file instead."
-			: "This page is temporarily playing the original uploaded file while data365 finishes processing the optimized version for smoother playback and broader compatibility.";
+			? t("originalUploadDesc")
+			: t("optimizingVideoDesc");
 	const blockPlaybackControls =
 		((blockPlaybackDuringProcessing || !videoLoaded) && hasActiveProgress) ||
 		showUploadFailureOverlay;
@@ -655,7 +656,7 @@ export function CapVideoPlayer({
 							disabled={isRetryingProcessing}
 							className="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-full transition-colors disabled:opacity-60 disabled:cursor-not-allowed hover:bg-blue-600"
 						>
-							{isRetryingProcessing ? "Retrying..." : "Retry Processing"}
+							{isRetryingProcessing ? t("retrying") : t("retryProcessing")}
 						</button>
 					)}
 				</div>
@@ -664,7 +665,7 @@ export function CapVideoPlayer({
 				<div className="flex absolute inset-0 flex-col px-3 gap-3 z-[20] justify-center items-center bg-black transition-opacity duration-300">
 					<AlertTriangleIcon className="text-red-500 size-12" />
 					<p className="text-gray-11 text-sm leading-relaxed text-center text-balance w-full max-w-[340px] mx-auto">
-						Could not load a playable video source. Reload to try again.
+						{t("videoLoadError")}
 					</p>
 				</div>
 			)}
@@ -761,7 +762,7 @@ export function CapVideoPlayer({
 									className="w-4 h-4 transform -rotate-90"
 									viewBox="0 0 20 20"
 								>
-									<title>Progress</title>
+									<title>{t("progressTitle")}</title>
 									<circle
 										cx="10"
 										cy="10"

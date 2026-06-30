@@ -54,6 +54,7 @@ import { SignedImageUrl } from "@/components/SignedImageUrl";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { usePublicEnv } from "@/utils/public-env";
 import { navigateWithTransition } from "@/utils/view-transition";
+import { useTranslations } from "next-intl";
 import type { SharePageBranding, VideoData } from "../types";
 
 export const ShareHeader = ({
@@ -90,6 +91,7 @@ export const ShareHeader = ({
 	branding?: SharePageBranding | null;
 	canManageSharePageBranding?: boolean;
 }) => {
+	const t = useTranslations("share");
 	const user = useCurrentUser();
 	const router = useRouter();
 	const { push, refresh } = router;
@@ -213,7 +215,7 @@ export const ShareHeader = ({
 		if (next === "" || next === displayTitle) return;
 		try {
 			await editTitle(data.id, next);
-			toast.success("Video title updated");
+			toast.success(t("videoTitleUpdated"));
 			suppressTitleRevealRef.current = true;
 			queryClient.setQueryData<VideoStatusResult>(
 				["videoStatus", data.id],
@@ -224,7 +226,7 @@ export const ShareHeader = ({
 			if (error instanceof Error) {
 				toast.error(error.message);
 			} else {
-				toast.error("Failed to update title - please try again.");
+				toast.error(t("videoTitleUpdateFailed"));
 			}
 		}
 	};
@@ -327,7 +329,7 @@ export const ShareHeader = ({
 			anchor.remove();
 			URL.revokeObjectURL(objectUrl);
 		} catch {
-			toast.error("Download failed - please try again.");
+			toast.error(t("downloadFailed"));
 		} finally {
 			setIsDownloading(false);
 		}
@@ -353,11 +355,11 @@ export const ShareHeader = ({
 
 		try {
 			await hideShareableLinkCapLogo(data.orgId);
-			toast.success("data365 logo hidden");
+			toast.success(t("logoHidden"));
 			refresh();
 		} catch (error) {
 			toast.error(
-				error instanceof Error ? error.message : "Failed to hide data365 logo",
+				error instanceof Error ? error.message : t("logoHideFailed"),
 			);
 		} finally {
 			setIsHidingBranding(false);
@@ -379,7 +381,7 @@ export const ShareHeader = ({
 			toast.error(
 				error instanceof Error
 					? error.message
-					: "Failed to open organization settings",
+					: t("orgSettingsOpenFailed"),
 			);
 			setIsOpeningBrandingSettings(false);
 		}
@@ -397,7 +399,7 @@ export const ShareHeader = ({
 						onClick={() => setIsSharingDialogOpen(true)}
 						className="inline-flex min-h-9 items-center rounded-full border border-gray-6 bg-gray-3 px-3 py-1 text-sm text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12 sm:min-h-0 sm:px-2.5 sm:py-0.5 sm:text-xs"
 					>
-						Make shareable
+						{t("makeSharableLabel")}
 						<FontAwesomeIcon className="ml-1.5 size-2.5" icon={faChevronDown} />
 					</button>
 				);
@@ -408,14 +410,14 @@ export const ShareHeader = ({
 					onClick={() => setIsSharingDialogOpen(true)}
 					className="inline-flex min-h-9 items-center rounded-full border border-gray-6 bg-gray-3 px-3 py-1 text-sm text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12 sm:min-h-0 sm:px-2.5 sm:py-0.5 sm:text-xs"
 				>
-					Shared
+					{t("sharedLabel")}
 					<FontAwesomeIcon className="ml-1.5 size-2.5" icon={faChevronDown} />
 				</button>
 			);
 		}
 		return (
 			<span className="inline-flex items-center rounded-full border border-gray-6 bg-gray-3 px-2.5 py-0.5 text-xs text-gray-11">
-				Shared with you
+				{t("sharedWithYou")}
 			</span>
 		);
 	};
@@ -438,25 +440,25 @@ export const ShareHeader = ({
 						<Button
 							variant="gray"
 							size="xs"
-							aria-label="Edit shareable link branding"
+							aria-label={t("editBrandingAriaLabel")}
 							className="h-7 gap-1 whitespace-nowrap rounded-full px-2 text-[11px]"
 							disabled={isOpeningBrandingSettings}
 							onClick={handleEditBranding}
 						>
 							<Pencil className="size-3.5 text-gray-12" />
-							Change logo
+							{t("changeLogo")}
 						</Button>
 						{branding.type === "cap" && (
 							<Button
 								variant="gray"
 								size="xs"
-								aria-label="Hide data365 logo"
+								aria-label={t("hideBrandingAriaLabel")}
 								className="h-7 gap-1 whitespace-nowrap rounded-full px-2 text-[11px]"
 								disabled={isHidingBranding}
 								onClick={handleHideBranding}
 							>
 								<X className="size-3.5 text-gray-12" />
-								Remove
+								{t("remove")}
 							</Button>
 						)}
 					</div>
@@ -492,7 +494,7 @@ export const ShareHeader = ({
 			{userIsOwnerAndNotPro && (
 				<div className="flex sticky flex-col sm:flex-row inset-x-0 top-0 z-10 gap-4 justify-center items-center px-3 py-2 mx-auto w-[calc(100%-20px)] max-w-fit rounded-b-xl border bg-gray-4 border-gray-6">
 					<p className="text-center text-gray-12">
-						Shareable links are limited to 5 mins on the free plan.
+						{t("freePlanLimitNotice")}
 					</p>
 					<Button
 						type="button"
@@ -500,7 +502,7 @@ export const ShareHeader = ({
 						size="sm"
 						variant="blue"
 					>
-						Upgrade To Pro
+						{t("upgradeToPro")}
 					</Button>
 				</div>
 			)}
@@ -528,10 +530,10 @@ export const ShareHeader = ({
 									type="button"
 									onClick={handleBackClick}
 									className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-gray-6 bg-gray-3 px-3 py-1 text-sm text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12 sm:min-h-0 sm:px-2.5 sm:py-0.5 sm:text-xs"
-									aria-label="Go back"
+									aria-label={t("goBackAriaLabel")}
 								>
 									<ArrowLeft className="size-3" />
-									Back
+									{t("back")}
 								</button>
 							)}
 							{renderBranding()}
@@ -603,7 +605,7 @@ export const ShareHeader = ({
 								<button
 									type="button"
 									onClick={handleCopyClick}
-									aria-label="Copy link"
+									aria-label={t("copyLink")}
 									className="inline-flex size-11 items-center justify-center rounded-full border border-gray-6 bg-gray-3 text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12 sm:hidden"
 								>
 									{linkCopied ? (
@@ -620,7 +622,7 @@ export const ShareHeader = ({
 											onClick={() => handleCopyLink(false)}
 										>
 											<Copy className="w-3.5 h-3.5 shrink-0" />
-											Copy link
+											{t("copyLink")}
 										</button>
 										<button
 											type="button"
@@ -628,7 +630,7 @@ export const ShareHeader = ({
 											onClick={() => handleCopyLink(true)}
 										>
 											<Clock className="w-3.5 h-3.5 shrink-0" />
-											Copy link at {formatTimestamp(capturedTime)}
+											{t("copyLinkAtTime", { time: formatTimestamp(capturedTime) })}
 										</button>
 									</div>
 								)}
@@ -639,22 +641,20 @@ export const ShareHeader = ({
 								<button
 									type="button"
 									onClick={() => setShowShareOptions((v) => !v)}
-									aria-label="Share"
-									title="Share"
+									aria-label={t("share")} title={t("share")}
 									className="hidden sm:inline-flex items-center gap-2 rounded-full border border-gray-6 bg-gray-3 px-3 py-1.5 text-sm text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12"
 								>
 									<Share2 className="w-3.5 h-3.5 shrink-0" />
-									Share
+									{t("share")}
 								</button>
 								<button
 									type="button"
 									onClick={() => setShowShareOptions((v) => !v)}
-									aria-label="Share"
-									title="Share"
+									aria-label={t("share")} title={t("share")}
 									className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-blue-9 px-4 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-10 sm:hidden"
 								>
 									<Share2 className="size-4 shrink-0" />
-									<span>Share</span>
+									<span>{t("share")}</span>
 								</button>
 								{showShareOptions && (
 									<div className="absolute right-0 top-full z-50 mt-1 w-max max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-gray-6 bg-gray-1 shadow-lg">
@@ -673,7 +673,7 @@ export const ShareHeader = ({
 											}}
 										>
 											<Send className="w-3.5 h-3.5 shrink-0" />
-											Share on Telegram
+											{t("shareOnTelegram")}
 										</button>
 										<button
 											type="button"
@@ -690,7 +690,7 @@ export const ShareHeader = ({
 											}}
 										>
 											<MessageCircle className="w-3.5 h-3.5 shrink-0" />
-											Share on WhatsApp
+											{t("shareOnWhatsApp")}
 										</button>
 										<button
 											type="button"
@@ -707,7 +707,7 @@ export const ShareHeader = ({
 											}}
 										>
 											<Share2 className="w-3.5 h-3.5 shrink-0" />
-											Email
+											{t("email")}
 										</button>
 									</div>
 								)}
@@ -717,8 +717,8 @@ export const ShareHeader = ({
 								type="button"
 								onClick={handleDownload}
 								disabled={isDownloading}
-								aria-label="Download video"
-								title="Download video"
+								aria-label={t("downloadAriaLabel")}
+								title={t("downloadAriaLabel")}
 								className="inline-flex size-11 items-center justify-center gap-1.5 rounded-full border border-gray-6 bg-gray-3 text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12 disabled:opacity-60 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 sm:text-sm"
 							>
 								{isDownloading ? (
@@ -727,7 +727,7 @@ export const ShareHeader = ({
 									<Download className="size-3.5 shrink-0" />
 								)}
 								<span className="hidden sm:inline">
-									{isDownloading ? "Preparing…" : "Download"}
+									{isDownloading ? t("downloadPreparing") : t("download")}
 								</span>
 							</button>
 
@@ -737,7 +737,7 @@ export const ShareHeader = ({
 									<DropdownMenuTrigger asChild>
 										<button
 											type="button"
-											aria-label="More actions"
+											aria-label={t("moreActionsAriaLabel")}
 											className="inline-flex size-11 items-center justify-center rounded-full border border-gray-6 bg-gray-3 text-gray-11 transition-colors hover:bg-gray-4 hover:text-gray-12 sm:h-auto sm:w-auto sm:p-1.5"
 										>
 											<Ellipsis className="w-3.5 h-3.5 shrink-0" />
@@ -747,7 +747,7 @@ export const ShareHeader = ({
 										{canEditVideo && (
 											<DropdownMenuItem onClick={handleEditVideo}>
 												<Scissors className="mr-2 size-3.5 text-gray-12" />
-												Edit video
+												{t("editVideo")}
 											</DropdownMenuItem>
 										)}
 										<DropdownMenuItem
@@ -759,12 +759,12 @@ export const ShareHeader = ({
 												className="mr-2 size-3.5 text-gray-12"
 												icon={faChartSimple}
 											/>
-											View analytics
+											{t("viewAnalytics")}
 										</DropdownMenuItem>
 										<DropdownMenuItem
 											onClick={() => push("/dashboard/caps?page=1")}
 										>
-											Go to dashboard
+											{t("goToDashboard")}
 										</DropdownMenuItem>
 										{canManageSharePageBranding && branding && (
 											<>
@@ -774,7 +774,7 @@ export const ShareHeader = ({
 													onClick={handleEditBranding}
 												>
 													<Pencil className="mr-2 size-3.5 text-gray-12" />
-													Change logo
+													{t("changeLogo")}
 												</DropdownMenuItem>
 												{branding.type === "cap" && (
 													<DropdownMenuItem
@@ -782,7 +782,7 @@ export const ShareHeader = ({
 														onClick={handleHideBranding}
 													>
 														<X className="mr-2 size-3.5 text-gray-12" />
-														Remove logo
+														{t("removeLogo")}
 													</DropdownMenuItem>
 												)}
 											</>
@@ -821,7 +821,7 @@ export const ShareHeader = ({
 									onClick={() => setUpgradeModalOpen(true)}
 								>
 									<Globe2 className="mr-1 w-4 h-4" />
-									Connect a custom domain
+									{t("connectCustomDomain")}
 								</button>
 							)}
 						</div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { LogoSpinner } from "@cap/ui";
+import { useTranslations } from "next-intl";
 
 export function RecordingInProgressOverlay({
 	onConfirmStopped,
@@ -15,6 +16,7 @@ export function RecordingInProgressOverlay({
 	className?: string;
 	variant?: "solid" | "overlay";
 }) {
+	const t = useTranslations("share");
 	const backgroundClassName =
 		variant === "overlay" ? "bg-black/70 backdrop-blur-[1px]" : "bg-black";
 
@@ -28,12 +30,11 @@ export function RecordingInProgressOverlay({
 					<span className="relative inline-flex rounded-full size-3 bg-red-500" />
 				</span>
 				<span className="text-white font-semibold text-base sm:text-lg">
-					Recording in progress
+					{t("recordingInProgressTitle")}
 				</span>
 			</div>
 			<p className="text-white/50 text-xs sm:text-sm text-center max-w-xs leading-relaxed">
-				This video is still being recorded and will be available once the
-				recording has stopped.
+				{t("recordingInProgressDesc")}
 			</p>
 			<button
 				type="button"
@@ -42,8 +43,8 @@ export function RecordingInProgressOverlay({
 				className="mt-1 text-white/30 text-xs hover:text-white/60 transition-colors underline underline-offset-2"
 			>
 				{isConfirmingStopped
-					? "Finishing recording..."
-					: "I have stopped recording"}
+					? t("recordingFinishing")
+					: t("recordingStopped")}
 			</button>
 			{confirmStoppedError && (
 				<p className="text-xs text-red-200/80 text-center max-w-xs">
@@ -56,17 +57,19 @@ export function RecordingInProgressOverlay({
 
 export function PreparingVideoOverlay({
 	className,
-	label = "Preparing video...",
+	label,
 }: {
 	className?: string;
 	label?: string;
 }) {
+	const t = useTranslations("share");
+	const resolvedLabel = label ?? t("preparingVideo");
 	return (
 		<div
 			className={`flex flex-col gap-3 justify-center items-center bg-black rounded-xl ${className ?? ""}`}
 		>
 			<LogoSpinner className="w-8 h-auto animate-spin sm:w-10" />
-			<p className="text-white/50 text-sm">{label}</p>
+			<p className="text-white/50 text-sm">{resolvedLabel}</p>
 		</div>
 	);
 }

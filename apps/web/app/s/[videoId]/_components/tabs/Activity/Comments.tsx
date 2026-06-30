@@ -2,6 +2,7 @@ import { Comment, User, type Video } from "@cap/web-domain";
 import { faCommentSlash } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type React from "react";
 import {
 	type ComponentProps,
@@ -301,6 +302,7 @@ export const Comments = Object.assign(
 				commentsContainerRef?: React.RefObject<HTMLDivElement | null>;
 			}>,
 		) => {
+			const t = useTranslations("share");
 			return (
 				<>
 					<div
@@ -314,8 +316,8 @@ export const Comments = Object.assign(
 						<div className="flex-none border-t border-gray-4 bg-gray-2 p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] lg:pb-2">
 							<CommentInput
 								{...props.commentInputProps}
-								placeholder="Leave a comment"
-								buttonLabel="Comment"
+								placeholder={t("leaveAComment")}
+								buttonLabel={t("comment")}
 							/>
 						</div>
 					)}

@@ -1,16 +1,10 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 
 type TabId = "summary" | "tasks" | "transcript" | "refined";
-
-const TABS: { id: TabId; label: string; shortLabel: string }[] = [
-	{ id: "summary", label: "Summary", shortLabel: "Summary" },
-	{ id: "tasks", label: "Action Items", shortLabel: "Tasks" },
-	{ id: "transcript", label: "Transcript", shortLabel: "Transcript" },
-	{ id: "refined", label: "Clean Transcript", shortLabel: "Clean" },
-];
 
 interface BelowVideoTabsProps {
 	summary?: React.ReactNode;
@@ -33,8 +27,20 @@ export function BelowVideoTabs({
 	refined,
 	hideTranscriptTab = false,
 }: BelowVideoTabsProps) {
+	const t = useTranslations("share");
 	const searchParams = useSearchParams();
 	const router = useRouter();
+
+	const TABS: { id: TabId; label: string; shortLabel: string }[] = [
+		{ id: "summary", label: t("tabSummary"), shortLabel: t("tabSummaryShort") },
+		{ id: "tasks", label: t("tabTasks"), shortLabel: t("tabTasksShort") },
+		{
+			id: "transcript",
+			label: t("tabTranscript"),
+			shortLabel: t("tabTranscriptShort"),
+		},
+		{ id: "refined", label: t("tabRefined"), shortLabel: t("tabRefinedShort") },
+	];
 
 	const rawParam = searchParams.get("tab");
 	const initialTab: TabId =
@@ -76,7 +82,7 @@ export function BelowVideoTabs({
 			{/* Tab bar — flat row, active = bottom border */}
 			<div
 				role="tablist"
-				aria-label="Video details"
+				aria-label={t("tabsAriaLabel")}
 				style={{
 					fontFamily:
 						"-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",

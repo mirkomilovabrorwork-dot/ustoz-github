@@ -3,6 +3,7 @@
 import type { Video } from "@cap/web-domain";
 import clsx from "clsx";
 import { Effect, Option } from "effect";
+import { useTranslations } from "next-intl";
 import { useEffectQuery, useRpcClient } from "@/lib/EffectRuntime";
 
 type UploadProgress =
@@ -234,16 +235,17 @@ const ProgressCircle = ({
 	progressTextClassName?: string;
 	subTextClassName?: string;
 }) => {
+	const t = useTranslations("share");
 	const strokeColor = status === "uploading" ? "#3b82f6" : "#22c55e";
 
 	const getStatusText = () => {
 		switch (status) {
 			case "processing":
-				return "Processing";
+				return t("videoStatusProcessing");
 			case "generating_thumbnail":
-				return "Finishing up";
+				return t("videoStatusFinishing");
 			default:
-				return "Uploading";
+				return t("videoStatusUploading");
 		}
 	};
 
