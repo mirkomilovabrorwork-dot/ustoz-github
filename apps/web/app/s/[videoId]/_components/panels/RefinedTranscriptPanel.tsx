@@ -72,7 +72,7 @@ export function RefinedTranscriptPanel({
 							>
 								{formatTimeMinutes(startSec)}
 							</button>
-							<h3 className="flex-1 text-sm font-semibold text-gray-12">
+							<h3 className="flex-1 text-base font-bold text-gray-12">
 								{chapter.title}
 							</h3>
 							<button

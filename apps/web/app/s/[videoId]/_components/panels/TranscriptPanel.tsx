@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { normalizeWebVttVoiceText } from "@/lib/transcript-vtt";
 import { clampStartSec, formatTimeMinutes } from "../utils/transcript-utils";
 import { renderMarkdownBold } from "./markdownBold";
@@ -234,6 +234,67 @@ function groupByChapters(
 	return sections;
 }
 
+// --- Feature helpers ---
+
+function secondsToSRTTime(sec: number): string {
+	const h = Math.floor(sec / 3600);
+	const m = Math.floor((sec % 3600) / 60);
+	const s = Math.floor(sec % 60);
+	const ms = Math.round((sec - Math.floor(sec)) * 1000);
+	return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")},${ms.toString().padStart(3, "0")}`;
+}
+
+function cuesToPlainText(cues: Cue[]): string {
+	return cues
+		.map((c) =>
+			c.speaker
+				? `[${c.timestamp}] ${c.speaker}: ${c.text}`
+				: `[${c.timestamp}] ${c.text}`,
+		)
+		.join("\n");
+}
+
+function cuesToSRT(cues: Cue[]): string {
+	return cues
+		.map(
+			(c, i) =>
+				`${i + 1}\n${secondsToSRTTime(c.startSeconds)} --> ${secondsToSRTTime(c.endSeconds)}\n${c.text}\n`,
+		)
+		.join("\n");
+}
+
+function downloadBlob(content: string, filename: string, type: string): void {
+	const blob = new Blob([content], { type });
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement("a");
+	a.href = url;
+	a.download = filename;
+	a.click();
+	URL.revokeObjectURL(url);
+}
+
+function highlightMatch(text: string, query: string): React.ReactNode {
+	if (!query) return text;
+	const idx = text.toLowerCase().indexOf(query.toLowerCase());
+	if (idx === -1) return text;
+	return (
+		<>
+			{text.slice(0, idx)}
+			<mark
+				style={{
+					background: "#fde68a",
+					color: "inherit",
+					borderRadius: "2px",
+					padding: "0 1px",
+				}}
+			>
+				{text.slice(idx, idx + query.length)}
+			</mark>
+			{text.slice(idx + query.length)}
+		</>
+	);
+}
+
 function isActive(cue: Cue, currentTime: number): boolean {
 	return currentTime >= cue.startSeconds && currentTime < cue.endSeconds;
 }
@@ -298,6 +359,308 @@ export function TranscriptPanel({
 			});
 		}
 	}, [activeCueId]);
+
+	// --- Search state ---
+	const [searchQuery, setSearchQuery] = useState("");
+	const trimmedQuery = searchQuery.trim();
+
+	// --- Copy state ---
+	const [copied, setCopied] = useState(false);
+
+	function handleCopy() {
+		navigator.clipboard.writeText(cuesToPlainText(cues)).then(() => {
+			setCopied(true);
+			setTimeout(() => setCopied(false), 1500);
+		});
+	}
+
+	// --- Download ---
+	function handleDownload(format: "txt" | "srt") {
+		if (format === "txt") {
+			downloadBlob(cuesToPlainText(cues), "transcript.txt", "text/plain");
+		} else {
+			downloadBlob(cuesToSRT(cues), "transcript.srt", "text/plain");
+		}
+	}
+
+	// Filtered cues for search
+	const filteredCues = trimmedQuery
+		? cues.filter(
+				(c) =>
+					c.text.toLowerCase().includes(trimmedQuery.toLowerCase()) ||
+					(c.speaker?.toLowerCase().includes(trimmedQuery.toLowerCase()) ?? false),
+			)
+		: cues;
+	const filteredCueIds = new Set(filteredCues.map((c) => c.id));
+
+	// Shared panel header (search + copy + download)
+	function renderHeader() {
+		return (
+			<div
+				style={{
+					display: "flex",
+					flexDirection: "column",
+					gap: "8px",
+					padding: "4px 0 8px",
+					borderBottom: "1px solid var(--gray-3)",
+					marginBottom: "8px",
+				}}
+			>
+				{/* Search row */}
+				<div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+					<svg
+						aria-hidden="true"
+						xmlns="http://www.w3.org/2000/svg"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="2"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						style={{
+							position: "absolute",
+							left: "10px",
+							width: "14px",
+							height: "14px",
+							color: "var(--gray-10)",
+							pointerEvents: "none",
+						}}
+					>
+						<circle cx="11" cy="11" r="8" />
+						<line x1="21" y1="21" x2="16.65" y2="16.65" />
+					</svg>
+					<input
+						type="text"
+						value={searchQuery}
+						onChange={(e) => setSearchQuery(e.target.value)}
+						placeholder="Search transcript..."
+						style={{
+							flex: 1,
+							paddingLeft: "32px",
+							paddingRight: searchQuery ? "32px" : "10px",
+							paddingTop: "7px",
+							paddingBottom: "7px",
+							fontSize: "13px",
+							background: "var(--gray-2)",
+							border: "1px solid var(--gray-4)",
+							borderRadius: "8px",
+							color: "var(--gray-12)",
+							outline: "none",
+						}}
+					/>
+					{searchQuery && (
+						<button
+							type="button"
+							onClick={() => setSearchQuery("")}
+							aria-label="Clear search"
+							style={{
+								position: "absolute",
+								right: "8px",
+								background: "none",
+								border: "none",
+								cursor: "pointer",
+								color: "var(--gray-10)",
+								padding: "2px",
+								display: "flex",
+								alignItems: "center",
+							}}
+						>
+							<svg
+								aria-hidden="true"
+								xmlns="http://www.w3.org/2000/svg"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2.5"
+								strokeLinecap="round"
+								style={{ width: "13px", height: "13px" }}
+							>
+								<line x1="18" y1="6" x2="6" y2="18" />
+								<line x1="6" y1="6" x2="18" y2="18" />
+							</svg>
+						</button>
+					)}
+				</div>
+
+				{/* Results count + copy + download row */}
+				<div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+					{trimmedQuery && (
+						<span
+							style={{
+								fontSize: "12px",
+								color: "var(--gray-10)",
+								flex: 1,
+							}}
+						>
+							{filteredCues.length} result{filteredCues.length !== 1 ? "s" : ""}
+						</span>
+					)}
+					{!trimmedQuery && <span style={{ flex: 1 }} />}
+
+					{/* Copy button */}
+					<button
+						type="button"
+						onClick={handleCopy}
+						title={copied ? "Copied!" : "Copy transcript"}
+						onMouseEnter={(e) => {
+							e.currentTarget.style.background = "var(--blue-3)";
+							e.currentTarget.style.color = "var(--blue-11)";
+						}}
+						onMouseLeave={(e) => {
+							e.currentTarget.style.background = "var(--gray-3)";
+							e.currentTarget.style.color = "var(--gray-11)";
+						}}
+						style={{
+							display: "flex",
+							alignItems: "center",
+							gap: "4px",
+							padding: "5px 10px",
+							fontSize: "12px",
+							fontWeight: 500,
+							background: "var(--gray-3)",
+							color: "var(--gray-11)",
+							border: "none",
+							borderRadius: "6px",
+							cursor: "pointer",
+							transition: "background 150ms, color 150ms",
+							whiteSpace: "nowrap",
+						}}
+					>
+						{copied ? (
+							<>
+								<svg
+									aria-hidden="true"
+									xmlns="http://www.w3.org/2000/svg"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="2.5"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									style={{ width: "12px", height: "12px" }}
+								>
+									<polyline points="20 6 9 17 4 12" />
+								</svg>
+								Nusxa olindi
+							</>
+						) : (
+							<>
+								<svg
+									aria-hidden="true"
+									xmlns="http://www.w3.org/2000/svg"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="2"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									style={{ width: "12px", height: "12px" }}
+								>
+									<rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+									<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+								</svg>
+								Copy
+							</>
+						)}
+					</button>
+
+					{/* Download TXT */}
+					<button
+						type="button"
+						onClick={() => handleDownload("txt")}
+						title="Download as TXT"
+						onMouseEnter={(e) => {
+							e.currentTarget.style.background = "var(--blue-3)";
+							e.currentTarget.style.color = "var(--blue-11)";
+						}}
+						onMouseLeave={(e) => {
+							e.currentTarget.style.background = "var(--gray-3)";
+							e.currentTarget.style.color = "var(--gray-11)";
+						}}
+						style={{
+							display: "flex",
+							alignItems: "center",
+							gap: "4px",
+							padding: "5px 10px",
+							fontSize: "12px",
+							fontWeight: 500,
+							background: "var(--gray-3)",
+							color: "var(--gray-11)",
+							border: "none",
+							borderRadius: "6px",
+							cursor: "pointer",
+							transition: "background 150ms, color 150ms",
+							whiteSpace: "nowrap",
+						}}
+					>
+						<svg
+							aria-hidden="true"
+							xmlns="http://www.w3.org/2000/svg"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							style={{ width: "12px", height: "12px" }}
+						>
+							<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+							<polyline points="7 10 12 15 17 10" />
+							<line x1="12" y1="15" x2="12" y2="3" />
+						</svg>
+						TXT
+					</button>
+
+					{/* Download SRT */}
+					<button
+						type="button"
+						onClick={() => handleDownload("srt")}
+						title="Download as SRT"
+						onMouseEnter={(e) => {
+							e.currentTarget.style.background = "var(--blue-3)";
+							e.currentTarget.style.color = "var(--blue-11)";
+						}}
+						onMouseLeave={(e) => {
+							e.currentTarget.style.background = "var(--gray-3)";
+							e.currentTarget.style.color = "var(--gray-11)";
+						}}
+						style={{
+							display: "flex",
+							alignItems: "center",
+							gap: "4px",
+							padding: "5px 10px",
+							fontSize: "12px",
+							fontWeight: 500,
+							background: "var(--gray-3)",
+							color: "var(--gray-11)",
+							border: "none",
+							borderRadius: "6px",
+							cursor: "pointer",
+							transition: "background 150ms, color 150ms",
+							whiteSpace: "nowrap",
+						}}
+					>
+						<svg
+							aria-hidden="true"
+							xmlns="http://www.w3.org/2000/svg"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							style={{ width: "12px", height: "12px" }}
+						>
+							<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+							<polyline points="7 10 12 15 17 10" />
+							<line x1="12" y1="15" x2="12" y2="3" />
+						</svg>
+						SRT
+					</button>
+				</div>
+			</div>
+		);
+	}
 
 	if (!transcriptContent || cues.length === 0) {
 		return (
@@ -379,7 +742,17 @@ export function TranscriptPanel({
 							{initials}
 						</div>
 					) : null}
-					<span
+					<button
+						type="button"
+						onClick={() => onVideoJump?.(cue.startSeconds)}
+						onMouseEnter={(e) => {
+							e.currentTarget.style.background = "var(--blue-3)";
+							e.currentTarget.style.color = "var(--blue-11)";
+						}}
+						onMouseLeave={(e) => {
+							e.currentTarget.style.background = "var(--gray-3)";
+							e.currentTarget.style.color = "var(--gray-11)";
+						}}
 						style={{
 							fontSize: "11px",
 							fontWeight: 500,
@@ -390,10 +763,12 @@ export function TranscriptPanel({
 							borderRadius: "999px",
 							fontFamily:
 								"ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+							border: "none",
+							cursor: "pointer",
 						}}
 					>
 						{cue.timestamp}
-					</span>
+					</button>
 				</div>
 
 				<div className="min-w-0">
@@ -411,7 +786,9 @@ export function TranscriptPanel({
 							paddingTop: showAvatarCol && speaker ? 0 : "4px",
 						}}
 					>
-						{renderMarkdownBold(cue.text)}
+						{trimmedQuery && cue.text.toLowerCase().includes(trimmedQuery.toLowerCase())
+							? highlightMatch(cue.text, trimmedQuery)
+							: renderMarkdownBold(cue.text)}
 					</p>
 				</div>
 
@@ -454,38 +831,46 @@ export function TranscriptPanel({
 	if (useChapterMode) {
 		return (
 			<div ref={containerRef} className="flex flex-col gap-4 p-4">
-				{chapterSections.map((section, si) => (
-					<section
-						key={`chapter-${section.startSec}`}
-						className="flex flex-col gap-0.5"
-					>
-						{/* Chapter header — mirrors RefinedTranscriptPanel style */}
-						<div className="mb-2 flex items-center gap-2">
-							<button
-								type="button"
-								onClick={() => onVideoJump?.(section.startSec)}
-								className="rounded-md px-2 py-0.5 font-mono text-xs font-medium transition-colors"
-								style={{
-									background: "var(--blue-3)",
-									color: "var(--blue-11)",
-								}}
-							>
-								{formatTimeMinutes(section.startSec)}
-							</button>
-							<h3 className="flex-1 text-sm font-semibold text-gray-12">
-								{section.title}
-							</h3>
-						</div>
+				{renderHeader()}
+				{chapterSections.map((section, si) => {
+					if (trimmedQuery && section.cues.every((c) => !filteredCueIds.has(c.id))) {
+						return null;
+					}
+					return (
+						<section
+							key={`chapter-${section.startSec}`}
+							className="flex flex-col gap-0.5"
+						>
+							{/* Chapter header — mirrors RefinedTranscriptPanel style */}
+							<div className="mb-2 flex items-center gap-2">
+								<button
+									type="button"
+									onClick={() => onVideoJump?.(section.startSec)}
+									className="rounded-md px-2 py-0.5 font-mono text-xs font-medium transition-colors"
+									style={{
+										background: "var(--blue-3)",
+										color: "var(--blue-11)",
+									}}
+								>
+									{formatTimeMinutes(section.startSec)}
+								</button>
+								<h3 className="flex-1 text-base font-bold text-gray-12">
+									{section.title}
+								</h3>
+							</div>
 
-						{section.cues.length === 0 ? (
-							<p className="text-xs text-gray-10 px-2 pb-2">
-								{t("noSpeechInChapter")}
-							</p>
-						) : (
-							section.cues.map((cue, ci) => renderCue(cue, si, ci, cue.speaker))
-						)}
-					</section>
-				))}
+							{section.cues.length === 0 ? (
+								<p className="text-xs text-gray-10 px-2 pb-2">
+									{t("noSpeechInChapter")}
+								</p>
+							) : (
+								section.cues
+									.filter((cue) => filteredCueIds.has(cue.id))
+									.map((cue, ci) => renderCue(cue, si, ci, cue.speaker))
+							)}
+						</section>
+					);
+				})}
 			</div>
 		);
 	}
@@ -493,11 +878,19 @@ export function TranscriptPanel({
 	// Fallback: existing speaker-grouped flat list
 	return (
 		<div ref={containerRef} className="flex flex-col gap-1 p-4">
-			{groups.map((group, gi) => (
-				<div key={`${group.speaker}-${gi}`} className="flex flex-col gap-0.5">
-					{group.cues.map((cue, ci) => renderCue(cue, gi, ci, group.speaker))}
-				</div>
-			))}
+			{renderHeader()}
+			{groups.map((group, gi) => {
+				if (trimmedQuery && group.cues.every((c) => !filteredCueIds.has(c.id))) {
+					return null;
+				}
+				return (
+					<div key={`${group.speaker}-${gi}`} className="flex flex-col gap-0.5">
+						{group.cues
+							.filter((cue) => filteredCueIds.has(cue.id))
+							.map((cue, ci) => renderCue(cue, gi, ci, group.speaker))}
+					</div>
+				);
+			})}
 		</div>
 	);
 }

@@ -39,6 +39,7 @@ import {
 	PreparingVideoOverlay,
 	RecordingInProgressOverlay,
 } from "./RecordingInProgress";
+import { toStandardWebVtt } from "./utils/caption-vtt";
 import { clampStartSec, formatChaptersAsVTT } from "./utils/transcript-utils";
 
 type CommentWithAuthor = typeof commentsSchema.$inferSelect & {
@@ -198,7 +199,7 @@ export const ShareVideo = forwardRef<
 			}
 
 			if (data.transcriptionStatus === "COMPLETE" && vttContent) {
-				const blob = new Blob([vttContent], { type: "text/vtt" });
+				const blob = new Blob([toStandardWebVtt(vttContent)], { type: "text/vtt" });
 				const newUrl = URL.createObjectURL(blob);
 				setSubtitleUrl((prev) => {
 					if (prev) {
