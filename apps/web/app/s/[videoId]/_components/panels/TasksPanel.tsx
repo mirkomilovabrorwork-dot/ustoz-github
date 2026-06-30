@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
+import type { Video } from "@cap/web-domain";
+import { updateTaskStatus } from "@/actions/videos/update-task-status";
 
 interface Task {
     title: string;
@@ -14,6 +17,7 @@ interface Task {
 interface TasksPanelProps {
     videoId: string;
     tasks?: Task[];
+    canEdit?: boolean;
 }
 
 function priorityChipColors(priority?: "high" | "medium" | "low"): {
@@ -97,18 +101,41 @@ function ProgressBar({ done, total }: { done: number; total: number }) {
 export function TasksPanel({
     videoId,
     tasks: initialTasks = [],
+    canEdit = false,
 }: TasksPanelProps) {
     const t = useTranslations("share");
     const [tasks, setTasks] = useState<Task[]>(initialTasks);
 
+    useEffect(() => {
+        setTasks(initialTasks);
+    }, [initialTasks]);
+
     const done = tasks.filter((t) => t.done).length;
     const total = tasks.length;
 
-    // Local-only toggle — server persistence is not yet implemented.
-    function toggle(index: number) {
+    async function toggle(index: number) {
+        if (!canEdit) return;
+        const task = tasks[index];
+        if (!task) return;
+        const newDone = !task.done;
         setTasks((prev) =>
-            prev.map((t, i) => (i === index ? { ...t, done: !t.done } : t)),
+            prev.map((t, i) => (i === index ? { ...t, done: newDone } : t)),
         );
+        try {
+            const result = await updateTaskStatus(videoId as Video.VideoId, index, newDone);
+            if (!result.success) {
+                setTasks((prev) =>
+                    prev.map((t, i) => (i === index ? { ...t, done: task.done } : t)),
+                );
+                toast.error(t("videoTitleUpdateFailed"));
+            }
+        } catch (error) {
+            console.error("Failed to update task status:", error);
+            setTasks((prev) =>
+                prev.map((t, i) => (i === index ? { ...t, done: task.done } : t)),
+            );
+            toast.error(t("videoTitleUpdateFailed"));
+        }
     }
 
     if (total === 0) {
@@ -138,7 +165,8 @@ export function TasksPanel({
                             type="checkbox"
                             checked={task.done}
                             onChange={() => toggle(i)}
-                            className="size-4 shrink-0 cursor-pointer accent-[var(--blue-9)]"
+                            disabled={!canEdit}
+                            className={`size-4 shrink-0 ${canEdit ? "cursor-pointer" : "cursor-default"} accent-[var(--blue-9)]`}
                         />
                         <span
                             className="flex-1 text-sm"

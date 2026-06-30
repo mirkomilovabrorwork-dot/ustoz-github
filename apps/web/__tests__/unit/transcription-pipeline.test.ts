@@ -213,10 +213,15 @@ describe("parseVTT — malformed VTT guard", () => {
 		expect(entries[0]?.text).toBe("Good text");
 	});
 
-	it("stray timestamp line is not emitted as text", () => {
-		const vtt = "WEBVTT\n\n1\n00:00:07.540 --> 00:00:09.000\nReal text\n00:09:000\n";
+	it("stray timestamp where text is expected is skipped, not emitted as text", () => {
+		// The stray timestamp sits RIGHT AFTER the cue timing line — where the
+		// parser expects the spoken text. Only the standalone-timestamp guard
+		// prevents it from being captured as the cue's text; remove that guard
+		// and `text` becomes "00:09:000" instead of "Real text", failing this test.
+		const vtt =
+			"WEBVTT\n\n1\n00:00:07.540 --> 00:00:09.000\n00:09:000\nReal text\n";
 		const entries = parseVTT(vtt);
-		const allText = entries.map((e) => e.text).join("\n");
-		expect(allText).not.toContain("00:09:000");
+		expect(entries).toHaveLength(1);
+		expect(entries[0]?.text).toBe("Real text");
 	});
 });

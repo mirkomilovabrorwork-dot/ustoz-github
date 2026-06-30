@@ -3,9 +3,9 @@
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-	LiquidGlassContainer,
-	type LiquidGlassHandle,
-} from "./LiquidGlassContainer";
+	formatSeconds,
+	parseTimestampToSeconds,
+} from "./ai-chat-timestamps";
 import "./ai-chat.css";
 
 interface Message {
@@ -24,14 +24,6 @@ interface AIChatPopupProps {
 	onVideoJump: (seconds: number) => void;
 	onClose: () => void;
 	isOpen?: boolean;
-}
-
-function parseMmSsToSeconds(mmss: string): number {
-	const parts = mmss.split(":");
-	if (parts.length === 2) {
-		return parseInt(parts[0] ?? "0", 10) * 60 + parseInt(parts[1] ?? "0", 10);
-	}
-	return 0;
 }
 
 function splitByLineBreak(text: string, keyOffset: number): React.ReactNode[] {
@@ -78,7 +70,7 @@ function renderMessageContent(
 	content: string,
 	onVideoJump: (seconds: number) => void,
 ): React.ReactNode[] {
-	const citationRegex = /\[(\d{1,2}:\d{2})\]/g;
+	const citationRegex = /\[(\d{1,3}:\d{2}(?::\d{2})?)\]/g;
 	const parts: React.ReactNode[] = [];
 	let last = 0;
 	let match: RegExpExecArray | null;
@@ -91,7 +83,7 @@ function renderMessageContent(
 			parts.push(...renderBoldAndBreaks(before, parts.length));
 		}
 		const timestamp = match[1] ?? "";
-		const seconds = parseMmSsToSeconds(timestamp);
+		const seconds = parseTimestampToSeconds(timestamp);
 		parts.push(
 			<button
 				key={`cite-${match.index}`}
@@ -99,7 +91,7 @@ function renderMessageContent(
 				className="ai-citation"
 				onClick={() => onVideoJump(seconds)}
 			>
-				{match[0]}
+				{`[${formatSeconds(seconds)}]`}
 			</button>,
 		);
 		last = match.index + match[0].length;
@@ -240,8 +232,6 @@ export function AIChatPopup({
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const popupRef = useRef<HTMLDivElement>(null);
-	const glassHostRef = useRef<HTMLDivElement>(null);
-	const glassRef = useRef<LiquidGlassHandle>(null);
 	const abortRef = useRef<AbortController | null>(null);
 
 	const resizeState = useRef<{
@@ -309,7 +299,21 @@ export function AIChatPopup({
 				});
 
 				if (!response.ok || !response.body) {
-					throw new Error(`Request failed: ${response.status}`);
+					let errorText = t("aiError");
+					if (response.status === 401 || response.status === 403) {
+						errorText = t("aiAuthRequired");
+					} else if (response.status === 429) {
+						errorText = t("aiBusy");
+					}
+					setMessages((prev) => [
+						...prev,
+						{
+							id: nextMsgId(),
+							role: "assistant",
+							content: errorText,
+						},
+					]);
+					return;
 				}
 
 				const assistantId = nextMsgId();
@@ -443,8 +447,6 @@ export function AIChatPopup({
 			aria-label={t("aiDialogAriaLabel")}
 			aria-hidden={!isOpen}
 		>
-			<div ref={glassHostRef} className="ai-glass-host" />
-			<LiquidGlassContainer ref={glassRef} hostRef={glassHostRef} />
 			<div className="ai-tint-overlay" />
 			<div className="ai-noise" />
 			{/* biome-ignore lint/a11y/noStaticElementInteractions: resize handle is mouse-only by design */}

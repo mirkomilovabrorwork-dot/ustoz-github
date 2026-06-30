@@ -1,10 +1,15 @@
 import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
-import { videos } from "@cap/database/schema";
+import {
+	organizationMembers,
+	organizations,
+	videos,
+} from "@cap/database/schema";
 import type { VideoMetadata } from "@cap/database/types";
 import type { Video } from "@cap/web-domain";
 import { and, eq, isNull } from "drizzle-orm";
 import type { NextRequest } from "next/server";
+import { getEffectiveOrganizationRole } from "@/lib/permissions/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +42,42 @@ export async function GET(request: NextRequest) {
 		}
 
 		const video = result[0];
-		if (video.ownerId !== user.id) {
+		// Allow the video owner OR an org owner/admin (same gate as the manual
+		// "start AI" / translate paths). Without this, an org admin who started
+		// generation gets 403 here and their status poll never reaches a terminal
+		// state, leaving the share page stuck on the optimistic "processing" view.
+		let hasPermission = video.ownerId === user.id;
+		if (!hasPermission && video.orgId) {
+			const [orgAccess] = await db()
+				.select({
+					ownerId: organizations.ownerId,
+					memberRole: organizationMembers.role,
+				})
+				.from(organizations)
+				.leftJoin(
+					organizationMembers,
+					and(
+						eq(organizationMembers.organizationId, organizations.id),
+						eq(organizationMembers.userId, user.id),
+					),
+				)
+				.where(
+					and(
+						eq(organizations.id, video.orgId),
+						isNull(organizations.tombstoneAt),
+					),
+				)
+				.limit(1);
+			if (orgAccess) {
+				const role = getEffectiveOrganizationRole({
+					userId: user.id,
+					ownerId: orgAccess.ownerId,
+					memberRole: orgAccess.memberRole,
+				});
+				hasPermission = role === "owner" || role === "admin";
+			}
+		}
+		if (!hasPermission) {
 			return Response.json(
 				{ error: true, message: "Forbidden" },
 				{ status: 403 },

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { renderMarkdownBold } from "./markdownBold";
 
 interface SummaryPanelProps {
 	data: {
@@ -24,20 +25,22 @@ function buildCopyText(aiSummary: {
 }): string {
 	const parts: string[] = [];
 	if (aiSummary.overview) {
-		parts.push(aiSummary.overview);
+		parts.push(aiSummary.overview.replace(/\*\*/g, ""));
 	}
 	const topics = aiSummary.topics ?? [];
 	if (topics.length > 0) {
 		parts.push("Topics:");
 		for (const topic of topics) {
-			parts.push(`- ${topic.title}: ${topic.body}`);
+			parts.push(
+				`- ${topic.title.replace(/\*\*/g, "")}: ${topic.body.replace(/\*\*/g, "")}`,
+			);
 		}
 	}
 	const nextSteps = aiSummary.nextSteps ?? [];
 	if (nextSteps.length > 0) {
 		parts.push("Next steps:");
 		for (const step of nextSteps) {
-			parts.push(`- ${step}`);
+			parts.push(`- ${step.replace(/\*\*/g, "")}`);
 		}
 	}
 	return parts.join("\n");
@@ -100,7 +103,7 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 						maxWidth: "70ch",
 					}}
 				>
-					{aiSummary.overview}
+					{renderMarkdownBold(aiSummary.overview)}
 				</p>
 			)}
 
@@ -161,7 +164,7 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 								>
 									{i + 1}
 								</span>
-								<span style={{ fontSize: "13px", lineHeight: 1.6, color: "var(--gray-12)" }}>{step}</span>
+								<span style={{ fontSize: "13px", lineHeight: 1.6, color: "var(--gray-12)" }}>{renderMarkdownBold(step)}</span>
 							</li>
 						))}
 					</ol>
@@ -194,10 +197,10 @@ function TopicCard({ topic }: { topic: { title: string; body: string } }) {
 				className="mb-1"
 				style={{ fontSize: "13px", fontWeight: 600, color: "var(--gray-12)" }}
 			>
-				{topic.title}
+				{renderMarkdownBold(topic.title)}
 			</p>
 			<p style={{ fontSize: "12.5px", lineHeight: 1.55, color: "var(--gray-11)" }}>
-				{topic.body}
+				{renderMarkdownBold(topic.body)}
 			</p>
 		</div>
 	);

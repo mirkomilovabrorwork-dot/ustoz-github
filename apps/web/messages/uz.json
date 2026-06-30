@@ -190,6 +190,8 @@
 	"share": {
 		"videoTitleUpdated": "Video sarlavhasi yangilandi",
 		"videoTitleUpdateFailed": "Sarlavhani yangilab bo'lmadi — qayta urinib ko'ring.",
+		"languageOriginal": "Asl",
+		"translationError": "Tarjima qilishda xatolik. Qayta urinib ko'ring.",
 		"downloadFailed": "Yuklab olish muvaffaqiyatsiz — qayta urinib ko'ring.",
 		"logoHidden": "data365 logotipi yashirildi",
 		"logoHideFailed": "data365 logotipini yashirib bo'lmadi",
@@ -285,6 +287,8 @@
 		"aiQuickFollowUpEmail": "Follow-up xat",
 		"aiQuickKeyPoints": "Asosiy fikrlar",
 		"aiError": "Nimadir xato ketdi. Qayta urinib ko'ring.",
+		"aiAuthRequired": "AI suhbatdan foydalanish uchun tizimga kiring.",
+		"aiBusy": "AI hozir band. Birozdan so'ng qayta urinib ko'ring.",
 		"aiAnswerError": "Kechirasiz — javob bera olmadim: {error}",
 		"aiPlaceholder": "Bu video haqida so'rang…",
 		"aiSendAriaLabel": "Yuborish",

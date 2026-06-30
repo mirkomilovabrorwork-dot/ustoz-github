@@ -190,6 +190,8 @@
 	"share": {
 		"videoTitleUpdated": "Video title updated",
 		"videoTitleUpdateFailed": "Failed to update title - please try again.",
+		"languageOriginal": "Original",
+		"translationError": "Failed to translate. Please try again.",
 		"downloadFailed": "Download failed - please try again.",
 		"logoHidden": "data365 logo hidden",
 		"logoHideFailed": "Failed to hide data365 logo",
@@ -285,6 +287,8 @@
 		"aiQuickFollowUpEmail": "Follow-up email",
 		"aiQuickKeyPoints": "Key points",
 		"aiError": "Something went wrong. Please try again.",
+		"aiAuthRequired": "Sign in to use AI chat.",
+		"aiBusy": "AI is busy right now. Please try again in a moment.",
 		"aiAnswerError": "Sorry — I couldn't answer: {error}",
 		"aiPlaceholder": "Ask about this video…",
 		"aiSendAriaLabel": "Send",

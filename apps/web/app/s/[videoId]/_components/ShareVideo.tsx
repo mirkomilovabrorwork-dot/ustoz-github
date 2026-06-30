@@ -1,13 +1,17 @@
 import type { comments as commentsSchema } from "@cap/database/schema";
+import type { ShareLanguage } from "@cap/database/types";
 import { Logo } from "@cap/ui";
 import type { ImageUpload } from "@cap/web-domain";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { useAiStatus } from "hooks/use-ai-status";
+import { useAiTranslation } from "hooks/use-ai-translation";
 import { useTranscript } from "hooks/use-transcript";
 import { CheckCircle2, Info, Loader2Icon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import {
 	forwardRef,
+	startTransition,
 	useCallback,
 	useEffect,
 	useImperativeHandle,
@@ -15,7 +19,9 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { toast } from "sonner";
 import { finalizeDesktopSegmentsRecording } from "@/actions/video/finalize-desktop-segments";
+import { getTranscript } from "@/actions/videos/get-transcript";
 import { Tooltip } from "@/components/Tooltip";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { isRetryableDesktopSegmentsFinalizationError } from "@/lib/desktop-segments-retryable-errors";
@@ -26,6 +32,7 @@ import { BelowVideoTabs } from "./BelowVideoTabs";
 import { useCaptionContext } from "./CaptionContext";
 import { CapVideoPlayer } from "./CapVideoPlayer";
 import { GenerateAiPanel } from "./GenerateAiPanel";
+import { LanguagePicker } from "./LanguagePicker";
 import {
 	shouldDeferPlaybackSource,
 	shouldReloadPlaybackAfterUploadCompletes,
@@ -138,6 +145,101 @@ export const ShareVideo = forwardRef<
 			data.transcriptionStatus,
 		);
 
+		const [selectedLanguage, setSelectedLanguage] = useState<"base" | ShareLanguage>(
+			data.metadata?.preferredLanguage ?? "base",
+		);
+		const [generatingLanguage, setGeneratingLanguage] = useState<ShareLanguage | null>(null);
+		const [activeTranscriptVtt, setActiveTranscriptVtt] = useState<string | null>(null);
+		const translationGeneratedRef = useRef(false);
+
+		const [optimisticAiStatus, setOptimisticAiStatus] =
+			useState<AiGenerationStatus | null>(null);
+		const [aiPollEnabled, setAiPollEnabled] = useState(
+			aiGenerationStatus === "QUEUED" || aiGenerationStatus === "PROCESSING",
+		);
+		const aiStatusQuery = useAiStatus(data.id, aiPollEnabled);
+		const aiRefreshedRef = useRef(false);
+		const aiTranslationQuery = useAiTranslation(
+			data.id,
+			generatingLanguage,
+			generatingLanguage !== null,
+		);
+
+		const handleAiStarted = useCallback(() => {
+			aiRefreshedRef.current = false;
+			setOptimisticAiStatus("QUEUED");
+			setAiPollEnabled(true);
+		}, []);
+
+		const handleGenerateTranslation = useCallback(async (lang: ShareLanguage) => {
+			translationGeneratedRef.current = false;
+			setGeneratingLanguage(lang);
+			try {
+				const res = await fetch("/api/video/ai/translate", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ videoId: data.id, language: lang }),
+				});
+				if (!res.ok) {
+					setGeneratingLanguage(null);
+					toast.error(t("translationError"));
+				}
+			} catch {
+				setGeneratingLanguage(null);
+				toast.error(t("translationError"));
+			}
+		}, [data.id, t]);
+
+		// Stop polling + pull server-rendered content once generation reaches a terminal state.
+		useEffect(() => {
+			const d = aiStatusQuery.data;
+			if (!d || !aiPollEnabled) return;
+			const terminal =
+				d.hasContent ||
+				d.aiGenerationStatus === "COMPLETE" ||
+				d.aiGenerationStatus === "ERROR" ||
+				d.aiGenerationStatus === "SKIPPED";
+			if (terminal && !aiRefreshedRef.current) {
+				aiRefreshedRef.current = true;
+				setAiPollEnabled(false);
+				setOptimisticAiStatus(null);
+				router.refresh();
+			}
+		}, [aiStatusQuery.data, aiPollEnabled, router]);
+
+		useEffect(() => {
+			if (!generatingLanguage) return;
+			const d = aiTranslationQuery.data;
+			if (!d) return;
+			const lang = generatingLanguage;
+			if (d.status === "ERROR") {
+				setGeneratingLanguage(null);
+				toast.error(t("translationError"));
+				return;
+			}
+			const terminal = d.hasContent || d.status === "COMPLETE";
+			if (terminal && !translationGeneratedRef.current) {
+				translationGeneratedRef.current = true;
+				router.refresh();
+				setSelectedLanguage(lang);
+				setGeneratingLanguage(null);
+			}
+		}, [aiTranslationQuery.data, generatingLanguage, router, t]);
+
+		// Clear optimistic state when the server prop settles to a terminal status.
+		useEffect(() => {
+			if (
+				aiGenerationStatus === "COMPLETE" ||
+				aiGenerationStatus === "ERROR" ||
+				aiGenerationStatus === "SKIPPED"
+			) {
+				setOptimisticAiStatus(null);
+			}
+		}, [aiGenerationStatus]);
+
+		const effectiveAiStatus =
+			aiStatusQuery.data?.aiGenerationStatus ?? optimisticAiStatus ?? aiGenerationStatus;
+
 		// Handle comments data
 		useEffect(() => {
 			if (comments) {
@@ -171,9 +273,30 @@ export const ShareVideo = forwardRef<
 		}, []);
 
 		useEffect(() => {
-			if (transcript?.content) {
-				captionContext.setOriginalVttContent(transcript.content);
-			} else if (transcriptError) {
+			if (selectedLanguage === "base") {
+				setActiveTranscriptVtt(null);
+				return;
+			}
+			let cancelled = false;
+			startTransition(() => {
+				getTranscript(data.id, selectedLanguage).then((result) => {
+					if (cancelled) return;
+					if (result.success && result.content) {
+						setActiveTranscriptVtt(result.content);
+					}
+				});
+			});
+			return () => {
+				cancelled = true;
+			};
+		}, [data.id, selectedLanguage]);
+
+		useEffect(() => {
+			const vttContent =
+				selectedLanguage === "base" ? transcript?.content : activeTranscriptVtt;
+			if (vttContent) {
+				captionContext.setOriginalVttContent(vttContent);
+			} else if (selectedLanguage === "base" && transcriptError) {
 				console.error(
 					"[Transcript] Transcript error from React Query:",
 					transcriptError.message,
@@ -183,6 +306,8 @@ export const ShareVideo = forwardRef<
 			transcript,
 			transcriptError,
 			captionContext.setOriginalVttContent,
+			selectedLanguage,
+			activeTranscriptVtt,
 		]);
 
 		useEffect(() => {
@@ -510,8 +635,26 @@ export const ShareVideo = forwardRef<
 			</>
 		);
 
+		const available: ShareLanguage[] = (
+			Object.keys(data.metadata?.aiSummaryByLanguage ?? {}) as ShareLanguage[]
+		).filter((lang) => !!data.metadata?.aiSummaryByLanguage?.[lang]);
+
+		const activeAiSummary =
+			selectedLanguage !== "base"
+				? (data.metadata?.aiSummaryByLanguage?.[selectedLanguage] ?? data.metadata?.aiSummary)
+				: data.metadata?.aiSummary;
+
+		// Stable identity for the tasks array so TasksPanel's `initialTasks`
+		// re-sync effect does NOT fire on every parent re-render (currentTime
+		// updates many times/sec during playback) and clobber an in-flight
+		// optimistic checkbox toggle. Only changes when the summary actually changes.
+		const activeTasks = useMemo(
+			() => activeAiSummary?.tasks ?? [],
+			[activeAiSummary],
+		);
+
 		const hasCleanTranscript =
-			(data.metadata?.aiSummary?.refinedTranscript?.chapters?.length ?? 0) > 0;
+			(activeAiSummary?.refinedTranscript?.chapters?.length ?? 0) > 0;
 
 		return (
 			<>
@@ -531,6 +674,17 @@ export const ShareVideo = forwardRef<
 				    "Clean Transcript" (BelowVideoTabs) instead of a pinned side column. */}
 				<div className="min-w-0">{playerBlock}</div>
 
+				<div className="mt-4 flex justify-end">
+					<LanguagePicker
+						baseLanguage={data.metadata?.aiBaseLanguage}
+						available={available}
+						selected={selectedLanguage}
+						onSelect={setSelectedLanguage}
+						canGenerate={canGenerate}
+						generatingLanguage={generatingLanguage}
+						onGenerate={handleGenerateTranslation}
+					/>
+				</div>
 				<div className="mt-4">
 					<BelowVideoTabs
 						summary={
@@ -548,13 +702,14 @@ export const ShareVideo = forwardRef<
 											| null
 											| undefined
 									}
-									aiGenerationStatus={aiGenerationStatus}
+									aiGenerationStatus={effectiveAiStatus}
 									duration={data.duration}
+									onStarted={handleAiStarted}
 								/>
 								<SummaryPanel
 									data={{
 										duration: data.duration ?? undefined,
-										aiSummary: data.metadata?.aiSummary ?? undefined,
+										aiSummary: activeAiSummary ?? undefined,
 										speakerCount: undefined,
 									}}
 									onVideoJump={handleSeek}
@@ -564,7 +719,8 @@ export const ShareVideo = forwardRef<
 						tasks={
 							<TasksPanel
 								videoId={data.id}
-								tasks={data.metadata?.aiSummary?.tasks ?? []}
+								tasks={activeTasks}
+								canEdit={canGenerate}
 							/>
 						}
 						transcript={
@@ -577,9 +733,11 @@ export const ShareVideo = forwardRef<
 										})}
 									</div>
 								)}
-								{transcript?.content ? (
+								{(selectedLanguage === "base" ? transcript?.content : activeTranscriptVtt) ? (
 								<TranscriptPanel
-									transcriptContent={transcript.content}
+									transcriptContent={
+										(selectedLanguage === "base" ? transcript?.content : activeTranscriptVtt) ?? undefined
+									}
 									currentTime={currentTime}
 									onVideoJump={handleSeek}
 									duration={data.duration}
@@ -614,7 +772,7 @@ export const ShareVideo = forwardRef<
 						refined={
 							<RefinedTranscriptPanel
 								refinedTranscript={
-									data.metadata?.aiSummary?.refinedTranscript ?? undefined
+									activeAiSummary?.refinedTranscript ?? undefined
 								}
 								onVideoJump={handleSeek}
 								duration={data.duration}

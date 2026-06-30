@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Play } from "lucide-react";
+import { useState } from "react";
 import { formatTimeMinutes } from "../utils/transcript-utils";
 import { renderMarkdownBold } from "./markdownBold";
 
@@ -23,6 +24,20 @@ export function RefinedTranscriptPanel({
 	duration,
 }: RefinedTranscriptPanelProps) {
 	const t = useTranslations("share");
+	const [openChapters, setOpenChapters] = useState<Set<number>>(new Set());
+
+	function toggleChapter(startSec: number) {
+		setOpenChapters((prev) => {
+			const next = new Set(prev);
+			if (next.has(startSec)) {
+				next.delete(startSec);
+			} else {
+				next.add(startSec);
+			}
+			return next;
+		});
+	}
+
 	if (!refinedTranscript || refinedTranscript.chapters.length === 0) {
 		return (
 			<div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-gray-4 bg-gray-2 px-4 py-10 text-center">
@@ -55,6 +70,7 @@ export function RefinedTranscriptPanel({
 		<div className="flex flex-col gap-4">
 			{refinedTranscript.chapters.map((chapter) => {
 				const startSec = formatPanelStartSec(chapter.startSec, duration);
+				const isOpen = openChapters.has(chapter.startSec);
 				return (
 					<section
 						key={chapter.startSec}
@@ -72,9 +88,39 @@ export function RefinedTranscriptPanel({
 							>
 								{formatTimeMinutes(startSec)}
 							</button>
-							<h3 className="flex-1 text-base font-bold text-gray-12">
+							<button
+								type="button"
+								onClick={() => toggleChapter(chapter.startSec)}
+								aria-expanded={isOpen}
+								className="flex flex-1 items-center gap-1.5 text-left text-base font-bold text-gray-12"
+								style={{
+									background: "transparent",
+									border: "none",
+									cursor: "pointer",
+									padding: 0,
+								}}
+							>
+								<svg
+									aria-hidden="true"
+									xmlns="http://www.w3.org/2000/svg"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="2"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									style={{
+										width: "14px",
+										height: "14px",
+										flexShrink: 0,
+										transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+										transition: "transform 150ms",
+									}}
+								>
+									<polyline points="6 9 12 15 18 9" />
+								</svg>
 								{chapter.title}
-							</h3>
+							</button>
 							<button
 								type="button"
 								onClick={() => onVideoJump?.(startSec)}
@@ -88,16 +134,18 @@ export function RefinedTranscriptPanel({
 								<Play className="size-3.5 fill-current" />
 							</button>
 						</div>
-						<div className="flex flex-col gap-2">
-							{chapter.paragraphs.map((paragraph, pi) => (
-								<p
-									key={`${chapter.startSec}-p-${pi}`}
-									className="text-sm leading-relaxed text-gray-12"
-								>
-									{renderMarkdownBold(paragraph)}
-								</p>
-							))}
-						</div>
+						{isOpen && (
+							<div className="flex flex-col gap-2">
+								{chapter.paragraphs.map((paragraph, pi) => (
+									<p
+										key={`${chapter.startSec}-p-${pi}`}
+										className="text-sm leading-relaxed text-gray-12"
+									>
+										{renderMarkdownBold(paragraph)}
+									</p>
+								))}
+							</div>
+						)}
 					</section>
 				);
 			})}

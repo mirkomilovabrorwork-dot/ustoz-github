@@ -22,12 +22,44 @@ export const formatTime = (seconds: number): string => {
 };
 
 export const formatTimeMinutes = (time: number) => {
+	if (time >= 3600) {
+		const hours = Math.floor(time / 3600);
+		const minutes = Math.floor((time % 3600) / 60);
+		const seconds = Math.floor(time % 60);
+		return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds
+			.toString()
+			.padStart(2, "0")}`;
+	}
 	const minutes = Math.floor(time / 60);
 	const seconds = Math.floor(time % 60);
 	return `${minutes.toString().padStart(2, "0")}:${seconds
 		.toString()
 		.padStart(2, "0")}`;
 };
+
+// Collapse runs of >= THRESHOLD consecutive cues whose normalized text is
+// identical (ASR repetition-loop guard). Keeps the FIRST cue of each such run,
+// drops the rest. Non-consecutive repeats are untouched.
+export function collapseRepeatedCues<T>(cues: T[], getText: (c: T) => string): T[] {
+	const THRESHOLD = 4;
+	const norm = (s: string) =>
+		s.replace(/\*\*/g, "").trim().toLowerCase().replace(/[.!?…]+$/u, "");
+	const out: T[] = [];
+	let i = 0;
+	while (i < cues.length) {
+		let j = i + 1;
+		const key = norm(getText(cues[i]!));
+		while (j < cues.length && norm(getText(cues[j]!)) === key && key.length > 0) j++;
+		const runLen = j - i;
+		if (runLen >= THRESHOLD) {
+			out.push(cues[i]!); // keep only the first of a degenerate run
+		} else {
+			for (let k = i; k < j; k++) out.push(cues[k]!);
+		}
+		i = j;
+	}
+	return out;
+}
 
 // Defensive display-time clamp mirroring the backend sanitizeStartSec.
 // Existing videos may have a chapter startSec stored in the wrong unit
@@ -190,10 +222,11 @@ export const parseVTT = (vttContent: string): TranscriptEntry[] => {
 		}
 
 		// Guard: never treat metadata/timing lines as transcript text.
-		// Skip lines that are the WEBVTT header, contain "-->", or look like a
-		// standalone timestamp (including the Gemini colon-ms form MM:SS:mmm).
+		// Skip the WEBVTT header or a line that is a standalone timestamp
+		// (including the Gemini colon-ms form MM:SS:mmm). Cue timing lines that
+		// contain "-->" are already handled + `continue`d above, so no need to
+		// re-check for "-->" here.
 		if (/^WEBVTT/i.test(trimmedLine)) continue;
-		if (trimmedLine.includes("-->")) continue;
 		// Matches: HH:MM:SS, HH:MM:SS.mmm, MM:SS, MM:SS.mmm, MM:SS:mmm
 		if (/^\d{1,2}:\d{1,2}(?::\d{1,3}|[.,]\d{1,3})?$/.test(trimmedLine)) continue;
 
@@ -220,7 +253,7 @@ export const parseVTT = (vttContent: string): TranscriptEntry[] => {
 	}
 
 	const sortedEntries = entries.sort((a, b) => a.startTime - b.startTime);
-	return sortedEntries;
+	return collapseRepeatedCues(sortedEntries, (e) => e.text);
 };
 
 /**

@@ -154,8 +154,10 @@ vi.mock("workflow/api", () => ({
 	start: startMock,
 }));
 
+const importLoomVideoWorkflowMock = vi.hoisted(() => vi.fn());
+
 vi.mock("@/workflows/import-loom-video", () => ({
-	importLoomVideoWorkflow: Symbol("importLoomVideoWorkflow"),
+	importLoomVideoWorkflow: importLoomVideoWorkflowMock,
 }));
 
 import { getCurrentUser } from "@cap/database/auth/session";
@@ -183,6 +185,7 @@ describe("importFromLoom", () => {
 		valuesMock.mockResolvedValue(undefined);
 		whereMock.mockResolvedValue([]);
 		startMock.mockResolvedValue(undefined);
+		importLoomVideoWorkflowMock.mockResolvedValue(undefined);
 		checkRateLimitMock.mockResolvedValue({ rateLimited: false });
 		headersMock.mockResolvedValue(
 			new Headers({
@@ -308,7 +311,9 @@ describe("importFromLoom", () => {
 				sourceId: "loom-abc1234567",
 			}),
 		);
-		expect(startMock).toHaveBeenCalledTimes(1);
+		// updated: the Loom import workflow is triggered inline via
+		// importLoomVideoWorkflow(...), not via workflow/api's start().
+		expect(importLoomVideoWorkflowMock).toHaveBeenCalledTimes(1);
 		expect(revalidatePathMock).toHaveBeenCalledWith("/dashboard/caps");
 	});
 
@@ -534,14 +539,13 @@ describe("importFromLoom", () => {
 				ownerId: "member-123",
 			}),
 		);
-		expect(startMock).toHaveBeenCalledWith(
-			expect.anything(),
-			expect.arrayContaining([
-				expect.objectContaining({
-					userId: "member-123",
-					rawFileKey: "member-123/video-123/raw-upload.mp4",
-				}),
-			]),
+		// updated: the Loom import workflow is triggered inline via
+		// importLoomVideoWorkflow(...), not via workflow/api's start().
+		expect(importLoomVideoWorkflowMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				userId: "member-123",
+				rawFileKey: "member-123/video-123/raw-upload.mp4",
+			}),
 		);
 	});
 

@@ -20,6 +20,14 @@ export interface AiSummary {
 }
 
 /**
+ * Languages offered for on-demand multi-language analysis (ИSH 3).
+ * The enum in web-domain supports 24 codes, but the share-page picker is uz/ru/en.
+ */
+export type ShareLanguage = "uz" | "ru" | "en";
+
+export type TranslationStatus = "PROCESSING" | "COMPLETE" | "ERROR";
+
+/**
  * Video metadata structure
  */
 export interface VideoMetadata {
@@ -59,6 +67,17 @@ export interface VideoMetadata {
 	aiSummary?: AiSummary | null;
 	transcriptionChunksCompleted?: number;
 	transcriptionChunksTotal?: number;
+	/**
+	 * Multi-language analysis (ИSH 3). The base `aiSummary` above is the original
+	 * generation; `aiSummaryByLanguage` holds on-demand-translated cached versions.
+	 * Translated caption/transcript VTT lives in R2 at
+	 * `{ownerId}/{videoId}/transcription.{lang}.vtt`.
+	 */
+	aiBaseLanguage?: ShareLanguage;
+	aiSummaryByLanguage?: Partial<Record<ShareLanguage, AiSummary>>;
+	aiTranslationStatus?: Partial<Record<ShareLanguage, TranslationStatus>>;
+	/** Per-video default display language, set by owner/org member. */
+	preferredLanguage?: ShareLanguage;
 }
 
 export type VideoEditRange = {

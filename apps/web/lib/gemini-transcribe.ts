@@ -272,7 +272,60 @@ export function normalizeToWebVtt(raw: string, audioDurationSec: number): string
 		vtt += `${i + 1}\n${formatVttTimestamp(cue.start)} --> ${formatVttTimestamp(end)}\n${cue.text}\n\n`;
 	}
 
-	return vtt;
+	return collapseRepeatedVttCues(vtt);
+}
+
+// Collapse runs of >= REPEAT_RUN_THRESHOLD consecutive cue blocks whose
+// normalized text is identical. Guards against ASR repetition loops where the
+// model emits hundreds of duplicate cues (e.g. "Zo'r." x80, "Xo'sh." x495) at a
+// non-speech tail. Keeps the FIRST block of each degenerate run, re-indexes
+// sequentially. Speaker tags and markdown bold are ignored when comparing, so
+// the same word alternating between Speaker 1/2 still collapses. Non-consecutive
+// repeats (a real verbal tic spread through the call) are untouched.
+const REPEAT_RUN_THRESHOLD = 4;
+export function collapseRepeatedVttCues(vtt: string): string {
+	const norm = (s: string) =>
+		s
+			.replace(/<\/?v[^>]*>/gi, "")
+			.replace(/\*\*/g, "")
+			.trim()
+			.toLowerCase()
+			.replace(/[.!?…]+$/u, "");
+
+	const blocks = vtt.split(/\r?\n\r?\n/);
+	const cues: Array<{ timing: string; text: string; key: string }> = [];
+	for (const block of blocks) {
+		const lines = block
+			.split(/\r?\n/)
+			.map((l) => l.trim())
+			.filter(Boolean);
+		if (lines.length === 0 || /^WEBVTT/i.test(lines[0] ?? "")) continue;
+		const ti = lines.findIndex((l) => l.includes("-->"));
+		if (ti === -1) continue;
+		const text = lines.slice(ti + 1).join("\n");
+		if (!text) continue;
+		cues.push({ timing: lines[ti] ?? "", text, key: norm(text) });
+	}
+
+	const kept: Array<{ timing: string; text: string }> = [];
+	let i = 0;
+	while (i < cues.length) {
+		let j = i + 1;
+		const key = cues[i]?.key ?? "";
+		while (j < cues.length && cues[j]?.key === key && key.length > 0) j++;
+		if (j - i >= REPEAT_RUN_THRESHOLD) {
+			kept.push(cues[i]!);
+		} else {
+			for (let k = i; k < j; k++) kept.push(cues[k]!);
+		}
+		i = j;
+	}
+
+	let out = "WEBVTT\n\n";
+	kept.forEach((c, idx) => {
+		out += `${idx + 1}\n${c.timing}\n${c.text}\n\n`;
+	});
+	return out;
 }
 
 export function mergeChunkedWebVtt(
@@ -321,7 +374,7 @@ export function mergeChunkedWebVtt(
 		}
 	}
 
-	return output;
+	return collapseRepeatedVttCues(output);
 }
 
 import { isTransientGeminiError, withGeminiRetry } from "@/lib/gemini-retry";

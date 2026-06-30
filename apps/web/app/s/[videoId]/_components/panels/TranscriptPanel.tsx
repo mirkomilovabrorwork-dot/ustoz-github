@@ -3,7 +3,11 @@
 import { useTranslations } from "next-intl";
 import React, { useEffect, useRef, useState } from "react";
 import { normalizeWebVttVoiceText } from "@/lib/transcript-vtt";
-import { clampStartSec, formatTimeMinutes } from "../utils/transcript-utils";
+import {
+	clampStartSec,
+	collapseRepeatedCues,
+	formatTimeMinutes,
+} from "../utils/transcript-utils";
 import { renderMarkdownBold } from "./markdownBold";
 
 interface TranscriptPanelProps {
@@ -160,6 +164,12 @@ function extractSpeaker(text: string): {
 }
 
 function formatTimestamp(seconds: number): string {
+	if (seconds >= 3600) {
+		const h = Math.floor(seconds / 3600);
+		const m = Math.floor((seconds % 3600) / 60);
+		const s = Math.floor(seconds % 60);
+		return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+	}
 	const m = Math.floor(seconds / 60);
 	const s = Math.floor(seconds % 60);
 	return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
@@ -338,7 +348,10 @@ export function TranscriptPanel({
 	const activeRef = useRef<HTMLDivElement>(null);
 
 	const cues = transcriptContent
-		? normalizeCueTimes(parseVTTCues(transcriptContent), duration)
+		? normalizeCueTimes(
+				collapseRepeatedCues(parseVTTCues(transcriptContent), (c) => c.text),
+				duration,
+			)
 		: [];
 
 	const useChapterMode = chapters != null && chapters.length > 0;
@@ -364,6 +377,21 @@ export function TranscriptPanel({
 	// --- Search state ---
 	const [searchQuery, setSearchQuery] = useState("");
 	const trimmedQuery = searchQuery.trim();
+
+	// --- Chapter accordion state (empty set = all closed by default) ---
+	const [openChapters, setOpenChapters] = useState<Set<number>>(new Set());
+
+	function toggleChapter(startSec: number) {
+		setOpenChapters((prev) => {
+			const next = new Set(prev);
+			if (next.has(startSec)) {
+				next.delete(startSec);
+			} else {
+				next.add(startSec);
+			}
+			return next;
+		});
+	}
 
 	// --- Copy state ---
 	const [copied, setCopied] = useState(false);
@@ -837,6 +865,12 @@ export function TranscriptPanel({
 					if (trimmedQuery && section.cues.every((c) => !filteredCueIds.has(c.id))) {
 						return null;
 					}
+					const sectionHasMatch = section.cues.some((c) =>
+						filteredCueIds.has(c.id),
+					);
+					const isOpen =
+						openChapters.has(section.startSec) ||
+						(!!trimmedQuery && sectionHasMatch);
 					return (
 						<section
 							key={`chapter-${section.startSec}`}
@@ -855,20 +889,51 @@ export function TranscriptPanel({
 								>
 									{formatTimeMinutes(section.startSec)}
 								</button>
-								<h3 className="flex-1 text-base font-bold text-gray-12">
+								<button
+									type="button"
+									onClick={() => toggleChapter(section.startSec)}
+									aria-expanded={isOpen}
+									className="flex flex-1 items-center gap-1.5 text-left text-base font-bold text-gray-12"
+									style={{
+										background: "transparent",
+										border: "none",
+										cursor: "pointer",
+										padding: 0,
+									}}
+								>
+									<svg
+										aria-hidden="true"
+										xmlns="http://www.w3.org/2000/svg"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										style={{
+											width: "14px",
+											height: "14px",
+											flexShrink: 0,
+											transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+											transition: "transform 150ms",
+										}}
+									>
+										<polyline points="6 9 12 15 18 9" />
+									</svg>
 									{section.title}
-								</h3>
+								</button>
 							</div>
 
-							{section.cues.length === 0 ? (
-								<p className="text-xs text-gray-10 px-2 pb-2">
-									{t("noSpeechInChapter")}
-								</p>
-							) : (
-								section.cues
-									.filter((cue) => filteredCueIds.has(cue.id))
-									.map((cue, ci) => renderCue(cue, si, ci, cue.speaker))
-							)}
+							{isOpen &&
+								(section.cues.length === 0 ? (
+									<p className="text-xs text-gray-10 px-2 pb-2">
+										{t("noSpeechInChapter")}
+									</p>
+								) : (
+									section.cues
+										.filter((cue) => filteredCueIds.has(cue.id))
+										.map((cue, ci) => renderCue(cue, si, ci, cue.speaker))
+								))}
 						</section>
 					);
 				})}

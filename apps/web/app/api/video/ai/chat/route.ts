@@ -27,8 +27,13 @@ let rateLimitRequestCounter = 0;
 
 function msToTimestamp(ms: number): string {
 	const totalSeconds = Math.floor(ms / 1000);
-	const minutes = Math.floor(totalSeconds / 60);
 	const seconds = totalSeconds % 60;
+	if (totalSeconds >= 3600) {
+		const hours = Math.floor(totalSeconds / 3600);
+		const minutes = Math.floor((totalSeconds % 3600) / 60);
+		return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+	}
+	const minutes = Math.floor(totalSeconds / 60);
 	return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
@@ -293,7 +298,7 @@ export async function POST(request: NextRequest) {
 						role: "user",
 						parts: [
 							{
-								text: `${promptContext}\n\nAnswer questions about this meeting recording using ONLY the provided context. Use the overview only to understand broad questions, and cite timestamps as [mm:ss] from transcript lines. The content may be in Uzbek, Russian, or English — respond in the same language as the user's question.`,
+								text: `${promptContext}\n\nAnswer questions about this meeting recording using ONLY the provided context. Use the overview only to understand broad questions, and cite timestamps exactly as they appear in the context, e.g. [mm:ss] or [h:mm:ss] for recordings over an hour, from transcript lines. Give a thorough, well-structured answer. For broad questions (e.g. "main lessons", "summary", "key takeaways"), synthesize across the ENTIRE recording using the overview, the chapter titles, and the transcript context together — cover the major points in order and cite SEVERAL timestamps spanning the whole video, not just the opening. Be specific and detailed; never reply with a single vague sentence when the context supports more. The content may be in Uzbek, Russian, or English — respond in the same language as the user's question.`,
 							},
 						],
 					},
@@ -331,14 +336,14 @@ export async function POST(request: NextRequest) {
 								system_instruction: {
 									parts: [
 										{
-											text: "You answer questions about a meeting recording. Use ONLY the provided context. Use the overview for broad questions, and cite timestamps as [mm:ss] from transcript lines. The content may be in Uzbek, Russian, or English — respond in the same language.",
+											text: "You answer questions about a meeting recording. Use ONLY the provided context. Use the overview for broad questions, and cite timestamps exactly as they appear in the context, e.g. [mm:ss] or [h:mm:ss] for recordings over an hour, from transcript lines. Give a thorough, well-structured answer. For broad questions (e.g. \"main lessons\", \"summary\", \"key takeaways\"), synthesize across the ENTIRE recording using the overview, the chapter titles, and the transcript context together — cover the major points in order and cite SEVERAL timestamps spanning the whole video, not just the opening. Be specific and detailed; never reply with a single vague sentence when the context supports more. The content may be in Uzbek, Russian, or English — respond in the same language.",
 										},
 									],
 								},
 								contents: geminiMessages,
 								generationConfig: {
 									temperature: 0.2,
-									maxOutputTokens: 1024,
+									maxOutputTokens: 2048,
 									thinkingConfig: { thinkingBudget: 0 },
 								},
 							}),

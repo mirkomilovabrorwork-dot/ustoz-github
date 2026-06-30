@@ -13,6 +13,7 @@ const schemaMocks = vi.hoisted(() => ({
 	organizations: { id: "id", settings: "settings" },
 	s3Buckets: { id: "id" },
 	videoUploads: { videoId: "videoId", phase: "phase" },
+	users: { id: "id", geminiApiKey: "geminiApiKey" },
 }));
 
 vi.mock("workflow/api", () => ({
@@ -23,8 +24,20 @@ vi.mock("@/workflows/transcribe", () => ({
 	transcribeVideoWorkflow: vi.fn(),
 }));
 
+// assertAiBudgetAvailable issues its own db() select chains (user/org/video
+// spend lookups) that are out of scope for this test file, which only
+// exercises transcribeVideo's own gating/workflow-trigger logic. Stub it as
+// a no-op so it doesn't consume/derail the select mocks set up below.
+vi.mock("@/lib/ai-cost-guard", () => ({
+	assertAiBudgetAvailable: vi.fn(() => Promise.resolve()),
+	BudgetExceededError: class BudgetExceededError extends Error {},
+}));
+
 let mockQueryResult: unknown[] = [];
 let mockUploadQueryResult: unknown[] = [];
+// Owner's saved Gemini key lookup. Defaults to "no saved key", which is fine
+// since serverEnv() already provides GEMINI_API_KEY in most tests.
+let mockOwnerQueryResult: unknown[] = [];
 
 vi.mock("@cap/database", () => ({
 	db: () => ({
@@ -34,6 +47,14 @@ vi.mock("@cap/database", () => ({
 					return {
 						where: vi.fn().mockReturnValue({
 							limit: vi.fn().mockResolvedValue(mockUploadQueryResult),
+						}),
+					};
+				}
+
+				if (table === schemaMocks.users) {
+					return {
+						where: vi.fn().mockReturnValue({
+							limit: vi.fn().mockResolvedValue(mockOwnerQueryResult),
 						}),
 					};
 				}
@@ -60,6 +81,7 @@ vi.mock("@cap/database/schema", () => ({
 	organizations: schemaMocks.organizations,
 	s3Buckets: schemaMocks.s3Buckets,
 	videoUploads: schemaMocks.videoUploads,
+	users: schemaMocks.users,
 }));
 
 vi.mock("drizzle-orm", () => ({
@@ -75,6 +97,7 @@ describe("transcribeVideo", () => {
 		vi.clearAllMocks();
 		mockQueryResult = [];
 		mockUploadQueryResult = [];
+		mockOwnerQueryResult = [];
 	});
 
 	describe("input validation", () => {
@@ -84,13 +107,32 @@ describe("transcribeVideo", () => {
 				GEMINI_API_KEY: undefined,
 			} as ReturnType<typeof serverEnv>);
 
+			// Need a real video row so transcribeVideo reaches the Gemini-key gate
+			// (lib/transcribe.ts checks video existence before the key check).
+			// No saved owner key either, so neither source of a usable key exists.
+			mockQueryResult = [
+				{
+					video: {
+						id: "video-123",
+						transcriptionStatus: null,
+						settings: null,
+					},
+					bucket: null,
+					settings: null,
+					orgSettings: null,
+				},
+			];
+
 			const result = await transcribeVideo(
 				"video-123" as Video.VideoId,
 				"user-456",
 			);
 
 			expect(result.success).toBe(false);
-			expect(result.message).toContain("environment variables");
+			// updated: message text changed from the old
+			// "Missing necessary environment variables" to a more actionable
+			// message that names the GEMINI_API_KEY env var directly.
+			expect(result.message).toContain("GEMINI_API_KEY");
 		});
 
 		it("rejects empty videoId", async () => {

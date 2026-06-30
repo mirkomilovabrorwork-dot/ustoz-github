@@ -190,6 +190,8 @@
 	"share": {
 		"videoTitleUpdated": "Название видео обновлено",
 		"videoTitleUpdateFailed": "Не удалось обновить название — попробуйте снова.",
+		"languageOriginal": "Оригинал",
+		"translationError": "Не удалось перевести. Попробуйте снова.",
 		"downloadFailed": "Ошибка загрузки — попробуйте снова.",
 		"logoHidden": "Логотип data365 скрыт",
 		"logoHideFailed": "Не удалось скрыть логотип data365",
@@ -285,6 +287,8 @@
 		"aiQuickFollowUpEmail": "Follow-up письмо",
 		"aiQuickKeyPoints": "Ключевые моменты",
 		"aiError": "Что-то пошло не так. Попробуйте снова.",
+		"aiAuthRequired": "Войдите, чтобы использовать ИИ-чат.",
+		"aiBusy": "ИИ сейчас занят. Попробуйте через мгновение.",
 		"aiAnswerError": "Извините — не смог ответить: {error}",
 		"aiPlaceholder": "Спросите о видео…",
 		"aiSendAriaLabel": "Отправить",

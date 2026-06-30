@@ -3,7 +3,7 @@
 import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { videos } from "@cap/database/schema";
-import type { VideoMetadata } from "@cap/database/types";
+import type { ShareLanguage, VideoMetadata } from "@cap/database/types";
 import { provideOptionalAuth, Storage, VideosPolicy } from "@cap/web-backend";
 import { Policy, type Video } from "@cap/web-domain";
 import { and, eq, isNull } from "drizzle-orm";
@@ -13,6 +13,7 @@ import { decodeStorageVideo } from "@/lib/video-storage";
 
 export async function getTranscript(
 	videoId: Video.VideoId,
+	language?: ShareLanguage,
 ): Promise<{ success: boolean; content?: string; message: string; partial?: boolean; progress?: { completed: number; total: number } }> {
 	const user = await getCurrentUser();
 
@@ -57,9 +58,17 @@ export async function getTranscript(
 					decodeStorageVideo(video),
 				);
 
-				return yield* bucket.getObject(
-					`${video.ownerId}/${videoId}/transcription.vtt`,
-				);
+				const vttKey = language
+					? `${video.ownerId}/${videoId}/transcription.${language}.vtt`
+					: `${video.ownerId}/${videoId}/transcription.vtt`;
+
+				let vttContent = yield* bucket.getObject(vttKey);
+				if (Option.isNone(vttContent) && language) {
+					vttContent = yield* bucket.getObject(
+						`${video.ownerId}/${videoId}/transcription.vtt`,
+					);
+				}
+				return vttContent;
 			}).pipe(runPromise);
 
 			if (Option.isNone(vttContent)) {

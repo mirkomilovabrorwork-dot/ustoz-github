@@ -196,6 +196,9 @@ function parseCues(raw: string): ParsedCue[] {
 }
 
 const DEFAULT_CUE_DURATION = 3;
+// Captions are sentence-level utterances; a cue longer than this is a runaway
+// end timestamp (Gemini occasionally emits e.g. a 2h end on a 2-minute clip).
+const MAX_CUE_DURATION = 30;
 
 /**
  * Convert any VTT-like string to strict standard WebVTT.
@@ -234,12 +237,19 @@ export function toStandardWebVtt(raw: string): string {
   for (let i = 0; i < cues.length; i++) {
     const cue = cues[i];
     if (!cue) continue;
+    const next = cues[i + 1];
     let end = cue.end;
     if (end === null || end <= cue.start) {
-      const next = cues[i + 1];
       end =
         next && next.start > cue.start
           ? next.start
+          : cue.start + DEFAULT_CUE_DURATION;
+    } else if (end - cue.start > MAX_CUE_DURATION) {
+      // Runaway end: pull it back to the next cue's start, or a sane default
+      // when this is the last cue, so it never lingers across the whole video.
+      end =
+        next && next.start > cue.start
+          ? Math.min(next.start, cue.start + MAX_CUE_DURATION)
           : cue.start + DEFAULT_CUE_DURATION;
     }
     out += `${formatTs(cue.start)} --> ${formatTs(end)}\n${cue.text}\n\n`;

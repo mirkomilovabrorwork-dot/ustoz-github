@@ -813,6 +813,7 @@ Rules:
 - tasks[].priority must be "high", "medium", or "low"
 - tasks[].done is always false unless explicitly resolved in the transcript
 - Keep ALL JSON property names exactly as shown
+- In aiSummary.overview, topics[].title, topics[].body and nextSteps, use markdown **bold** VERY sparingly — bold at most the 1–2 single most important terms or names per field. Do NOT bold every foreign/technical word and do NOT copy the transcript's bold density.
 ${MIXED_LANGUAGE_PRESERVATION_RULES}
 
 Transcript:
@@ -1147,6 +1148,7 @@ Rules:
 - tasks[].priority must be "high", "medium", or "low"
 - refinedTranscript.chapters may be left as an empty array — it is handled separately
 - Keep ALL JSON property names exactly as shown
+- In aiSummary.overview, topics[].title, topics[].body and nextSteps, use markdown **bold** VERY sparingly — bold at most the 1–2 single most important terms or names per field. Do NOT bold every foreign/technical word and do NOT copy the transcript's bold density.
 ${MIXED_LANGUAGE_PRESERVATION_RULES}`;
 
 	const finalResult = await callAiApi(finalPrompt, {}, context);

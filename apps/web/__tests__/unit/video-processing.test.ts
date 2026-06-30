@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const updateWhereMock = vi.fn();
 const selectWhereMock = vi.fn();
-const startMock = vi.fn();
+const processVideoWorkflowMock = vi.fn();
 
 const dbMock = vi.fn(() => ({
 	update: vi.fn(() => ({
@@ -23,12 +23,8 @@ vi.mock("@cap/database", () => ({
 
 vi.mock("server-only", () => ({}));
 
-vi.mock("workflow/api", () => ({
-	start: startMock,
-}));
-
 vi.mock("@/workflows/process-video", () => ({
-	processVideoWorkflow: Symbol("processVideoWorkflow"),
+	processVideoWorkflow: processVideoWorkflowMock,
 }));
 
 describe("video processing starts", () => {
@@ -61,12 +57,12 @@ describe("video processing starts", () => {
 			}),
 		).resolves.toBe("already-processing");
 
-		expect(startMock).not.toHaveBeenCalled();
+		expect(processVideoWorkflowMock).not.toHaveBeenCalled();
 	});
 
 	it("starts the workflow after claiming the upload row", async () => {
 		updateWhereMock.mockResolvedValueOnce({ affectedRows: 1 });
-		startMock.mockResolvedValueOnce(undefined);
+		processVideoWorkflowMock.mockResolvedValueOnce(undefined);
 
 		const { startVideoProcessingWorkflow } = await import(
 			"@/lib/video-processing"
@@ -84,12 +80,12 @@ describe("video processing starts", () => {
 			}),
 		).resolves.toBe("started");
 
-		expect(startMock).toHaveBeenCalledTimes(1);
+		expect(processVideoWorkflowMock).toHaveBeenCalledTimes(1);
 	});
 
 	it("starts the workflow when mysql returns affectedRows in the first tuple slot", async () => {
 		updateWhereMock.mockResolvedValueOnce([{ affectedRows: 1 }]);
-		startMock.mockResolvedValueOnce(undefined);
+		processVideoWorkflowMock.mockResolvedValueOnce(undefined);
 
 		const { startVideoProcessingWorkflow } = await import(
 			"@/lib/video-processing"
@@ -107,12 +103,12 @@ describe("video processing starts", () => {
 			}),
 		).resolves.toBe("started");
 
-		expect(startMock).toHaveBeenCalledTimes(1);
+		expect(processVideoWorkflowMock).toHaveBeenCalledTimes(1);
 	});
 
 	it("force restarts a stale processing row", async () => {
 		updateWhereMock.mockResolvedValueOnce({ affectedRows: 1 });
-		startMock.mockResolvedValueOnce(undefined);
+		processVideoWorkflowMock.mockResolvedValueOnce(undefined);
 
 		const { startVideoProcessingWorkflow } = await import(
 			"@/lib/video-processing"
@@ -130,14 +126,21 @@ describe("video processing starts", () => {
 			}),
 		).resolves.toBe("started");
 
-		expect(startMock).toHaveBeenCalledTimes(1);
+		expect(processVideoWorkflowMock).toHaveBeenCalledTimes(1);
 	});
 
 	it("marks the upload as errored when workflow start fails", async () => {
+		// processVideoWorkflow is triggered inline (fire-and-forget) with its own
+		// .catch() in startVideoProcessingWorkflow, so a rejection does NOT
+		// propagate to the caller — the function still resolves to "started".
+		// The .catch() handler calls setVideoProcessingError, which issues a
+		// second db().update()...where() call (the error-status write).
 		updateWhereMock
 			.mockResolvedValueOnce({ affectedRows: 1 })
 			.mockResolvedValueOnce({ affectedRows: 1 });
-		startMock.mockRejectedValueOnce(new Error("temporary failure"));
+		processVideoWorkflowMock.mockRejectedValueOnce(
+			new Error("temporary failure"),
+		);
 
 		const { startVideoProcessingWorkflow } = await import(
 			"@/lib/video-processing"
@@ -152,9 +155,18 @@ describe("video processing starts", () => {
 				processingMessage: "Starting video processing...",
 				startFailureMessage: "Video processing could not start.",
 			}),
-		).rejects.toThrow("temporary failure");
+		).resolves.toBe("started");
 
-		expect(startMock).toHaveBeenCalledTimes(1);
+		expect(processVideoWorkflowMock).toHaveBeenCalledTimes(1);
+
+		// Flush microtasks so the fire-and-forget .catch() (and its nested
+		// await setVideoProcessingError) finishes running.
+		await new Promise((r) => setTimeout(r, 0));
+		await new Promise((r) => setTimeout(r, 0));
+		await new Promise((r) => setTimeout(r, 0));
+
+		// First update claims the row (transitionVideoToProcessing); second
+		// update is setVideoProcessingError writing the error status.
 		expect(updateWhereMock).toHaveBeenCalledTimes(2);
 	});
 });

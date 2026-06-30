@@ -39,7 +39,8 @@ vi.mock("@cap/database", () => ({
 }));
 
 vi.mock("@cap/database/schema", () => ({
-	videos: {},
+	videos: { id: "id", metadata: "metadata", ownerId: "ownerId" },
+	users: { id: "id", geminiApiKey: "geminiApiKey" },
 }));
 
 vi.mock("drizzle-orm", () => ({
@@ -54,6 +55,15 @@ vi.mock("@cap/env", () => ({
 // generateAiWorkflow always rejects — this is the failure we are testing against.
 vi.mock("@/workflows/generate-ai", () => ({
 	generateAiWorkflow: vi.fn(() => Promise.reject(new Error("gemini failed"))),
+}));
+
+// assertAiBudgetAvailable issues its own db() select chains (user/org/video
+// spend lookups) that are out of scope for this test, which only exercises
+// the QUEUED -> async-failure -> ERROR status-write path. Stub it as a no-op
+// so it doesn't consume the shared select/limit mock sequence above.
+vi.mock("@/lib/ai-cost-guard", () => ({
+	assertAiBudgetAvailable: vi.fn(() => Promise.resolve()),
+	BudgetExceededError: class BudgetExceededError extends Error {},
 }));
 
 // ---- helpers ----
@@ -93,8 +103,10 @@ describe("startAiGeneration — async workflow failure writes aiGenerationStatus
 	it("sets aiGenerationStatus to ERROR in the DB when generateAiWorkflow rejects", async () => {
 		// First selectFromWhereMock call: the guard select (returns rows directly, no .limit).
 		selectFromWhereMock.mockImplementationOnce(() => makeVideoRow() as never);
-		// Second selectFromWhereMock call: inside the .catch, chains .limit(1).
-		// → handled by selectFromWhereLimitMock set up in beforeEach.
+		// Second selectFromWhereMock call: the users.geminiApiKey gate select, chains .limit(1).
+		selectFromWhereLimitMock.mockResolvedValueOnce([{ geminiApiKey: null }]);
+		// Third selectFromWhereMock call: inside the .catch, chains .limit(1).
+		// → handled by selectFromWhereLimitMock's default set up in beforeEach.
 
 		const { startAiGeneration } = await import("@/lib/generate-ai");
 		const result = await startAiGeneration(VIDEO_ID, USER_ID);
@@ -131,6 +143,9 @@ describe("startAiGeneration — async workflow failure writes aiGenerationStatus
 		selectFromWhereMock.mockImplementationOnce(
 			() => makeVideoRow({ someOtherField: "preserved" }) as never,
 		);
+
+		// The users.geminiApiKey gate select, chains .limit(1).
+		selectFromWhereLimitMock.mockResolvedValueOnce([{ geminiApiKey: null }]);
 
 		// The current metadata read inside the .catch returns something with extra fields.
 		selectFromWhereLimitMock.mockResolvedValueOnce([

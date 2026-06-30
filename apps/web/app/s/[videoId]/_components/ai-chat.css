@@ -281,24 +281,6 @@
 	z-index: 1;
 }
 
-/* Glass host (WebGL liquid-glass layer) */
-.ai-glass-host {
-	position: absolute;
-	inset: 0;
-	z-index: 0;
-	pointer-events: none;
-	border-radius: inherit;
-	overflow: hidden;
-}
-.ai-glass-host .glass-container {
-	position: absolute !important;
-	inset: 0 !important;
-	width: 100% !important;
-	height: 100% !important;
-	left: 0 !important;
-	top: 0 !important;
-}
-
 /* Tint overlay — darkens the glass with a configurable color */
 .ai-tint-overlay {
 	position: absolute;
@@ -553,6 +535,10 @@
 	display: flex;
 	gap: 9px;
 	max-width: 100%;
+	/* Prevent flex-column body from squashing tall messages: a long answer
+	   would otherwise shrink below its content height and spill text out of
+	   the bubble background (overflow:visible). Keep natural height; body scrolls. */
+	flex-shrink: 0;
 	animation: msgIn var(--dur) var(--ease);
 }
 .ai-msg.user {
