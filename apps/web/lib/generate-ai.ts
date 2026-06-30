@@ -134,7 +134,11 @@ export async function startAiGeneration(
 						metadata: {
 							...currentMeta,
 							aiGenerationStatus: "ERROR",
-						},
+							aiGenerationError:
+								err instanceof Error
+									? err.message
+									: String(err),
+						} as VideoMetadata,
 					})
 					.where(eq(videos.id, videoId));
 			} catch (markErr) {
