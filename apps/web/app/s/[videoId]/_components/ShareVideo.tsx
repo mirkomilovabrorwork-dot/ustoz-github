@@ -283,7 +283,7 @@ export const ShareVideo = forwardRef<
 				setConfirmStoppedError(
 					error instanceof Error
 						? error.message
-						: "Recording could not be finalized",
+						: t("recordingFinalizeFailed"),
 				);
 			} finally {
 				setIsConfirmingStopped(false);

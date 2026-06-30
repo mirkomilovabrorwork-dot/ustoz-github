@@ -355,7 +355,7 @@ export const Sidebar = forwardRef<{ scrollToBottom: () => void }, SidebarProps>(
 							onClick={() => setActivityExpanded(true)}
 							className="flex w-full items-center justify-between px-4 py-2 text-left"
 							style={{ minHeight: "44px", cursor: "pointer" }}
-							aria-label="Expand activity"
+							aria-label={t("expandActivity")}
 						>
 							<span className="text-sm font-semibold text-gray-12">
 								{t("activityTitle")} <span className="text-gray-10 font-normal">(0)</span>

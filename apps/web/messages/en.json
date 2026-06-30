@@ -361,7 +361,16 @@
 		"aiNotAvailable": "AI analysis not available.",
 		"retryProcessingStarted": "Video processing restarted.",
 		"retryProcessingStillRunning": "Video is still processing.",
-		"retryProcessingError": "Could not retry video processing."
+		"retryProcessingError": "Could not retry video processing.",
+		"progressProcessingFailed": "Processing failed.",
+		"progressProcessingFailedOwner": "Processing failed. Ask the owner to retry processing or re-upload the recording.",
+		"progressUploadStalled": "Upload stalled before processing finished. Re-upload the recording to continue.",
+		"progressDidNotStart": "Video processing did not start. Retry processing.",
+		"progressStalled": "Video processing stalled. Retry processing.",
+		"progressFinishingStalled": "Video finishing stalled. Retry processing.",
+		"recordingFinalizeFailed": "Recording could not be finalized",
+		"expandActivity": "Expand activity",
+		"aiAnalysisStage": "AI analysis stage"
 	},
 	"nav": {
 		"instructions": "Instructions",

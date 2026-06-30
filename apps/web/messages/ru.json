@@ -361,7 +361,16 @@
 		"aiNotAvailable": "AI-анализ недоступен.",
 		"retryProcessingStarted": "Обработка видео перезапущена.",
 		"retryProcessingStillRunning": "Видео ещё обрабатывается.",
-		"retryProcessingError": "Не удалось повторить обработку видео."
+		"retryProcessingError": "Не удалось повторить обработку видео.",
+		"progressProcessingFailed": "Обработка не удалась.",
+		"progressProcessingFailedOwner": "Обработка не удалась. Попросите владельца повторить обработку или загрузить запись заново.",
+		"progressUploadStalled": "Загрузка остановилась до завершения обработки. Загрузите запись заново, чтобы продолжить.",
+		"progressDidNotStart": "Обработка видео не началась. Повторите обработку.",
+		"progressStalled": "Обработка видео остановилась. Повторите обработку.",
+		"progressFinishingStalled": "Завершение видео остановилось. Повторите обработку.",
+		"recordingFinalizeFailed": "Не удалось завершить запись",
+		"expandActivity": "Развернуть активность",
+		"aiAnalysisStage": "Этап AI-анализа"
 	},
 	"nav": {
 		"instructions": "Инструкции",

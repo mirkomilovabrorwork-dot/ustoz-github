@@ -221,7 +221,7 @@ export function GenerateAiPanel({
           </span>
         </div>
 
-        <div className="flex gap-2" aria-label="AI analysis stage">
+        <div className="flex gap-2" aria-label={tShare("aiAnalysisStage")}>
           {steps.map((step) => (
             <div
               key={step.key}

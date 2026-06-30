@@ -361,7 +361,16 @@
 		"aiNotAvailable": "AI tahlili mavjud emas.",
 		"retryProcessingStarted": "Video qayta ishlanishga boshlandi.",
 		"retryProcessingStillRunning": "Video hali ham ishlanmoqda.",
-		"retryProcessingError": "Video qayta ishlashni boshlab bo'lmadi."
+		"retryProcessingError": "Video qayta ishlashni boshlab bo'lmadi.",
+		"progressProcessingFailed": "Ishlov berish muvaffaqiyatsiz tugadi.",
+		"progressProcessingFailedOwner": "Ishlov berish muvaffaqiyatsiz tugadi. Egasidan qayta ishlovni urinib ko'rishni yoki yozuvni qayta yuklashni so'rang.",
+		"progressUploadStalled": "Yuklash ishlov tugashidan oldin to'xtab qoldi. Davom etish uchun yozuvni qayta yuklang.",
+		"progressDidNotStart": "Video ishlovi boshlanmadi. Qayta ishlovni urinib ko'ring.",
+		"progressStalled": "Video ishlovi to'xtab qoldi. Qayta ishlovni urinib ko'ring.",
+		"progressFinishingStalled": "Video yakunlanishi to'xtab qoldi. Qayta ishlovni urinib ko'ring.",
+		"recordingFinalizeFailed": "Yozuvni yakunlab bo'lmadi",
+		"expandActivity": "Faoliyatni kengaytirish",
+		"aiAnalysisStage": "AI tahlil bosqichi"
 	},
 	"nav": {
 		"instructions": "Yo'riqnomalar",

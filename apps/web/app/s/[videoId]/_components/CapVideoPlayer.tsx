@@ -532,6 +532,7 @@ export function CapVideoPlayer({
 	const uploadFailureMessage = getUploadFailureMessage(
 		uploadProgress,
 		canRetryProcessing,
+		t,
 	);
 
 	const retryProcessing = useCallback(async () => {
