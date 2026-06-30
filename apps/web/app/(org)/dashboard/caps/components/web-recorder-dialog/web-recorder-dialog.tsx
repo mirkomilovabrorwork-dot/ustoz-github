@@ -38,7 +38,6 @@ import {
 	FREE_PLAN_MAX_RECORDING_MS,
 } from "./web-recorder-constants";
 import { WebRecorderDialogHeader } from "./web-recorder-dialog-header";
-import { useTranslations } from "next-intl";
 
 const recoveredRecordingTimeFormatter = new Intl.DateTimeFormat(undefined, {
 	dateStyle: "medium",
@@ -59,7 +58,6 @@ export const WebRecorderDialog = ({
 	const [micSelectOpen, setMicSelectOpen] = useState(false);
 	const [pendingSilentConfirm, setPendingSilentConfirm] = useState(false);
 	const [linkCopied, setLinkCopied] = useState(false);
-	const t = useTranslations("recorder");
 	const micAutoSelectedRef = useRef(false);
 	const dialogContentRef = useRef<HTMLDivElement>(null);
 	const startSoundRef = useRef<HTMLAudioElement | null>(null);
@@ -229,14 +227,16 @@ export const WebRecorderDialog = ({
 	const handleStartRecording = useCallback(() => {
 		if (noAudioSelected && !pendingSilentConfirm) {
 			setPendingSilentConfirm(true);
-			toast.warning(t("silentRecordingWarning"));
+			toast.warning(
+				"No audio selected — this recording will be silent and AI transcription won't run. Click Record again to record without audio.",
+			);
 			return;
 		}
 		setPendingSilentConfirm(false);
 		void Promise.resolve(startRecording()).catch((err: unknown) => {
 			console.error("Start recording error", err);
 		});
-	}, [noAudioSelected, pendingSilentConfirm, startRecording, t]);
+	}, [noAudioSelected, pendingSilentConfirm, startRecording]);
 
 	useEffect(() => {
 		if (!noAudioSelected) {
@@ -289,13 +289,15 @@ export const WebRecorderDialog = ({
 
 	const handleOpenChange = (next: boolean) => {
 		if (next && supportCheckCompleted && !isBrowserSupported) {
-			toast.error(t("browserNotSupported"));
+			toast.error(
+				"This browser isn't compatible with data365's web recorder. We recommend Google Chrome or other Chromium-based browsers.",
+			);
 			return;
 		}
 
 		// Guard: keep dialog open while an upload/finalize is in progress.
 		if (!next && isUploadInFlight) {
-			toast.info(t("keepDialogOpen"));
+			toast.info("Keep this dialog open while your upload finishes.");
 			return;
 		}
 
@@ -365,7 +367,7 @@ export const WebRecorderDialog = ({
 				<DialogTrigger asChild>
 					<Button variant="blue" size="sm" className="flex items-center gap-2">
 						<MonitorIcon className="size-3.5" />
-						{t("recordInBrowser")}
+						Record in Browser
 					</Button>
 				</DialogTrigger>
 				<DialogContent
@@ -375,7 +377,7 @@ export const WebRecorderDialog = ({
 					onFocusOutside={handleFocusOutside}
 					onInteractOutside={handleInteractOutside}
 				>
-					<DialogTitle className="sr-only">{t("dialogTitle")}</DialogTitle>
+					<DialogTitle className="sr-only">Instant Mode Recorder</DialogTitle>
 					<AnimatePresence mode="wait">
 						{open && (
 							<motion.div
@@ -453,7 +455,8 @@ export const WebRecorderDialog = ({
 								)}
 								{noAudioSelected && (
 									<div className="rounded-md border border-amber-6 bg-amber-3/60 px-3 py-2 text-xs leading-snug text-amber-12">
-										{t("noAudioWarning")}
+										No audio selected — this recording will be silent and AI
+										analysis won't run. Turn on your microphone or system audio.
 									</div>
 								)}
 								<RecordingButton
@@ -469,11 +472,11 @@ export const WebRecorderDialog = ({
 								)}
 								{phase === "completed" && completedShareUrl && (
 									<div className="rounded-md border border-green-6 bg-green-3/70 px-3 py-3 text-xs text-green-12">
-										<div className="font-medium">{t("shareLinkReady")}</div>
+										<div className="font-medium">Share link ready</div>
 										<div className="mt-1 leading-snug">
 											{linkCopied
-												? t("linkCopied")
-												: t("linkNotOpened")}
+												? "Link copied to clipboard!"
+												: "If it did not open automatically, open it here."}
 										</div>
 										<div className="mt-3 flex gap-2">
 											<Button
@@ -495,12 +498,12 @@ export const WebRecorderDialog = ({
 												{linkCopied ? (
 													<>
 														<CheckIcon className="mr-1.5 h-3.5 w-3.5" />
-														{t("copiedButton")}
+														Copied!
 													</>
 												) : (
 													<>
 														<CopyIcon className="mr-1.5 h-3.5 w-3.5" />
-														{t("copyLink")}
+														Copy link
 													</>
 												)}
 											</Button>
@@ -510,7 +513,7 @@ export const WebRecorderDialog = ({
 												className="flex-1"
 												onClick={openCompletedShareUrl}
 											>
-												{t("openShareLink")}
+												Open Share Link
 											</Button>
 										</div>
 									</div>
@@ -518,7 +521,7 @@ export const WebRecorderDialog = ({
 								{phase === "idle" && recoveredDownloads.length > 0 && (
 									<div className="rounded-md border border-blue-6 bg-blue-3/60 px-3 py-2">
 										<div className="text-xs font-medium text-blue-12">
-											{t("recoveredRecordings")}
+											Recovered recordings
 										</div>
 										<div className="mt-2 flex flex-col gap-2">
 											{recoveredDownloads.map((download) => (
@@ -548,7 +551,7 @@ export const WebRecorderDialog = ({
 																)
 															}
 														>
-															{t("download")}
+															Download
 														</a>
 														<button
 															type="button"
@@ -557,7 +560,7 @@ export const WebRecorderDialog = ({
 																dismissRecoveredDownload(download.id)
 															}
 														>
-															{t("dismiss")}
+															Dismiss
 														</button>
 													</div>
 												</div>

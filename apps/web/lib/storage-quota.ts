@@ -1,7 +1,7 @@
 import { db } from "@cap/database";
 import { organizations, videos, videoUploads } from "@cap/database/schema";
 import type { Organisation, User } from "@cap/web-domain";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 const DEFAULT_QUOTA = 50 * 1024 * 1024 * 1024;
 
@@ -46,7 +46,6 @@ export async function checkUploadQuota(args: {
 		.where(
 			and(
 				eq(videos.orgId, args.orgId),
-				isNull(videos.deletedAt),
 				sql`(${videoUploads.phase} != 'uploading' OR ${videoUploads.startedAt} > ${oneHourAgo})`,
 			),
 		);
@@ -74,7 +73,6 @@ export async function checkUploadQuota(args: {
 				and(
 					eq(videos.orgId, args.orgId),
 					eq(videos.ownerId, args.userId),
-					isNull(videos.deletedAt),
 					sql`(${videoUploads.phase} != 'uploading' OR ${videoUploads.startedAt} > ${oneHourAgo})`,
 				),
 			);

@@ -5,7 +5,7 @@ import { getCurrentUser } from "@cap/database/auth/session";
 import { videos } from "@cap/database/schema";
 import { Storage } from "@cap/web-backend";
 import type { Video } from "@cap/web-domain";
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 import { runPromise } from "@/lib/server";
 import { decodeStorageVideo } from "@/lib/video-storage";
@@ -18,7 +18,7 @@ export async function downloadVideo(videoId: Video.VideoId) {
 	}
 
 	const userId = user.id;
-	const query = await db().select().from(videos).where(and(eq(videos.id, videoId), isNull(videos.deletedAt)));
+	const query = await db().select().from(videos).where(eq(videos.id, videoId));
 
 	if (query.length === 0) {
 		throw new Error("Video not found");

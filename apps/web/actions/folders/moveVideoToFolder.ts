@@ -10,7 +10,7 @@ import {
 	videos,
 } from "@cap/database/schema";
 import type { Folder, Space, Video } from "@cap/web-domain";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 export async function moveVideoToFolder({
 	videoId,
@@ -35,7 +35,7 @@ export async function moveVideoToFolder({
 			ownerId: videos.ownerId,
 		})
 		.from(videos)
-		.where(and(eq(videos.id, videoId), isNull(videos.deletedAt)));
+		.where(eq(videos.id, videoId));
 
 	if (!currentVideo) throw new Error("Video not found");
 	if (currentVideo.ownerId !== user.id) throw new Error("Unauthorized");

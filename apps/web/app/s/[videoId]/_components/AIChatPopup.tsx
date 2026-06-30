@@ -1,6 +1,5 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
 	LiquidGlassContainer,
@@ -25,6 +24,25 @@ interface AIChatPopupProps {
 	onClose: () => void;
 	isOpen?: boolean;
 }
+
+const QUICK_ACTIONS = [
+	{
+		label: "Summary",
+		query: "Give me a concise summary of this video.",
+	},
+	{
+		label: "Action items",
+		query: "What are the main action items and who is responsible?",
+	},
+	{
+		label: "Follow-up email",
+		query: "Draft a follow-up email about the next steps.",
+	},
+	{
+		label: "Key points",
+		query: "What were the key decisions or points made?",
+	},
+];
 
 function parseMmSsToSeconds(mmss: string): number {
 	const parts = mmss.split(":");
@@ -215,25 +233,6 @@ export function AIChatPopup({
 	onClose,
 	isOpen = false,
 }: AIChatPopupProps) {
-	const t = useTranslations("share");
-	const QUICK_ACTIONS = [
-		{
-			label: t("aiQuickSummary"),
-			query: "Give me a concise summary of this video.",
-		},
-		{
-			label: t("aiQuickActionItems"),
-			query: "What are the main action items and who is responsible?",
-		},
-		{
-			label: t("aiQuickFollowUpEmail"),
-			query: "Draft a follow-up email about the next steps.",
-		},
-		{
-			label: t("aiQuickKeyPoints"),
-			query: "What were the key decisions or points made?",
-		},
-	];
 	const [messages, setMessages] = useState<Message[]>([]);
 	const [input, setInput] = useState("");
 	const [isStreaming, setIsStreaming] = useState(false);
@@ -342,9 +341,7 @@ export function AIChatPopup({
 							if (parsed.error) {
 								// Surface the server's error as the assistant reply instead
 								// of leaving a blank/empty message.
-								assistantContent = t("aiAnswerError", {
-									error: parsed.error,
-								});
+								assistantContent = `Sorry — I couldn't answer: ${parsed.error}`;
 								setMessages((prev) => {
 									const updated = [...prev];
 									const last = updated[updated.length - 1];
@@ -382,7 +379,7 @@ export function AIChatPopup({
 						{
 							id: nextMsgId(),
 							role: "assistant",
-							content: t("aiError"),
+							content: "Something went wrong. Please try again.",
 						},
 					]);
 				}
@@ -440,7 +437,7 @@ export function AIChatPopup({
 			ref={popupRef}
 			className={`ai-popup${isOpen ? " open" : ""}`}
 			role="dialog"
-			aria-label={t("aiDialogAriaLabel")}
+			aria-label="AI assistant"
 			aria-hidden={!isOpen}
 		>
 			<div ref={glassHostRef} className="ai-glass-host" />
@@ -455,17 +452,17 @@ export function AIChatPopup({
 					<OrbIcon />
 				</div>
 				<div className="htxt">
-					<div className="t">{t("aiChatTitle")}</div>
+					<div className="t">data365 AI</div>
 					<div className="s">
 						<span className="live" />
-						{t("aiContextLoaded")}
+						Video context loaded
 					</div>
 				</div>
 				<button
 					type="button"
 					className="ai-x"
 					onClick={onClose}
-					aria-label={t("aiCloseAriaLabel")}
+					aria-label="Close"
 				>
 					<svg
 						width="16"
@@ -486,13 +483,12 @@ export function AIChatPopup({
 					<>
 						<div className="ai-welcome">
 							<div className="wt">
-								{t.rich("aiWelcomeTitle", {
-									emphasis: (chunks) => (
-										<span className="grad">{chunks}</span>
-									),
-								})}
+								Hi! I know{" "}
+								<span className="grad">everything</span> about this video.
 							</div>
-							<div className="ws">{t("aiWelcomeSubtitle")}</div>
+							<div className="ws">
+								Ask me anything — or pick one below.
+							</div>
 						</div>
 						<div className="ai-chips">
 							{QUICK_ACTIONS.map((action, idx) => (
@@ -549,7 +545,7 @@ export function AIChatPopup({
 					<textarea
 						ref={textareaRef}
 						rows={1}
-						placeholder={t("aiPlaceholder")}
+						placeholder="Ask about this video…"
 						value={input}
 						onChange={(e) => {
 							setInput(e.target.value);
@@ -563,7 +559,7 @@ export function AIChatPopup({
 						className="ai-send"
 						onClick={() => sendMessage(input)}
 						disabled={!input.trim() || isStreaming}
-						aria-label={t("aiSendAriaLabel")}
+						aria-label="Send"
 					>
 						<svg
 							viewBox="0 0 24 24"
@@ -579,7 +575,9 @@ export function AIChatPopup({
 						</svg>
 					</button>
 				</div>
-				<div className="ai-disclaimer">{t("aiDisclaimer")}</div>
+				<div className="ai-disclaimer">
+					AI answers may need verification
+				</div>
 			</div>
 		</div>
 	);

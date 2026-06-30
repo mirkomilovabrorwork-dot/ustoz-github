@@ -1,7 +1,7 @@
 import { db } from "@cap/database";
 import { organizations, sharedVideos, videos } from "@cap/database/schema";
 import { Video } from "@cap/web-domain";
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 				ownerId: videos.ownerId,
 			})
 			.from(videos)
-			.where(and(eq(videos.id, Video.VideoId.make(videoId)), isNull(videos.deletedAt)))
+			.where(eq(videos.id, Video.VideoId.make(videoId)))
 			.limit(1);
 
 		if (!video) {

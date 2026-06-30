@@ -3,7 +3,7 @@ import { getCurrentUser } from "@cap/database/auth/session";
 import { videos } from "@cap/database/schema";
 import { makeCurrentUserLayer, Storage, VideosPolicy } from "@cap/web-backend";
 import { Policy, Video } from "@cap/web-domain";
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 import type { NextRequest } from "next/server";
 import { runPromise } from "@/lib/server";
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
 	const [query] = await db()
 		.select()
 		.from(videos)
-		.where(and(eq(videos.id, Video.VideoId.make(videoId)), isNull(videos.deletedAt)));
+		.where(eq(videos.id, Video.VideoId.make(videoId)));
 
 	if (!query)
 		return new Response(

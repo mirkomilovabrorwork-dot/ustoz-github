@@ -39,14 +39,14 @@ function deriveProgressState(
   transcriptionStatus: TranscriptionStatus | null | undefined,
   aiGenerationStatus: AiGenerationStatus | null | undefined,
 ): {
-  labelKey: string;
+  label: string;
   phase: "idle" | "transcribing" | "queued" | "generating" | "done";
 } {
   if (
     transcriptionStatus === "COMPLETE" &&
     (aiGenerationStatus === "COMPLETE" || aiGenerationStatus === "SKIPPED")
   ) {
-    return { labelKey: "aiAnalysisReady", phase: "done" };
+    return { label: "Analysis ready", phase: "done" };
   }
 
   if (
@@ -54,7 +54,7 @@ function deriveProgressState(
     aiGenerationStatus === "QUEUED"
   ) {
     return {
-      labelKey: "aiTranscriptReadyQueued",
+      label: "Transcript ready — AI analysis queued…",
       phase: "queued",
     };
   }
@@ -64,32 +64,34 @@ function deriveProgressState(
     aiGenerationStatus === "PROCESSING"
   ) {
     return {
-      labelKey: "aiGenerating",
+      label: "Generating AI analysis…",
       phase: "generating",
     };
   }
 
   if (transcriptionStatus === "COMPLETE") {
     return {
-      labelKey: "aiTranscriptReadyIdle",
+      label: "Transcript ready. Start AI analysis when you need it.",
       phase: "idle",
     };
   }
 
   if (transcriptionStatus === "PROCESSING") {
     return {
-      labelKey: "aiTranscribing",
+      label: "Transcribing audio…",
       phase: "transcribing",
     };
   }
 
-  return { labelKey: "aiPreparing", phase: "idle" };
+  return { label: "Preparing…", phase: "idle" };
 }
 
-export function getAiAnalysisNotice(duration?: number | null): "long" | "medium" | null {
+export function getAiAnalysisNotice(duration?: number | null): string | null {
   if (!duration || duration <= 30 * 60) return null;
-  if (duration >= 60 * 60) return "long";
-  return "medium";
+  if (duration >= 60 * 60) {
+    return "Long video: transcription runs in smaller chunks, and AI analysis can take longer. It only starts after you click.";
+  }
+  return "Longer video: AI analysis may take extra time and budget. It only starts after you click.";
 }
 
 export function GenerateAiPanel({
@@ -101,7 +103,6 @@ export function GenerateAiPanel({
   onStarted,
 }: GenerateAiPanelProps) {
   const t = useTranslations("generateAi");
-  const tShare = useTranslations("share");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -159,7 +160,7 @@ export function GenerateAiPanel({
         </DialogHeader>
         <p className="px-5 py-4 text-sm text-gray-11">
           {t("confirmBody")}
-          {aiNotice ? ` ${tShare(aiNotice === "long" ? "aiNoticeLong" : "aiNoticeMedium")}` : ""}
+          {aiNotice ? ` ${aiNotice}` : ""}
         </p>
         <DialogFooter>
           <button
@@ -184,14 +185,14 @@ export function GenerateAiPanel({
 
   // ── Running state: persisted pipeline stage ──────────────────────────────
   if (isRunning) {
-    const { labelKey, phase } = deriveProgressState(
+    const { label, phase } = deriveProgressState(
       transcriptionStatus,
       aiGenerationStatus,
     );
     const steps = [
       {
         key: "transcribing",
-        label: tShare("aiStepTranscribing"),
+        label: "Transcribing",
         state:
           transcriptionStatus === "COMPLETE"
             ? "done"
@@ -201,7 +202,7 @@ export function GenerateAiPanel({
       },
       {
         key: "generating",
-        label: tShare("aiStepAiAnalysis"),
+        label: "AI analysis",
         state:
           aiGenerationStatus === "COMPLETE" || aiGenerationStatus === "SKIPPED"
             ? "done"
@@ -217,11 +218,11 @@ export function GenerateAiPanel({
         <div className="flex items-center gap-2">
           <SpinnerIcon />
           <span className="text-sm font-semibold text-blue-11">
-            {tShare("aiAnalyzing")}
+            Analyzing…
           </span>
         </div>
 
-        <div className="flex gap-2" aria-label={tShare("aiAnalysisStage")}>
+        <div className="flex gap-2" aria-label="AI analysis stage">
           {steps.map((step) => (
             <div
               key={step.key}
@@ -239,7 +240,7 @@ export function GenerateAiPanel({
         </div>
 
         {/* Label */}
-        <p className="text-sm text-blue-11">{tShare(labelKey)}</p>
+        <p className="text-sm text-blue-11">{label}</p>
       </div>
     );
   }
@@ -250,10 +251,10 @@ export function GenerateAiPanel({
       <>
         <div className="flex flex-col gap-3 rounded-xl border border-red-6 bg-red-3 px-4 py-4">
           <p className="text-sm text-red-11">
-            {tShare("aiAnalysisFailed")}{" "}
+            AI analysis failed.{" "}
             {transcriptionStatus === "ERROR"
-              ? tShare("aiTranscriptionFailed")
-              : tShare("aiGenerationError")}
+              ? "Transcription failed."
+              : "AI generation error."}
           </p>
           {error && (
             <p className="text-xs text-red-10">{error}</p>
@@ -264,7 +265,7 @@ export function GenerateAiPanel({
             onClick={requestStart}
             className="self-start rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-60"
           >
-            {loading ? tShare("aiStarting") : tShare("aiRetry")}
+            {loading ? "Starting…" : "Retry"}
           </button>
         </div>
         {confirmDialog}
@@ -283,11 +284,11 @@ export function GenerateAiPanel({
       <>
         <div className="flex flex-col gap-3 rounded-xl border border-blue-6 bg-blue-3 px-4 py-4">
           <p className="text-sm text-gray-12">
-            {tShare("aiNotRunYet")}
+            AI analysis has not been run for this video yet.
           </p>
           {aiNotice && (
             <p className="text-xs text-gray-10">
-              {tShare(aiNotice === "long" ? "aiNoticeLong" : "aiNoticeMedium")}
+              {aiNotice}
             </p>
           )}
           {error && (
@@ -299,7 +300,7 @@ export function GenerateAiPanel({
             onClick={requestStart}
             className="self-start rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
           >
-            {loading ? tShare("aiStarting") : tShare("aiStartAnalysis")}
+            {loading ? "Starting…" : "Start AI analysis"}
           </button>
         </div>
         {confirmDialog}
@@ -312,7 +313,7 @@ export function GenerateAiPanel({
     return (
       <div className="rounded-xl border border-gray-4 bg-gray-2 px-4 py-6 text-center">
         <p className="text-sm text-gray-10">
-          {tShare("aiNotAvailable")}
+          AI analysis not available.
         </p>
       </div>
     );

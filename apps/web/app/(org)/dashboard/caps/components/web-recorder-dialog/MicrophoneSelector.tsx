@@ -11,7 +11,6 @@ import clsx from "clsx";
 import { MicIcon, MicOffIcon } from "lucide-react";
 import type { KeyboardEvent, MouseEvent } from "react";
 import { toast } from "sonner";
-import { useTranslations } from "next-intl";
 import { useMediaPermission } from "./useMediaPermission";
 import { NO_MICROPHONE, NO_MICROPHONE_VALUE } from "./web-recorder-constants";
 
@@ -36,7 +35,6 @@ export const MicrophoneSelector = ({
 	onMicChange,
 	onRefreshDevices,
 }: MicrophoneSelectorProps) => {
-	const t = useTranslations("recorder");
 	const micEnabled = selectedMicId !== null;
 	const { state: permissionState, requestPermission } = useMediaPermission(
 		"microphone",
@@ -80,7 +78,9 @@ export const MicrophoneSelector = ({
 				}
 			} catch (error) {
 				console.error("Microphone permission request failed", error);
-				toast.error(t("micError"))
+				toast.error(
+					"Unable to access your microphone. Check browser permissions.",
+				);
 			}
 
 			return;
@@ -163,10 +163,10 @@ export const MicrophoneSelector = ({
 						onKeyDown={handleStatusPillKeyDown}
 					>
 						{shouldRequestPermission
-							? t("requestPermission")
+							? "Request permission"
 							: micEnabled
-								? t("statusOn")
-								: t("statusOff")}
+								? "On"
+								: "Off"}
 					</button>
 				</div>
 				<SelectContent className="z-[502]">
@@ -180,7 +180,7 @@ export const MicrophoneSelector = ({
 						<SelectItem key={mic.deviceId} value={mic.deviceId}>
 							<span className="flex items-center gap-2 truncate">
 								<MicIcon className="size-4 text-gray-11" />
-								{mic.label?.trim() || t("micFallback", { n: index + 1 })}
+								{mic.label?.trim() || `Microphone ${index + 1}`}
 							</span>
 						</SelectItem>
 					))}

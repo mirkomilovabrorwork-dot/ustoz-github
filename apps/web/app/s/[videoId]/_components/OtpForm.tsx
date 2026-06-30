@@ -2,7 +2,6 @@ import { Button } from "@cap/ui";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 
@@ -25,7 +24,6 @@ const OtpForm = ({
 }) => {
 	const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 	const router = useRouter();
-	const t = useTranslations("share");
 
 	useEffect(() => {
 		if (step === 2) {
@@ -77,7 +75,7 @@ const OtpForm = ({
 	const handleVerify = useMutation({
 		mutationFn: async (pastedCode?: string) => {
 			const otpCode = pastedCode ?? code.join("");
-			if (otpCode.length !== 6) throw t("otpIncompleteCode");
+			if (otpCode.length !== 6) throw "Please enter a complete 6-digit code";
 
 			await fetch(
 				`/api/auth/callback/email?email=${encodeURIComponent(normalizedEmail)}&token=${encodeURIComponent(otpCode)}&callbackUrl=${encodeURIComponent("/dashboard")}`,
@@ -88,19 +86,19 @@ const OtpForm = ({
 			if (!session?.user) {
 				setCode(["", "", "", "", "", ""]);
 				inputRefs.current[0]?.focus();
-				throw t("otpInvalidCode");
+				throw "Invalid code. Please try again.";
 			}
 		},
 		onSuccess: () => {
 			router.refresh();
-			toast.success(t("otpSignInSuccess"));
+			toast.success("Sign in successful!");
 			onClose();
 		},
 		onError: (e) => {
 			if (typeof e === "string") {
 				toast.error(e);
 			} else {
-				toast.error(t("otpErrorOccurred"));
+				toast.error("An error occurred. Please try again.");
 			}
 		},
 	});
@@ -115,7 +113,7 @@ const OtpForm = ({
 					const remainingSeconds = Math.ceil(
 						(waitTime - timeSinceLastRequest) / 1000,
 					);
-					throw t("otpWaitSeconds", { seconds: remainingSeconds });
+					throw `Please wait ${remainingSeconds} seconds before requesting a new code`;
 				}
 			}
 
@@ -125,11 +123,11 @@ const OtpForm = ({
 			});
 
 			if (result?.error) {
-				throw t("otpWait30Seconds");
+				throw "Please wait 30 seconds before requesting a new code";
 			}
 		},
 		onSuccess: () => {
-			toast.success(t("otpNewCodeSent"));
+			toast.success("A new code has been sent to your email!");
 			setCode(["", "", "", "", "", ""]);
 			inputRefs.current[0]?.focus();
 			setLastResendTime(Date.now());
@@ -138,7 +136,7 @@ const OtpForm = ({
 			if (typeof e === "string") {
 				toast.error(e);
 			} else {
-				toast.error(t("otpErrorOccurred"));
+				toast.error("An error occurred. Please try again.");
 			}
 		},
 	});
@@ -185,7 +183,7 @@ const OtpForm = ({
 				}}
 				disabled={code.some((digit) => !digit) || isVerifying}
 			>
-				{isVerifying ? t("otpVerifying") : t("otpVerifyCode")}
+				{isVerifying ? "Verifying..." : "Verify Code"}
 			</Button>
 
 			<div className="text-center">
@@ -197,7 +195,9 @@ const OtpForm = ({
 					disabled={handleResend.isPending}
 					className="text-sm underline transition-colors text-gray-10 hover:text-gray-12"
 				>
-					{handleResend.isPending ? t("otpSending") : t("otpResend")}
+					{handleResend.isPending
+						? "Sending..."
+						: "Didn't receive the code? Resend"}
 				</button>
 			</div>
 		</div>

@@ -56,7 +56,6 @@ export async function GET(request: NextRequest) {
 			.where(
 				and(
 					eq(videos.id, Video.VideoId.make(videoId)),
-					isNull(videos.deletedAt),
 					or(
 						eq(videos.ownerId, user.id),
 						eq(organizations.ownerId, user.id),

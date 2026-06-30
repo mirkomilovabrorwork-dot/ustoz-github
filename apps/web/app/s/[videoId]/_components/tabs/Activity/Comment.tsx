@@ -6,7 +6,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import clsx from "clsx";
 import { motion } from "framer-motion";
 import { useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
 import type React from "react";
 import { useState } from "react";
 import { useCurrentUser } from "@/app/Layout/AuthContext";
@@ -45,7 +44,6 @@ const CommentComponent: React.FC<{
 	level = 0,
 	onSeek,
 }) => {
-	const t = useTranslations("share");
 	const user = useCurrentUser();
 	const [isEditing, setIsEditing] = useState(false);
 	const isReplying = replyingToId === comment.id;
@@ -66,7 +64,7 @@ const CommentComponent: React.FC<{
 			: [];
 
 	const handleDelete = () => {
-		if (window.confirm(t("deleteCommentConfirm"))) {
+		if (window.confirm("Are you sure you want to delete this comment?")) {
 			onDelete(comment.id, comment.parentCommentId);
 		}
 	};
@@ -114,7 +112,7 @@ const CommentComponent: React.FC<{
 				>
 					<div className="flex gap-3 justify-between items-center">
 						<p className="text-sm font-medium truncate text-gray-12">
-							{comment.authorName || t("anonymous")}
+							{comment.authorName || "Anonymous"}
 						</p>
 						<div className="flex gap-2 items-center text-nowrap min-w-fit">
 							<Tooltip content={formatTimestamp(commentDate)}>
@@ -142,7 +140,7 @@ const CommentComponent: React.FC<{
 					</p>
 					<div className="flex items-center pt-2 mt-2.5 space-x-3 border-t border-gray-3">
 						{user && !isReplying && canReply && (
-							<Tooltip content={t("replyTooltip")}>
+							<Tooltip content="Reply">
 								<Button
 									onClick={() => onReply(comment.id)}
 									size="icon"
@@ -155,7 +153,7 @@ const CommentComponent: React.FC<{
 							</Tooltip>
 						)}
 						{isOwnComment && !isEditing && (
-							<Tooltip content={t("editCommentTooltip")}>
+							<Tooltip content="Edit comment">
 								<Button
 									onClick={() => setIsEditing(true)}
 									size="icon"
@@ -168,7 +166,7 @@ const CommentComponent: React.FC<{
 							</Tooltip>
 						)}
 						{canDelete && (
-							<Tooltip content={t("deleteCommentTooltip")}>
+							<Tooltip content="Delete comment">
 								<Button
 									onClick={handleDelete}
 									size="icon"
@@ -189,7 +187,7 @@ const CommentComponent: React.FC<{
 					<CommentInput
 						onSubmit={handleReply}
 						onCancel={onCancelReply}
-						placeholder={t("replyPlaceholder")}
+						placeholder="Write a reply..."
 						showCancelButton={true}
 						autoFocus={true}
 					/>

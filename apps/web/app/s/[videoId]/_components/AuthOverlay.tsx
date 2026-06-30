@@ -10,7 +10,6 @@ import { useId, useState } from "react";
 import { toast } from "sonner";
 import { trackEvent } from "@/app/utils/analytics";
 import { usePublicEnv } from "@/utils/public-env";
-import { useTranslations } from "next-intl";
 import OtpForm from "./OtpForm";
 
 interface AuthOverlayProps {
@@ -22,7 +21,6 @@ export const AuthOverlay: React.FC<AuthOverlayProps> = ({
 	isOpen,
 	onClose,
 }) => {
-	const t = useTranslations("share");
 	const [email, setEmail] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [emailSent, setEmailSent] = useState(false);
@@ -48,7 +46,7 @@ export const AuthOverlay: React.FC<AuthOverlayProps> = ({
 						className="absolute top-5 left-5 cursor-pointer z-20 flex gap-2 items-center py-1.5 px-3 text-gray-12 bg-transparent border border-gray-4 rounded-full hover:bg-gray-1 transition-colors duration-300"
 					>
 						<FontAwesomeIcon className="w-2" icon={faArrowLeft} />
-						<p className="text-xs">{t("back")}</p>
+						<p className="text-xs">Back</p>
 					</div>
 				)}
 				<div className="space-y-6">
@@ -56,12 +54,12 @@ export const AuthOverlay: React.FC<AuthOverlayProps> = ({
 
 					<div className="text-center">
 						<h1 className="text-xl font-semibold">
-							{step === 1 ? t("authSignInToComment") : t("authEmailSent")}
+							{step === 1 ? "Sign in to comment" : "Email sent"}
 						</h1>
 						<p className="text-base text-gray-9">
 							{step === 1
-								? t("authJoinConversation")
-								: t("authCodeSentToEmail")}
+								? "Join the conversation."
+								: "We sent a 6-digit code to your email."}
 						</p>
 					</div>
 
@@ -90,26 +88,24 @@ export const AuthOverlay: React.FC<AuthOverlayProps> = ({
 							/>
 						)}
 						<p className="mt-6 text-xs text-center text-gray-9">
-							{t.rich("authTermsNotice", {
-								terms: (chunks) => (
-									<Link
-										href="/terms"
-										target="_blank"
-										className="text-xs font-semibold text-gray-12 hover:text-blue-300"
-									>
-										{chunks}
-									</Link>
-								),
-								privacy: (chunks) => (
-									<Link
-										href="/privacy"
-										target="_blank"
-										className="text-xs font-semibold text-gray-12 hover:text-blue-300"
-									>
-										{chunks}
-									</Link>
-								),
-							})}
+							By entering your email, you acknowledge that you have both read
+							and agree to data365's{" "}
+							<Link
+								href="/terms"
+								target="_blank"
+								className="text-xs font-semibold text-gray-12 hover:text-blue-300"
+							>
+								Terms of Service
+							</Link>{" "}
+							and{" "}
+							<Link
+								href="/privacy"
+								target="_blank"
+								className="text-xs font-semibold text-gray-12 hover:text-blue-300"
+							>
+								Privacy Policy
+							</Link>
+							.
 						</p>
 					</div>
 				</div>
@@ -139,7 +135,6 @@ const StepOne = ({
 	setLastResendTime: (time: number | null) => void;
 	emailId: string;
 }) => {
-	const t = useTranslations("share");
 	const rawVideoId = useParams().videoId;
 	const videoId = Array.isArray(rawVideoId) ? rawVideoId[0] : rawVideoId;
 	const handleGoogleSignIn = () => {
@@ -188,15 +183,15 @@ const StepOne = ({
 								email_domain: normalizedEmail.split("@").at(1),
 								video_id: videoId,
 							});
-							toast.success(t("authEmailSentSuccess"));
+							toast.success("Email sent - check your inbox!");
 						} else {
-							toast.error(t("authEmailSendError"));
+							toast.error("Error sending email - try again?");
 						}
 					})
 					.catch(() => {
 						setEmailSent(false);
 						setLoading(false);
-						toast.error(t("authEmailSendError"));
+						toast.error("Error sending email - try again?");
 					});
 			}}
 			className="flex flex-col gap-3"
@@ -225,15 +220,15 @@ const StepOne = ({
 			>
 				{emailSent
 					? NODE_ENV === "development"
-						? t("authEmailSentTerminal")
-						: t("authEmailSentInbox")
-					: t("authContinueWithEmail")}
+						? "Email sent to your terminal"
+						: "Email sent to your inbox"
+					: "Continue with Email"}
 			</Button>
 			{publicEnv.googleAuthAvailable && (
 				<>
 					<div className="flex gap-4 items-center">
 						<span className="flex-1 h-px bg-gray-5" />
-						<p className="text-sm text-center text-gray-10">{t("authOr")}</p>
+						<p className="text-sm text-center text-gray-10">OR</p>
 						<span className="flex-1 h-px bg-gray-5" />
 					</div>
 					<Button
@@ -244,7 +239,7 @@ const StepOne = ({
 						disabled={loading}
 					>
 						<Image src="/google.svg" alt="Google" width={16} height={16} />
-						{t("authLoginWithGoogle")}
+						Login with Google
 					</Button>
 				</>
 			)}

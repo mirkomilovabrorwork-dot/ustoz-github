@@ -4,7 +4,6 @@ import type { ImageUpload } from "@cap/web-domain";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { useTranscript } from "hooks/use-transcript";
 import { CheckCircle2, Info, Loader2Icon } from "lucide-react";
-import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import {
 	forwardRef,
@@ -95,7 +94,6 @@ export const ShareVideo = forwardRef<
 		},
 		ref,
 	) => {
-		const t = useTranslations("share");
 		const videoRef = useRef<HTMLVideoElement | null>(null);
 		useImperativeHandle(ref, () => videoRef.current as HTMLVideoElement, []);
 		const router = useRouter();
@@ -132,7 +130,7 @@ export const ShareVideo = forwardRef<
 			data.source.type === "desktopSegments" && (data.hasActiveUpload ?? false),
 		);
 
-		const { data: transcript, error: transcriptError } = useTranscript(
+		const { data: transcriptContent, error: transcriptError } = useTranscript(
 			data.id,
 			data.transcriptionStatus,
 		);
@@ -170,8 +168,8 @@ export const ShareVideo = forwardRef<
 		}, []);
 
 		useEffect(() => {
-			if (transcript?.content) {
-				captionContext.setOriginalVttContent(transcript.content);
+			if (transcriptContent) {
+				captionContext.setOriginalVttContent(transcriptContent);
 			} else if (transcriptError) {
 				console.error(
 					"[Transcript] Transcript error from React Query:",
@@ -179,7 +177,7 @@ export const ShareVideo = forwardRef<
 				);
 			}
 		}, [
-			transcript,
+			transcriptContent,
 			transcriptError,
 			captionContext.setOriginalVttContent,
 		]);
@@ -283,7 +281,7 @@ export const ShareVideo = forwardRef<
 				setConfirmStoppedError(
 					error instanceof Error
 						? error.message
-						: t("recordingFinalizeFailed"),
+						: "Recording could not be finalized",
 				);
 			} finally {
 				setIsConfirmingStopped(false);
@@ -450,18 +448,18 @@ export const ShareVideo = forwardRef<
 										<CheckCircle2 className="size-3" />
 									)}
 									{isConfirmingStopped
-										? t("markingAsCompleted")
-										: t("markAsCompleted")}
+										? "Marking as completed..."
+										: "Mark video as completed"}
 								</button>
 								<TooltipPrimitive.Provider delayDuration={150}>
 									<Tooltip
 										position="top"
 										className="max-w-[260px] items-start text-left leading-relaxed"
-										content={t("markCompletedTooltip")}
+										content="We didn't receive confirmation that this recording finished uploading. Mark it as completed to publish what's been uploaded. Next time, keep the desktop app open after you stop recording until the video loads here, so all files finish uploading."
 									>
 										<button
 											type="button"
-											aria-label={t("markCompletedAriaLabel")}
+											aria-label="Why this recording needs to be marked as completed"
 											className="inline-flex size-7 items-center justify-center rounded-md border border-white/15 bg-black/65 text-white/80 shadow-sm backdrop-blur-sm transition-colors hover:bg-black/80 hover:text-white"
 										>
 											<Info className="size-3.5" />
@@ -493,7 +491,7 @@ export const ShareVideo = forwardRef<
 
 									<div className="absolute left-0 top-8 transition-transform duration-300 ease-in-out origin-top scale-y-0 peer-hover:scale-y-100">
 										<p className="text-white text-xs font-medium whitespace-nowrap bg-black bg-opacity-50 px-2 py-0.5 rounded">
-											{t("removeWatermark")}
+											Remove watermark
 										</p>
 									</div>
 								</div>
@@ -567,18 +565,9 @@ export const ShareVideo = forwardRef<
 							/>
 						}
 						transcript={
-							<>
-								{transcript?.partial && (transcript.progress?.total ?? 0) > 0 && (
-									<div className="mb-2 inline-flex items-center rounded-full border border-amber-6 bg-amber-3 px-3 py-1 text-xs font-medium text-amber-11">
-										{t("transcribingProgress", {
-											completed: transcript.progress?.completed ?? 0,
-											total: transcript.progress?.total ?? 0,
-										})}
-									</div>
-								)}
-								{transcript?.content ? (
+							transcriptContent ? (
 								<TranscriptPanel
-									transcriptContent={transcript.content}
+									transcriptContent={transcriptContent}
 									currentTime={currentTime}
 									onVideoJump={handleSeek}
 									duration={data.duration}
@@ -590,10 +579,11 @@ export const ShareVideo = forwardRef<
 							) : hasCleanTranscript ? (
 								<div className="rounded-xl border border-blue-6 bg-blue-3 px-4 py-5">
 									<p className="text-sm font-semibold text-gray-12">
-										{t("rawTranscriptUnavailable")}
+										Raw transcript is not available for this recording.
 									</p>
 									<p className="mt-1 text-sm leading-relaxed text-gray-11">
-										{t("cleanTranscriptReady")}
+										A cleaned transcript is ready. Open the Clean Transcript tab
+										to read the full AI-polished version.
 									</p>
 								</div>
 							) : (
@@ -607,8 +597,7 @@ export const ShareVideo = forwardRef<
 										title: c.title,
 									}))}
 								/>
-							)}
-							</>
+							)
 						}
 						refined={
 							<RefinedTranscriptPanel

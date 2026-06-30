@@ -3,7 +3,6 @@
 import { Switch } from "@cap/ui";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeftIcon } from "lucide-react";
-import { useTranslations } from "next-intl";
 
 interface SettingsPanelProps {
 	open: boolean;
@@ -18,7 +17,6 @@ export const SettingsPanel = ({
 	onClose,
 	onRememberDevicesChange,
 }: SettingsPanelProps) => {
-	const t = useTranslations("recorder");
 	return (
 		<AnimatePresence mode="wait">
 			{open && (
@@ -37,10 +35,10 @@ export const SettingsPanel = ({
 							className="flex items-center gap-1 text-sm font-medium text-gray-11 transition-colors hover:text-gray-12"
 						>
 							<ArrowLeftIcon className="size-4" />
-							{t("back")}
+							Back
 						</button>
 						<h2 className="text-sm font-semibold text-gray-12">
-							{t("recorderSettings")}
+							Recorder settings
 						</h2>
 						<span className="w-9 h-9" aria-hidden />
 					</div>
@@ -48,16 +46,17 @@ export const SettingsPanel = ({
 						<div className="flex gap-4 justify-between items-start p-4 text-left rounded-xl border border-gray-3 bg-gray-1 dark:bg-gray-3">
 							<div className="flex flex-col gap-1 text-left">
 								<p className="text-sm font-medium text-gray-12">
-									{t("rememberDevicesLabel")}
+									Automatically select your last webcam/microphone
 								</p>
 								<p className="text-xs text-gray-11">
-									{t("rememberDevicesDesc")}
+									If available, the last used camera and mic will be
+									automatically selected.
 								</p>
 							</div>
 							<Switch
 								checked={rememberDevices}
 								onCheckedChange={onRememberDevicesChange}
-								aria-label={t("rememberDevicesToggle")}
+								aria-label="Remember selected devices"
 							/>
 						</div>
 					</div>

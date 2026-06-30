@@ -1,5 +1,4 @@
 import { Button } from "@cap/ui";
-import { useTranslations } from "next-intl";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 
@@ -22,7 +21,7 @@ const CommentInput: React.FC<CommentInputProps> = ({
 	onCancel,
 	placeholder,
 	showCancelButton = false,
-	buttonLabel,
+	buttonLabel = "Reply",
 	autoFocus = false,
 	disabled,
 	defaultValue = "",
@@ -30,7 +29,6 @@ const CommentInput: React.FC<CommentInputProps> = ({
 	name = "",
 	onNameChange,
 }) => {
-	const t = useTranslations("share");
 	const [content, setContent] = useState(defaultValue);
 	const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -66,7 +64,7 @@ const CommentInput: React.FC<CommentInputProps> = ({
 							type="text"
 							value={name}
 							onChange={(e) => onNameChange?.(e.target.value)}
-							placeholder={t("yourName")}
+							placeholder="Your name"
 							maxLength={50}
 							className="w-full placeholder:text-gray-8 text-sm leading-[22px] text-gray-12 bg-transparent focus:outline-none"
 						/>
@@ -80,7 +78,7 @@ const CommentInput: React.FC<CommentInputProps> = ({
 						disabled={disabled}
 						onChange={(e) => setContent(e.target.value)}
 						onKeyDown={handleKeyDown}
-						placeholder={placeholder || t("leaveACommentDefault")}
+						placeholder={placeholder || "Leave a comment..."}
 						className="w-full placeholder:text-gray-8 text-sm leading-[22px] text-gray-12 bg-transparent focus:outline-none"
 					/>
 					<div className="flex items-center mt-2 space-x-2">
@@ -90,11 +88,11 @@ const CommentInput: React.FC<CommentInputProps> = ({
 							onClick={() => handleSubmit()}
 							disabled={!content || isNameRequired}
 						>
-							{buttonLabel ?? t("replyTooltip")}
+							{buttonLabel}
 						</Button>
 						{showCancelButton && onCancel && (
 							<Button size="xs" variant="outline" onClick={onCancel}>
-								{t("cancel")}
+								Cancel
 							</Button>
 						)}
 					</div>

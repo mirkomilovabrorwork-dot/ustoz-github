@@ -3,7 +3,6 @@
 import clsx from "clsx";
 import { Volume2Icon, VolumeOffIcon } from "lucide-react";
 import type { RecordingMode } from "./RecordingModeSelector";
-import { useTranslations } from "next-intl";
 
 interface SystemAudioToggleProps {
 	enabled: boolean;
@@ -12,17 +11,17 @@ interface SystemAudioToggleProps {
 	onToggle: (enabled: boolean) => void;
 }
 
+const SYSTEM_AUDIO_HINTS: Partial<Record<RecordingMode, string>> = {
+	fullscreen: 'Make sure to check "Share system audio" in the browser picker.',
+	window: "System audio may not be available when sharing a window.",
+};
+
 export const SystemAudioToggle = ({
 	enabled,
 	disabled = false,
 	recordingMode,
 	onToggle,
 }: SystemAudioToggleProps) => {
-	const t = useTranslations("recorder");
-	const SYSTEM_AUDIO_HINTS: Partial<Record<RecordingMode, string>> = {
-		fullscreen: t("systemAudioHintFullscreen"),
-		window: t("systemAudioHintWindow"),
-	};
 	const Icon = enabled ? Volume2Icon : VolumeOffIcon;
 	const hint = enabled ? SYSTEM_AUDIO_HINTS[recordingMode] : undefined;
 
@@ -38,7 +37,7 @@ export const SystemAudioToggle = ({
 				)}
 			>
 				<Icon className="size-4 text-gray-11 shrink-0" />
-				<span className="flex-1 text-left truncate">{t("systemAudio")}</span>
+				<span className="flex-1 text-left truncate">System Audio</span>
 				<span
 					className={clsx(
 						"px-[0.375rem] h-[1.25rem] min-w-[2.5rem] rounded-full text-[0.75rem] leading-[1.25rem] flex items-center justify-center font-normal transition-colors duration-200",
@@ -47,7 +46,7 @@ export const SystemAudioToggle = ({
 							: "bg-[var(--red-3)] text-[var(--red-11)] dark:bg-[var(--red-4)] dark:text-[var(--red-12)]",
 					)}
 				>
-					{enabled ? t("statusOn") : t("statusOff")}
+					{enabled ? "On" : "Off"}
 				</span>
 			</button>
 			{hint && (

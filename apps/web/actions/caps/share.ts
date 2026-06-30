@@ -12,7 +12,7 @@ import {
 	videos,
 } from "@cap/database/schema";
 import type { Organisation, Space, Video } from "@cap/web-domain";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 interface ShareCapParams {
@@ -32,10 +32,7 @@ export async function shareCap({
 			return { success: false, error: "Unauthorized" };
 		}
 
-		const [cap] = await db()
-			.select()
-			.from(videos)
-			.where(and(eq(videos.id, capId), isNull(videos.deletedAt)));
+		const [cap] = await db().select().from(videos).where(eq(videos.id, capId));
 		if (!cap || cap.ownerId !== user.id) {
 			return { success: false, error: "Unauthorized" };
 		}

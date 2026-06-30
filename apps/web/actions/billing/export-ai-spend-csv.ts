@@ -4,7 +4,7 @@ import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { aiUsageEvents, users, videos } from "@cap/database/schema";
 import type { Organisation } from "@cap/web-domain";
-import { and, desc, eq, gte, isNull, lte } from "drizzle-orm";
+import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { requireOrganizationSettingsAccess } from "@/actions/organization/authorization";
 
 export async function exportAiSpendCsv(params: {
@@ -49,7 +49,7 @@ export async function exportAiSpendCsv(params: {
 		})
 		.from(aiUsageEvents)
 		.innerJoin(users, eq(users.id, aiUsageEvents.userId))
-		.leftJoin(videos, and(eq(videos.id, aiUsageEvents.videoId), isNull(videos.deletedAt)))
+		.leftJoin(videos, eq(videos.id, aiUsageEvents.videoId))
 		.where(and(...conditions))
 		.orderBy(desc(aiUsageEvents.createdAt))
 		.limit(100_000);

@@ -129,47 +129,6 @@ describe("transcribeAudioChunks", () => {
       transcribeAudioChunks(audio, null, CTX, stub),
     ).rejects.toThrow(/All 3 .*chunks failed/);
   });
-
-  // G) onProgress is called once per chunk with monotonically increasing completed counts
-  it("G) onProgress called once per chunk; completed increases 1,2,3 and total===3; result unchanged", async () => {
-    const audio = makeAudio([0, 900, 1800]);
-    const stub = vi.fn(async ({ chunk }: { chunk: { startSec: number } }) =>
-      chunkVtt(`chunk-at-${chunk.startSec}`, 1),
-    );
-
-    const progressCalls: { completed: number; total: number }[] = [];
-    const onProgress = vi.fn(async (p: { transcribedChunks: Array<{ vtt: string; offsetSec: number }>; completed: number; total: number }) => {
-      progressCalls.push({ completed: p.completed, total: p.total });
-    });
-
-    const result = await transcribeAudioChunks(audio, null, CTX, stub, onProgress);
-
-    expect(onProgress).toHaveBeenCalledTimes(3);
-    expect(progressCalls.map((p) => p.completed)).toEqual([1, 2, 3]);
-    expect(progressCalls.every((p) => p.total === 3)).toBe(true);
-    expect(result).toContain("chunk-at-0");
-    expect(result).toContain("chunk-at-900");
-    expect(result).toContain("chunk-at-1800");
-  });
-
-  // H) onProgress that throws does NOT abort transcription
-  it("H) onProgress that throws does not abort; full transcript still returned", async () => {
-    const audio = makeAudio([0, 900, 1800]);
-    const stub = vi.fn(async ({ chunk }: { chunk: { startSec: number } }) =>
-      chunkVtt(`chunk-at-${chunk.startSec}`, 1),
-    );
-
-    const onProgress = vi.fn(async () => {
-      throw new Error("partial-save exploded");
-    });
-
-    // Must NOT throw even though onProgress always throws
-    const result = await transcribeAudioChunks(audio, null, CTX, stub, onProgress);
-
-    expect(result).toContain("chunk-at-0");
-    expect(result).toContain("chunk-at-900");
-    expect(result).toContain("chunk-at-1800");
-  });
 });
 
 describe("transcribeAudioChunkWithRetry", () => {

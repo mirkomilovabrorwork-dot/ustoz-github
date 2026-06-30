@@ -14,7 +14,6 @@ import {
 	MonitorIcon,
 	RectangleHorizontal,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
 
 export type RecordingMode = "fullscreen" | "window" | "tab" | "camera";
 
@@ -29,7 +28,6 @@ export const RecordingModeSelector = ({
 	disabled = false,
 	onModeChange,
 }: RecordingModeSelectorProps) => {
-	const t = useTranslations("recorder");
 	const recordingModeOptions: Record<
 		RecordingMode,
 		{
@@ -39,23 +37,23 @@ export const RecordingModeSelector = ({
 		}
 	> = {
 		fullscreen: {
-			label: t("modeFullscreen"),
-			displayLabel: t("modeFullscreenShort"),
+			label: "Full Screen (Recommended)",
+			displayLabel: "Full Screen",
 			icon: MonitorIcon,
 		},
 		window: {
-			label: t("modeWindow"),
-			displayLabel: t("modeWindow"),
+			label: "Window",
+			displayLabel: "Window",
 			icon: RectangleHorizontal,
 		},
 		tab: {
-			label: t("modeTab"),
-			displayLabel: t("modeTab"),
+			label: "Current tab",
+			displayLabel: "Current tab",
 			icon: Globe,
 		},
 		camera: {
-			label: t("modeCamera"),
-			displayLabel: t("modeCamera"),
+			label: "Camera only",
+			displayLabel: "Camera only",
 			icon: CameraIcon,
 		},
 	};
@@ -74,7 +72,7 @@ export const RecordingModeSelector = ({
 			>
 				<SelectTrigger className="relative flex flex-row items-center h-[2.75rem] px-[0.375rem] border border-gray-3 rounded-xl w-full max-w-[280px] disabled:text-gray-11 transition-colors overflow-hidden z-10 font-normal text-[0.875rem] bg-transparent hover:bg-transparent focus:bg-transparent focus:border-gray-3 hover:border-gray-3 text-[--text-primary] [&>svg]:hidden">
 					<SelectValue
-						placeholder={t("selectModeLabel")}
+						placeholder="Select recording mode"
 						className="flex w-full items-center gap-[0.375rem] text-left truncate"
 					>
 						{selectedOption && SelectedIcon && (
@@ -99,7 +97,8 @@ export const RecordingModeSelector = ({
 									</span>
 									{isFullscreen && (
 										<span className="text-xs italic text-gray-11 pl-6">
-											{t("fullscreenPipHint")}
+											Recommended to capture camera window when picture in
+											picture is activated
 										</span>
 									)}
 								</span>

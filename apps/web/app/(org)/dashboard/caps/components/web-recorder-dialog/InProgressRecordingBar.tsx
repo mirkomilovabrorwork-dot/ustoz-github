@@ -29,7 +29,14 @@ import type {
 	RecorderPhase,
 	RecordingFailureDownload,
 } from "./web-recorder-types";
-import { useTranslations } from "next-intl";
+
+const phaseMessages: Partial<Record<RecorderPhase, string>> = {
+	recording: "Recording",
+	paused: "Paused",
+	creating: "Finishing up",
+	converting: "Converting",
+	uploading: "Uploading",
+};
 
 const clamp = (value: number, min: number, max: number) => {
 	if (Number.isNaN(value)) return min;
@@ -87,7 +94,6 @@ export const InProgressRecordingBar = ({
 	errorDownload,
 }: InProgressRecordingBarProps) => {
 	const [mounted, setMounted] = useState(false);
-	const t = useTranslations("recorder");
 	const [position, setPosition] = useState({ x: 0, y: 24 });
 	const [isDragging, setIsDragging] = useState(false);
 	const dragOffsetRef = useRef({ x: 0, y: 0 });
@@ -237,16 +243,9 @@ export const InProgressRecordingBar = ({
 	const isErrorState = phase === "error";
 	const canStop = (phase === "recording" || isPaused) && !isErrorState;
 	const showTimer = (phase === "recording" || isPaused) && !isErrorState;
-	const phaseMessages: Partial<Record<RecorderPhase, string>> = {
-		recording: t("phaseRecording"),
-		paused: t("phasePaused"),
-		creating: t("phaseFinishing"),
-		converting: t("phaseConverting"),
-		uploading: t("phaseUploading"),
-	};
 	const statusText = showTimer
 		? formatDuration(durationMs)
-		: (phaseMessages[phase] ?? t("phaseProcessing"));
+		: (phaseMessages[phase] ?? "Processing");
 
 	const handleStop = () => {
 		try {
@@ -328,7 +327,7 @@ export const InProgressRecordingBar = ({
 					>
 						<div className="flex flex-col text-left">
 							<span className="text-[0.95rem] font-semibold text-red-11">
-								{t("recordingFailed")}
+								Recording failed.
 							</span>
 							{errorDownload ? (
 								<a
@@ -336,11 +335,11 @@ export const InProgressRecordingBar = ({
 									download={errorDownload.fileName}
 									className="text-[0.85rem] font-medium text-blue-11 underline underline-offset-2 hover:text-blue-12 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-9"
 								>
-									{t("downloadHere")}
+									Download here.
 								</a>
 							) : (
 								<span className="text-[0.8rem] text-gray-11">
-									{t("downloadUnavailable")}
+									Download unavailable.
 								</span>
 							)}
 						</div>
@@ -349,7 +348,7 @@ export const InProgressRecordingBar = ({
 								data-no-drag
 								onClick={handleRestart}
 								disabled={!(canRestart || phase === "error")}
-								aria-label={t("restartRecording")}
+								aria-label="Restart recording"
 								aria-busy={isRestarting}
 							>
 								<RotateCcw
@@ -379,7 +378,7 @@ export const InProgressRecordingBar = ({
 								data-no-drag
 								onClick={toggleMicMute}
 								disabled={!canToggleMic || !toggleMicMute}
-								aria-label={isMicMuted ? t("unmuteMic") : t("muteMic")}
+								aria-label={isMicMuted ? "Unmute microphone" : "Mute microphone"}
 								aria-pressed={isMicMuted}
 							>
 								{isMicMuted || !hasAudioTrack ? (
@@ -393,7 +392,7 @@ export const InProgressRecordingBar = ({
 								data-no-drag
 								onClick={handlePauseToggle}
 								disabled={!canTogglePause}
-								aria-label={isPaused ? t("resumeRecording") : t("pauseRecording")}
+								aria-label={isPaused ? "Resume recording" : "Pause recording"}
 							>
 								{isPaused ? (
 									<PlayCircle className="size-5" />
@@ -405,7 +404,7 @@ export const InProgressRecordingBar = ({
 								data-no-drag
 								onClick={handleRestart}
 								disabled={!canRestart}
-								aria-label={t("restartRecording")}
+								aria-label="Restart recording"
 								aria-busy={isRestarting}
 							>
 								<RotateCcw
@@ -447,7 +446,6 @@ const InlineChunkProgress = ({
 }: {
 	chunkUploads: ChunkUploadState[];
 }) => {
-	const t = useTranslations("recorder");
 	const hasChunks = chunkUploads.length > 0;
 	const completedCount = chunkUploads.filter(
 		(chunk) => chunk.status === "complete",
@@ -519,21 +517,21 @@ const InlineChunkProgress = ({
 	useEffect(() => () => clearHoverTimeout(), [clearHoverTimeout]);
 
 	const statusSummary = [
-		{ label: t("chunkStatusUploading"), count: uploadingCount, color: "text-blue-11" },
-		{ label: t("chunkStatusPending"), count: queuedCount, color: "text-amber-11" },
-		{ label: t("chunkStatusCompleted"), count: completedCount, color: "text-green-11" },
+		{ label: "Uploading", count: uploadingCount, color: "text-blue-11" },
+		{ label: "Pending", count: queuedCount, color: "text-amber-11" },
+		{ label: "Completed", count: completedCount, color: "text-green-11" },
 		{
-			label: t("chunkStatusFailed"),
+			label: "Failed",
 			count: chunkUploads.filter((chunk) => chunk.status === "error").length,
 			color: "text-red-11",
 		},
 	].filter((item) => item.count > 0);
 
 	const statusLabels: Record<ChunkUploadState["status"], string> = {
-		uploading: t("chunkStatusUploading"),
-		queued: t("chunkStatusPending"),
-		complete: t("chunkStatusCompleted"),
-		error: t("chunkStatusFailed"),
+		uploading: "Uploading",
+		queued: "Pending",
+		complete: "Completed",
+		error: "Failed",
 	};
 
 	const statusAccent: Record<ChunkUploadState["status"], string> = {
@@ -567,16 +565,16 @@ const InlineChunkProgress = ({
 					data-no-drag
 					onClick={togglePopoverOnClick}
 					className="inline-flex items-center gap-2 rounded-lg px-1.5 py-1 text-[12px] text-gray-12 transition-colors hover:bg-gray-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-9"
-					aria-label={t("showUploadSegments")}
+					aria-label="Show upload segments"
 					aria-expanded={isPopoverOpen}
 				>
 					<div
 						className="relative h-5 w-5"
 						role="img"
-						aria-label={t("uploadProgress")}
+						aria-label="Upload progress"
 					>
 						<svg className="h-5 w-5 -rotate-90" viewBox="0 0 36 36">
-							<title>{t("uploadProgress")}</title>
+							<title>Upload progress</title>
 							<circle
 								className="fill-none stroke-gray-4"
 								strokeWidth={4}
@@ -617,12 +615,12 @@ const InlineChunkProgress = ({
 			>
 				<div className="space-y-3">
 					<div className="text-[11px] text-gray-11">
-						{t("uploadedOf", { uploaded: formatBytes(uploadedBytes), total: formatBytes(totalBytes) })}
+						Uploaded {formatBytes(uploadedBytes)} of {formatBytes(totalBytes)}
 					</div>
 					<div className="flex flex-wrap gap-2">
 						{statusSummary.length === 0 ? (
 							<span className="text-[11px] text-gray-11">
-								{t("preparingChunks")}
+								Preparing chunks…
 							</span>
 						) : (
 							statusSummary.map((item) => (
@@ -645,7 +643,9 @@ const InlineChunkProgress = ({
 								className="flex flex-col rounded-lg border border-gray-4 bg-gray-2 px-2 py-1"
 							>
 								<div className="flex items-center justify-between text-[11px]">
-									<span className="font-medium text-gray-12">{t("partNumber", { n: chunk.partNumber })}</span>
+									<span className="font-medium text-gray-12">
+										Part {chunk.partNumber}
+									</span>
 									<span
 										className={clsx(
 											"text-[11px] font-semibold",
@@ -657,12 +657,12 @@ const InlineChunkProgress = ({
 								</div>
 								<div className="text-[10px] text-gray-11">
 									{chunk.status === "uploading"
-										? t("chunkProgressUploading", { pct: Math.round(chunk.progress * 100), size: formatBytes(chunk.sizeBytes) })
+										? `${Math.round(chunk.progress * 100)}% of ${formatBytes(chunk.sizeBytes)}`
 										: chunk.status === "complete"
-											? t("chunkProgressComplete", { size: formatBytes(chunk.sizeBytes) })
+											? `Uploaded ${formatBytes(chunk.sizeBytes)}`
 											: chunk.status === "queued"
-												? t("chunkProgressQueued", { size: formatBytes(chunk.sizeBytes) })
-												: t("chunkProgressError", { size: formatBytes(chunk.sizeBytes) })}
+												? `Waiting • ${formatBytes(chunk.sizeBytes)}`
+												: `Needs attention • ${formatBytes(chunk.sizeBytes)}`}
 								</div>
 							</div>
 						))}

@@ -2,7 +2,7 @@ import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { videos } from "@cap/database/schema";
 import { userIsPro } from "@cap/utils";
-import { and, count, eq, isNull } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ export async function GET() {
 	const numberOfVideos = await db()
 		.select({ count: count() })
 		.from(videos)
-		.where(and(eq(videos.ownerId, user.id), isNull(videos.deletedAt)));
+		.where(eq(videos.ownerId, user.id));
 
 	if (!numberOfVideos[0]) {
 		return Response.json(

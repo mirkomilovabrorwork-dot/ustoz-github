@@ -11,7 +11,7 @@ import {
 	videos,
 } from "@cap/database/schema";
 import type { Folder, Space, Video } from "@cap/web-domain";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 export async function addVideosToFolder(
@@ -59,7 +59,7 @@ export async function addVideosToFolder(
 		const userVideos = await db()
 			.select({ id: videos.id })
 			.from(videos)
-			.where(and(eq(videos.ownerId, user.id), inArray(videos.id, videoIds), isNull(videos.deletedAt)));
+			.where(and(eq(videos.ownerId, user.id), inArray(videos.id, videoIds)));
 
 		const validVideoIds = userVideos.map((v) => v.id);
 

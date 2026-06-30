@@ -270,7 +270,6 @@ export default async function SharedCapsPage(props: {
 							eq(spaceVideos.spaceId, spaceId),
 							isNull(spaceVideos.folderId),
 							isNull(organizations.tombstoneAt),
-							isNull(videos.deletedAt),
 						),
 					)
 					.groupBy(
@@ -395,7 +394,6 @@ export default async function SharedCapsPage(props: {
 						and(
 							eq(sharedVideos.organizationId, orgId),
 							isNull(sharedVideos.folderId),
-							isNull(videos.deletedAt),
 						),
 					)
 					.groupBy(
@@ -421,7 +419,6 @@ export default async function SharedCapsPage(props: {
 						and(
 							eq(sharedVideos.organizationId, orgId),
 							isNull(videos.folderId),
-							isNull(videos.deletedAt),
 						),
 					),
 			]);

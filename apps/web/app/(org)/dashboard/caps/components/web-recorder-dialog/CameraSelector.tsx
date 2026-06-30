@@ -11,7 +11,6 @@ import clsx from "clsx";
 import { CameraIcon, CameraOffIcon } from "lucide-react";
 import type { KeyboardEvent, MouseEvent } from "react";
 import { toast } from "sonner";
-import { useTranslations } from "next-intl";
 import { useMediaPermission } from "./useMediaPermission";
 import { NO_CAMERA, NO_CAMERA_VALUE } from "./web-recorder-constants";
 
@@ -36,7 +35,6 @@ export const CameraSelector = ({
 	onCameraChange,
 	onRefreshDevices,
 }: CameraSelectorProps) => {
-	const t = useTranslations("recorder");
 	const cameraEnabled = selectedCameraId !== null;
 	const { state: permissionState, requestPermission } = useMediaPermission(
 		"camera",
@@ -73,7 +71,7 @@ export const CameraSelector = ({
 				}
 			} catch (error) {
 				console.error("Camera permission request failed", error);
-				toast.error(t("cameraError"))
+				toast.error("Unable to access your camera. Check browser permissions.");
 			}
 
 			return;
@@ -148,10 +146,10 @@ export const CameraSelector = ({
 						onKeyDown={handleStatusPillKeyDown}
 					>
 						{shouldRequestPermission
-							? t("requestPermission")
+							? "Request permission"
 							: cameraEnabled
-								? t("statusOn")
-								: t("statusOff")}
+								? "On"
+								: "Off"}
 					</button>
 				</div>
 				<SelectContent className="z-[502]">
@@ -165,7 +163,7 @@ export const CameraSelector = ({
 						<SelectItem key={camera.deviceId} value={camera.deviceId}>
 							<span className="flex items-center gap-2 truncate">
 								<CameraIcon className="size-4 text-gray-11" />
-								{camera.label?.trim() || t("cameraFallback", { n: index + 1 })}
+								{camera.label?.trim() || `Camera ${index + 1}`}
 							</span>
 						</SelectItem>
 					))}

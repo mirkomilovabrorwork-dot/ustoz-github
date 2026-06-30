@@ -35,6 +35,10 @@ const ApiLive = HttpApiBuilder.api(Api).pipe(
 								Effect.logError(e).pipe(
 									Effect.andThen(() => new HttpApiError.InternalServerError()),
 								),
+							StorageError: (e) =>
+								Effect.logError(e).pipe(
+									Effect.andThen(() => new HttpApiError.InternalServerError()),
+								),
 						}),
 					),
 				);

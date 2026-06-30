@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
 import { formatTimeMinutes, clampStartSec } from "../utils/transcript-utils";
 
 interface SummaryPanelProps {
@@ -19,7 +18,6 @@ interface SummaryPanelProps {
 }
 
 export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
-	const t = useTranslations("share");
 	const { aiSummary } = data;
 	const topics = aiSummary?.topics ?? [];
 	const nextSteps = aiSummary?.nextSteps ?? [];
@@ -31,7 +29,7 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 	if (!aiSummary) {
 		return (
 			<div className="rounded-xl border border-gray-4 bg-gray-2 px-4 py-6 text-center">
-				<p className="text-sm text-gray-10">{t("noAiSummary")}</p>
+				<p className="text-sm text-gray-10">No AI summary available.</p>
 			</div>
 		);
 	}
@@ -59,7 +57,7 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 						className="mb-2"
 						style={{ fontSize: "14px", fontWeight: 700, color: "var(--gray-12)", letterSpacing: "-.01em" }}
 					>
-						{t("chaptersHeading")}
+						Chapters
 					</h3>
 					<div>
 						{chapters.map((chapter, idx) => {
@@ -84,7 +82,7 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 						className="mb-2"
 						style={{ fontSize: "14px", fontWeight: 700, color: "var(--gray-12)", letterSpacing: "-.01em" }}
 					>
-						{t("topicsHeading")}
+						Topics
 					</h3>
 					<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
 						{topics.map((topic) => (
@@ -101,7 +99,7 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 						className="mb-2"
 						style={{ fontSize: "14px", fontWeight: 700, color: "var(--gray-12)", letterSpacing: "-.01em" }}
 					>
-						{t("nextStepsHeading")}
+						Next Steps
 					</h3>
 					<ol
 						style={{
@@ -143,7 +141,7 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 
 			{/* Empty state when all sections are empty */}
 			{topics.length === 0 && nextSteps.length === 0 && chapters.length === 0 && !aiSummary.overview && (
-				<p className="text-sm text-gray-10">{t("noContentYet")}</p>
+				<p className="text-sm text-gray-10">No content available yet.</p>
 			)}
 		</div>
 	);

@@ -21,55 +21,28 @@ export class VideosRepo extends Effect.Service<VideosRepo>()("VideosRepo", {
 		 *
 		 * The password is returned separately as the `Video` class is client-safe
 		 */
-		const decodeVideoRow = (
-			video: typeof Db.videos.$inferSelect | undefined,
-		) =>
-			Option.fromNullable(video).pipe(
-				Option.map(
-					(v) =>
-						[
-							Video.Video.decodeSync({
-								...v,
-								bucketId: v.bucket,
-								storageIntegrationId: v.storageIntegrationId,
-								createdAt: v.createdAt.toISOString(),
-								updatedAt: v.updatedAt.toISOString(),
-								metadata: v.metadata as any,
-							}),
-							Option.fromNullable(v.password),
-						] as const,
-				),
-			);
-
 		const getById = (id: Video.VideoId) =>
-			Effect.gen(function* () {
-				const [video] = yield* db.use((db) =>
-					db
-						.select()
-						.from(Db.videos)
-						.where(
-							Dz.and(
-								Dz.eq(Db.videos.id, id),
-								Dz.isNull(Db.videos.deletedAt),
-							),
-						),
-				);
-
-				return decodeVideoRow(video);
-			});
-
-		/**
-		 * Like `getById` but INCLUDES soft-deleted (trashed) rows. Only for
-		 * trash/purge flows (restore, permanent delete) that must operate on a
-		 * row `getById` intentionally hides.
-		 */
-		const getByIdIncludingDeleted = (id: Video.VideoId) =>
 			Effect.gen(function* () {
 				const [video] = yield* db.use((db) =>
 					db.select().from(Db.videos).where(Dz.eq(Db.videos.id, id)),
 				);
 
-				return decodeVideoRow(video);
+				return Option.fromNullable(video).pipe(
+					Option.map(
+						(v) =>
+							[
+								Video.Video.decodeSync({
+									...v,
+									bucketId: v.bucket,
+									storageIntegrationId: v.storageIntegrationId,
+									createdAt: v.createdAt.toISOString(),
+									updatedAt: v.updatedAt.toISOString(),
+									metadata: v.metadata as any,
+								}),
+								Option.fromNullable(video?.password),
+							] as const,
+					),
+				);
 			});
 
 		const delete_ = (id: Video.VideoId) =>
@@ -84,42 +57,6 @@ export class VideosRepo extends Effect.Service<VideosRepo>()("VideosRepo", {
 					]);
 				});
 			});
-
-		/** Soft delete: mark the row trashed; media + uploads are kept until purge. */
-		const softDelete = (id: Video.VideoId) =>
-			db.use(async (db) => {
-				await db
-					.update(Db.videos)
-					.set({ deletedAt: new Date() })
-					.where(Dz.eq(Db.videos.id, id));
-			});
-
-		/** Restore: clear deletedAt so the row is visible again. */
-		const restore = (id: Video.VideoId) =>
-			db.use(async (db) => {
-				await db
-					.update(Db.videos)
-					.set({ deletedAt: null })
-					.where(Dz.eq(Db.videos.id, id));
-			});
-
-		/**
-		 * Returns trashed rows whose deletedAt is strictly before `cutoff`.
-		 * Used by the purge cron to hard-delete rows older than N days.
-		 */
-		const findExpiredTrashed = (cutoff: Date, limit: number) =>
-			db.use((db) =>
-				db
-					.select()
-					.from(Db.videos)
-					.where(
-						Dz.and(
-							Dz.isNotNull(Db.videos.deletedAt),
-							Dz.lt(Db.videos.deletedAt, cutoff),
-						),
-					)
-					.limit(limit),
-			);
 
 		const create = (data: CreateVideoInput) =>
 			Effect.gen(function* () {
@@ -199,15 +136,7 @@ export class VideosRepo extends Effect.Service<VideosRepo>()("VideosRepo", {
 				return id;
 			});
 
-		return {
-			getById,
-			getByIdIncludingDeleted,
-			softDelete,
-			restore,
-			findExpiredTrashed,
-			delete: delete_,
-			create,
-		};
+		return { getById, delete: delete_, create };
 	}),
 	dependencies: [Database.Default],
 }) {}

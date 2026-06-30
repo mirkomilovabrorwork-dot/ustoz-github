@@ -9,7 +9,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useEffect, useId, useState } from "react";
 import { toast } from "sonner";
-import { useTranslations } from "next-intl";
 
 const MotionLogoBadge = motion(LogoBadge);
 const MotionLink = motion(Link);
@@ -21,7 +20,6 @@ function isSafeRelativePath(path: string) {
 }
 
 export function LoginForm() {
-	const t = useTranslations("auth");
 	const searchParams = useSearchParams();
 	const router = useRouter();
 	const next = searchParams?.get("next");
@@ -66,9 +64,9 @@ export function LoginForm() {
 				return;
 			}
 
-			setError(t("errorInvalid"));
+			setError("Invalid email or password.");
 		} catch {
-			setError(t("errorGeneric"));
+			setError("Something went wrong. Please try again.");
 		} finally {
 			setLoading(false);
 		}
@@ -85,7 +83,7 @@ export function LoginForm() {
 				>
 					<LogoBadge className="size-12" />
 					<LoadingSpinner size={24} themeColors />
-					<p className="text-sm text-gray-10">{t("signingIn")}</p>
+					<p className="text-sm text-gray-10">Signing you in…</p>
 				</motion.div>
 			)}
 			<motion.div
@@ -108,14 +106,14 @@ export function LoginForm() {
 						layout="position"
 						className="text-[1.6rem] font-semibold leading-tight text-gray-12 sm:text-2xl"
 					>
-						{t("signinTitle")}
+						Sign in to data365
 					</motion.h1>
 					<motion.p
 						key="subtitle"
 						layout="position"
 						className="mt-1 text-sm text-gray-10 sm:text-[16px]"
 					>
-						{t("signinSubtitle")}
+						Record lessons and share them instantly.
 					</motion.p>
 				</motion.div>
 				<motion.div layout="position" className="flex flex-col space-y-3">
@@ -140,7 +138,7 @@ export function LoginForm() {
 								id={passwordInputId}
 								name="password"
 								type={showPassword ? "text" : "password"}
-								placeholder={t("passwordPlaceholder")}
+								placeholder="Password"
 								autoComplete="current-password"
 								required
 								value={password}
@@ -151,7 +149,7 @@ export function LoginForm() {
 							<button
 								type="button"
 								onClick={() => setShowPassword((v) => !v)}
-								aria-label={showPassword ? t("hidePassword") : t("showPassword")}
+								aria-label={showPassword ? "Hide password" : "Show password"}
 								tabIndex={-1}
 								className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-10 hover:text-gray-12 transition-colors"
 							>
@@ -178,26 +176,43 @@ export function LoginForm() {
 							disabled={loading}
 							spinner={loading}
 						>
-							{loading ? t("signinLoading") : t("signin")}
+							{loading ? "Signing in..." : "Sign in"}
 						</MotionButton>
 					</form>
 					<motion.p
 						layout="position"
 						className="mt-3 mb-2 text-xs text-center text-gray-11"
 					>
-						{t("noAccount")}{" "}
+						Don't have an account?{" "}
 						<Link
 							href="/signup"
 							className="text-xs font-semibold text-blue-9 hover:text-blue-8"
 						>
-							{t("signupHere")}
+							Sign up here
 						</Link>
 					</motion.p>
 					<motion.p
 						layout="position"
 						className="pt-3 text-xs text-center text-gray-11"
 					>
-						{t.rich("termsNoticeSignin", { terms: (c) => (<Link href="/terms" target="_blank" className="text-xs font-semibold text-gray-12 hover:text-blue-300">{c}</Link>), privacy: (c) => (<Link href="/privacy" target="_blank" className="text-xs font-semibold text-gray-12 hover:text-blue-300">{c}</Link>) })}
+						By signing in, you acknowledge that you have both read and agree to
+						data365's{" "}
+						<Link
+							href="/terms"
+							target="_blank"
+							className="text-xs font-semibold text-gray-12 hover:text-blue-300"
+						>
+							Terms of Service
+						</Link>{" "}
+						and{" "}
+						<Link
+							href="/privacy"
+							target="_blank"
+							className="text-xs font-semibold text-gray-12 hover:text-blue-300"
+						>
+							Privacy Policy
+						</Link>
+						.
 					</motion.p>
 				</motion.div>
 			</motion.div>

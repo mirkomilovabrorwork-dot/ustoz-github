@@ -1,7 +1,6 @@
 "use client";
 
 import { Card, CardDescription, CardTitle } from "@cap/ui";
-import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -19,7 +18,6 @@ interface LanguageSwitcherProps {
 }
 
 export const LanguageSwitcher = ({ currentLocale }: LanguageSwitcherProps) => {
-	const t = useTranslations("settings");
 	const router = useRouter();
 	const [pending, setPending] = useState<Locale | null>(null);
 
@@ -30,7 +28,7 @@ export const LanguageSwitcher = ({ currentLocale }: LanguageSwitcherProps) => {
 			await setLanguage(locale);
 			router.refresh();
 		} catch {
-			toast.error(t("languageChangeError"));
+			toast.error("Failed to change language");
 		} finally {
 			setPending(null);
 		}
@@ -39,9 +37,9 @@ export const LanguageSwitcher = ({ currentLocale }: LanguageSwitcherProps) => {
 	return (
 		<Card className="flex flex-col gap-4">
 			<div className="space-y-1">
-				<CardTitle>{t("languageTitle")}</CardTitle>
+				<CardTitle>Language</CardTitle>
 				<CardDescription>
-					{t("languageDescription")}
+					Choose your preferred interface language.
 				</CardDescription>
 			</div>
 			<div className="flex flex-wrap gap-2">

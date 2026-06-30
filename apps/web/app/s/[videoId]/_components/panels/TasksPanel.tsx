@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
 
 interface Task {
     title: string;
@@ -98,7 +97,6 @@ export function TasksPanel({
     videoId,
     tasks: initialTasks = [],
 }: TasksPanelProps) {
-    const t = useTranslations("share");
     const [tasks, setTasks] = useState<Task[]>(initialTasks);
 
     const done = tasks.filter((t) => t.done).length;
@@ -113,7 +111,7 @@ export function TasksPanel({
 
     if (total === 0) {
         return (
-            <p className="text-sm text-gray-11">{t("noActionItems")}</p>
+            <p className="text-sm text-gray-11">No action items yet.</p>
         );
     }
 

@@ -1,6 +1,5 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
 import { normalizeWebVttVoiceText } from "@/lib/transcript-vtt";
 import { clampStartSec, formatTimeMinutes } from "../utils/transcript-utils";
@@ -271,7 +270,6 @@ export function TranscriptPanel({
 	chapters,
 	duration,
 }: TranscriptPanelProps) {
-	const t = useTranslations("share");
 	const containerRef = useRef<HTMLDivElement>(null);
 	const activeRef = useRef<HTMLDivElement>(null);
 
@@ -316,10 +314,10 @@ export function TranscriptPanel({
 					<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
 				</svg>
 				<p className="text-sm font-medium text-gray-12">
-					{t("noTranscript")}
+					No transcript available
 				</p>
 				<p className="text-xs text-gray-10">
-					{t("transcriptProcessing")}
+					Transcript will appear here once processing is complete
 				</p>
 			</div>
 		);
@@ -419,7 +417,7 @@ export function TranscriptPanel({
 					<button
 						type="button"
 						onClick={() => onVideoJump?.(cue.startSeconds)}
-						aria-label={t("jumpToTime", { time: cue.timestamp })}
+						aria-label={`Jump to ${cue.timestamp}`}
 						onMouseEnter={(e) => {
 							e.currentTarget.style.background = "var(--blue-3)";
 							e.currentTarget.style.color = "var(--blue-11)";
@@ -479,7 +477,7 @@ export function TranscriptPanel({
 
 						{section.cues.length === 0 ? (
 							<p className="text-xs text-gray-10 px-2 pb-2">
-								{t("noSpeechInChapter")}
+								No speech in this chapter
 							</p>
 						) : (
 							section.cues.map((cue, ci) => renderCue(cue, si, ci, cue.speaker))

@@ -10,7 +10,7 @@ import {
 	videoUploads,
 } from "@cap/database/schema";
 import type { Organisation } from "@cap/web-domain";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 const DEFAULT_QUOTA = 10 * 1024 * 1024 * 1024;
 
@@ -111,7 +111,7 @@ export async function getStorageUsage(): Promise<StorageUsage> {
 				})
 				.from(videoUploads)
 				.innerJoin(videos, eq(videos.id, videoUploads.videoId))
-				.where(and(eq(videos.orgId, orgId), isNull(videos.deletedAt)));
+				.where(eq(videos.orgId, orgId));
 			return Number(row?.usedBytes ?? 0);
 		},
 		0,
@@ -128,7 +128,7 @@ export async function getStorageUsage(): Promise<StorageUsage> {
 			})
 			.from(videoUploads)
 			.innerJoin(videos, eq(videos.id, videoUploads.videoId))
-			.where(and(eq(videos.orgId, orgId), isNull(videos.deletedAt)))
+			.where(eq(videos.orgId, orgId))
 			.groupBy(videos.id)
 			.orderBy(sql`bytes desc`)
 			.limit(50);
@@ -152,7 +152,7 @@ export async function getStorageUsage(): Promise<StorageUsage> {
 			.from(videoUploads)
 			.innerJoin(videos, eq(videos.id, videoUploads.videoId))
 			.innerJoin(users, eq(videos.ownerId, users.id))
-			.where(and(eq(videos.orgId, orgId), isNull(videos.deletedAt)))
+			.where(eq(videos.orgId, orgId))
 			.groupBy(users.id)
 			.orderBy(sql`bytes desc`);
 		return rows.map((u) => {
@@ -180,7 +180,7 @@ export async function getStorageUsage(): Promise<StorageUsage> {
 			.from(videoUploads)
 			.innerJoin(videos, eq(videos.id, videoUploads.videoId))
 			.innerJoin(folders, eq(folders.id, videos.folderId))
-			.where(and(eq(videos.orgId, orgId), isNull(videos.deletedAt)))
+			.where(eq(videos.orgId, orgId))
 			.groupBy(folders.id)
 			.orderBy(sql`bytes desc`);
 		return rows.map((f) => ({

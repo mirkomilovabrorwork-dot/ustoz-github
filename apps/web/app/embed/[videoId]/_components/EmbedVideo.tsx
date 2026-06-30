@@ -88,14 +88,14 @@ export const EmbedVideo = forwardRef<
 		const captionsDisabled = viewerSettings?.disableCaptions ?? false;
 		const chaptersDisabled = viewerSettings?.disableChapters ?? false;
 
-		const { data: transcript, error: transcriptError } = useTranscript(
+		const { data: transcriptContent, error: transcriptError } = useTranscript(
 			data.id,
 			captionsDisabled ? null : data.transcriptionStatus,
 		);
 
 		useEffect(() => {
-			if (transcript?.content) {
-				const parsed = parseVTT(transcript.content);
+			if (transcriptContent) {
+				const parsed = parseVTT(transcriptContent);
 				setTranscriptData(parsed);
 			} else if (transcriptError) {
 				console.error(
@@ -103,7 +103,7 @@ export const EmbedVideo = forwardRef<
 					transcriptError.message,
 				);
 			}
-		}, [transcript, transcriptError]);
+		}, [transcriptContent, transcriptError]);
 
 		useEffect(() => {
 			if (

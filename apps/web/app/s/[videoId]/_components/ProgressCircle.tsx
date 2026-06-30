@@ -3,7 +3,6 @@
 import type { Video } from "@cap/web-domain";
 import clsx from "clsx";
 import { Effect, Option } from "effect";
-import { useTranslations } from "next-intl";
 import { useEffectQuery, useRpcClient } from "@/lib/EffectRuntime";
 
 type UploadProgress =
@@ -66,20 +65,19 @@ export function canRetryFailedProcessing(
 export function getUploadFailureMessage(
 	uploadProgress: UploadProgress | null,
 	canRetryProcessing: boolean,
-	t: (key: string) => string,
 ): string {
 	if (uploadProgress?.status === "error") {
 		if (canRetryFailedProcessing(uploadProgress, canRetryProcessing)) {
-			return uploadProgress.errorMessage || t("progressProcessingFailed");
+			return uploadProgress.errorMessage || "Processing failed.";
 		}
 
 		return (
 			uploadProgress.errorMessage ||
-			t("progressProcessingFailedOwner")
+			"Processing failed. Ask the owner to retry processing or re-upload the recording."
 		);
 	}
 
-	return t("progressUploadStalled");
+	return "Upload stalled before processing finished. Re-upload the recording to continue.";
 }
 
 const SECOND = 1000;
@@ -90,37 +88,34 @@ const STALE_PROCESSING_START_MS = 90 * SECOND;
 const STALE_PROCESSING_PROGRESS_MS = 10 * MINUTE;
 const STALE_THUMBNAIL_MS = 5 * MINUTE;
 
-export function getStalledProcessingMessage(
-	input: {
-		phase:
-			| "uploading"
-			| "processing"
-			| "generating_thumbnail"
-			| "complete"
-			| "error";
-		updatedAt: Date;
-		processingProgress: number;
-	},
-	t: (key: string) => string,
-): string | null {
+export function getStalledProcessingMessage(input: {
+	phase:
+		| "uploading"
+		| "processing"
+		| "generating_thumbnail"
+		| "complete"
+		| "error";
+	updatedAt: Date;
+	processingProgress: number;
+}): string | null {
 	const ageMs = Date.now() - input.updatedAt.getTime();
 
 	if (input.phase === "processing") {
 		if (input.processingProgress === 0 && ageMs > STALE_PROCESSING_START_MS) {
-			return t("progressDidNotStart");
+			return "Video processing did not start. Retry processing.";
 		}
 
 		if (ageMs > STALE_PROCESSING_PROGRESS_MS) {
-			return t("progressStalled");
+			return "Video processing stalled. Retry processing.";
 		}
 	}
 
 	if (input.phase === "generating_thumbnail" && ageMs > STALE_THUMBNAIL_MS) {
-		return t("progressFinishingStalled");
+		return "Video finishing stalled. Retry processing.";
 	}
 
 	if (input.phase === "complete" && ageMs > STALE_THUMBNAIL_MS) {
-		return t("progressFinishingStalled");
+		return "Video finishing stalled. Retry processing.";
 	}
 
 	return null;
@@ -131,7 +126,6 @@ export function useUploadProgress(
 	enabled: boolean,
 ): UploadProgress | null {
 	const rpc = useRpcClient();
-	const t = useTranslations("share");
 
 	const query = useEffectQuery({
 		queryKey: ["getUploadProgress", videoId],
@@ -161,7 +155,7 @@ export function useUploadProgress(
 		phase,
 		updatedAt: lastUpdated,
 		processingProgress: query.data.processingProgress,
-	}, t);
+	});
 
 	if (phase === "complete") {
 		return {
@@ -240,17 +234,16 @@ const ProgressCircle = ({
 	progressTextClassName?: string;
 	subTextClassName?: string;
 }) => {
-	const t = useTranslations("share");
 	const strokeColor = status === "uploading" ? "#3b82f6" : "#22c55e";
 
 	const getStatusText = () => {
 		switch (status) {
 			case "processing":
-				return t("videoStatusProcessing");
+				return "Processing";
 			case "generating_thumbnail":
-				return t("videoStatusFinishing");
+				return "Finishing up";
 			default:
-				return t("videoStatusUploading");
+				return "Uploading";
 		}
 	};
 

@@ -69,7 +69,7 @@ export async function addVideosToOrganization(
 		const userVideos = await db()
 			.select({ id: videos.id })
 			.from(videos)
-			.where(and(eq(videos.ownerId, user.id), inArray(videos.id, videoIds), isNull(videos.deletedAt)));
+			.where(and(eq(videos.ownerId, user.id), inArray(videos.id, videoIds)));
 
 		const validVideoIds = userVideos.map((v) => v.id);
 
