@@ -5,7 +5,7 @@ import { getCurrentUser } from "@cap/database/auth/session";
 import { videoEditHistory, videos } from "@cap/database/schema";
 import type { VideoEditSpec } from "@cap/database/types";
 import type { Video } from "@cap/web-domain";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 
 export type EditHistoryEntry = {
 	id: string;
@@ -27,7 +27,7 @@ export async function getEditHistory(
 	const [video] = await db()
 		.select({ ownerId: videos.ownerId })
 		.from(videos)
-		.where(eq(videos.id, videoId))
+		.where(and(eq(videos.id, videoId), isNull(videos.deletedAt)))
 		.limit(1);
 
 	if (!video) return { ok: false, error: "Video not found" };

@@ -80,6 +80,7 @@ describe("shouldDeferPlaybackSource", () => {
 	});
 
 	it("uses upload-specific failure messaging", () => {
+		const t = (key: string) => key;
 		expect(
 			getUploadFailureMessage(
 				{
@@ -89,6 +90,7 @@ describe("shouldDeferPlaybackSource", () => {
 					hasRawFallback: false,
 				},
 				true,
+				t,
 			),
 		).toBe("Video uploaded, but processing could not start.");
 		expect(
@@ -100,10 +102,9 @@ describe("shouldDeferPlaybackSource", () => {
 					hasRawFallback: false,
 				},
 				false,
+				t,
 			),
-		).toBe(
-			"Processing failed. Ask the owner to retry processing or re-upload the recording.",
-		);
+		).toBe("progressProcessingFailedOwner");
 		expect(
 			getUploadFailureMessage(
 				{
@@ -111,10 +112,9 @@ describe("shouldDeferPlaybackSource", () => {
 					lastUpdated: new Date(),
 				} as never,
 				false,
+				t,
 			),
-		).toBe(
-			"Upload stalled before processing finished. Re-upload the recording to continue.",
-		);
+		).toBe("progressUploadStalled");
 	});
 
 	it("reloads playback when upload progress clears", () => {
@@ -166,30 +166,41 @@ describe("shouldDeferPlaybackSource", () => {
 	});
 
 	it("detects processing that never actually started", () => {
+		const t = (key: string) => key;
 		expect(
-			getStalledProcessingMessage({
-				phase: "processing",
-				updatedAt: new Date(Date.now() - 91_000),
-				processingProgress: 0,
-			}),
-		).toBe("Video processing did not start. Retry processing.");
+			getStalledProcessingMessage(
+				{
+					phase: "processing",
+					updatedAt: new Date(Date.now() - 91_000),
+					processingProgress: 0,
+				},
+				t,
+			),
+		).toBe("progressDidNotStart");
 
 		expect(
-			getStalledProcessingMessage({
-				phase: "processing",
-				updatedAt: new Date(Date.now() - 30_000),
-				processingProgress: 0,
-			}),
+			getStalledProcessingMessage(
+				{
+					phase: "processing",
+					updatedAt: new Date(Date.now() - 30_000),
+					processingProgress: 0,
+				},
+				t,
+			),
 		).toBeNull();
 	});
 
 	it("detects processing that stalled after starting", () => {
+		const t = (key: string) => key;
 		expect(
-			getStalledProcessingMessage({
-				phase: "processing",
-				updatedAt: new Date(Date.now() - 11 * 60 * 1000),
-				processingProgress: 25,
-			}),
-		).toBe("Video processing stalled. Retry processing.");
+			getStalledProcessingMessage(
+				{
+					phase: "processing",
+					updatedAt: new Date(Date.now() - 11 * 60 * 1000),
+					processingProgress: 25,
+				},
+				t,
+			),
+		).toBe("progressStalled");
 	});
 });

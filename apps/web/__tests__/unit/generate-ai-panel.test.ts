@@ -7,10 +7,10 @@ describe("getAiAnalysisNotice", () => {
 	});
 
 	it("warns for videos over thirty minutes", () => {
-		expect(getAiAnalysisNotice(31 * 60)).toContain("extra time and budget");
+		expect(getAiAnalysisNotice(31 * 60)).toBe("medium");
 	});
 
 	it("explains chunked transcription for hour-plus videos", () => {
-		expect(getAiAnalysisNotice(60 * 60)).toContain("smaller chunks");
+		expect(getAiAnalysisNotice(60 * 60)).toBe("long");
 	});
 });

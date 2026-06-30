@@ -103,6 +103,11 @@ function stripCueSettings(text: string): string {
 
 const TS = "\\d{1,2}:\\d{1,2}(?::\\d{1,2})?(?:[.,]\\d{1,3})?";
 
+// Tolerance (seconds) for cue starts that legitimately sit at/just past the
+// reported audio duration. Cues starting beyond duration + this are treated as
+// hallucinations and dropped.
+const DURATION_TOLERANCE_SEC = 5;
+
 /**
  * Normalize Gemini's transcript output into STANDARD WebVTT, regardless of the
  * exact shape Gemini returns. Handles: inline cues `**[start --> end]** text`,
@@ -204,6 +209,17 @@ export function normalizeToWebVtt(raw: string, audioDurationSec: number): string
 		}
 	}
 	flushPending();
+
+	// Gemini sometimes hallucinates trailing cues whose timestamps run far past
+	// the real audio (e.g. a 55s video gets a cue at 01:02:20). Drop any cue that
+	// starts beyond the known duration (plus a small tolerance for legitimate end
+	// cues) so bogus cues never get persisted. Only applies when duration is known.
+	if (audioDurationSec > 0) {
+		const maxStart = audioDurationSec + DURATION_TOLERANCE_SEC;
+		for (let i = cues.length - 1; i >= 0; i--) {
+			if ((cues[i]?.start ?? 0) > maxStart) cues.splice(i, 1);
+		}
+	}
 
 	if (cues.length === 0) {
 		return plainTextToWebVTT(raw, audioDurationSec);

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Play } from "lucide-react";
 import { formatTimeMinutes } from "../utils/transcript-utils";
 import { renderMarkdownBold } from "./markdownBold";
@@ -21,6 +22,7 @@ export function RefinedTranscriptPanel({
 	onVideoJump,
 	duration,
 }: RefinedTranscriptPanelProps) {
+	const t = useTranslations("share");
 	if (!refinedTranscript || refinedTranscript.chapters.length === 0) {
 		return (
 			<div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-gray-4 bg-gray-2 px-4 py-10 text-center">
@@ -42,12 +44,9 @@ export function RefinedTranscriptPanel({
 					<polyline points="10 9 9 9 8 9" />
 				</svg>
 				<p className="text-sm font-medium text-gray-12">
-					No refined transcript yet
+					{t("noRefinedTranscript")}
 				</p>
-				<p className="text-xs text-gray-10">
-					Summary and transcript can still be used without this optional cleaned
-					version
-				</p>
+				<p className="text-xs text-gray-10">{t("refinedTranscriptDesc")}</p>
 			</div>
 		);
 	}
@@ -79,7 +78,7 @@ export function RefinedTranscriptPanel({
 							<button
 								type="button"
 								onClick={() => onVideoJump?.(startSec)}
-								aria-label={`Play from ${chapter.title}`}
+								aria-label={t("playFromChapter", { title: chapter.title })}
 								className="flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors"
 								style={{
 									background: "var(--blue-3)",

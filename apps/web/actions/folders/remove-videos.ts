@@ -9,7 +9,7 @@ import {
 	videos,
 } from "@cap/database/schema";
 import type { Folder, Space, Video } from "@cap/web-domain";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 export async function removeVideosFromFolder(
@@ -48,7 +48,7 @@ export async function removeVideosFromFolder(
 		const userVideos = await db()
 			.select({ id: videos.id })
 			.from(videos)
-			.where(and(eq(videos.ownerId, user.id), inArray(videos.id, videoIds)));
+			.where(and(eq(videos.ownerId, user.id), inArray(videos.id, videoIds), isNull(videos.deletedAt)));
 
 		const validVideoIds = userVideos.map((v) => v.id);
 

@@ -2,7 +2,7 @@ import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { videos, videoUploads } from "@cap/database/schema";
 import { Video } from "@cap/web-domain";
-import { and, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { reconcileStaleEditUpload } from "@/lib/video-edit-processing";
 import { EditVideoClient } from "./EditVideoClient";
@@ -30,7 +30,7 @@ export default async function EditVideoPage(props: {
 			isScreenshot: videos.isScreenshot,
 		})
 		.from(videos)
-		.where(eq(videos.id, videoId));
+		.where(and(eq(videos.id, videoId), isNull(videos.deletedAt)));
 
 	if (
 		!video ||

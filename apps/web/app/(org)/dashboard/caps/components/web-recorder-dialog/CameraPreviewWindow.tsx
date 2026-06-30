@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 
 type CameraPreviewSize = "sm" | "lg";
 type CameraPreviewShape = "round" | "square" | "full";
@@ -84,6 +85,7 @@ export const CameraPreviewWindow = ({
 	cameraId,
 	onClose,
 }: CameraPreviewWindowProps) => {
+	const t = useTranslations("recorder");
 	const [size, setSize] = useState<CameraPreviewSize>("sm");
 	const [shape, setShape] = useState<CameraPreviewShape>("round");
 	const [mirrored, setMirrored] = useState(false);
@@ -588,7 +590,7 @@ export const CameraPreviewWindow = ({
 									: "opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0",
 							)}
 							role="toolbar"
-							aria-label="Camera preview controls"
+							aria-label={t("cameraPreviewControls")}
 							onMouseDown={(e) => e.stopPropagation()}
 							onClick={(e) => e.stopPropagation()}
 							onKeyDown={(e) => {
@@ -720,7 +722,7 @@ export const CameraPreviewWindow = ({
 					{isPictureInPictureSupported && isInPictureInPicture && (
 						<div className="absolute inset-0 flex items-center justify-center z-10">
 							<div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-3 py-2 text-xs font-medium text-white/90 shadow-sm backdrop-blur-md whitespace-nowrap transition-all duration-300 ease-out">
-								<span>Picture in Picture active</span>
+								<span>{t("pictureInPictureActive")}</span>
 								<button
 									type="button"
 									onClick={(e) => {
@@ -728,7 +730,7 @@ export const CameraPreviewWindow = ({
 										handleTogglePictureInPicture();
 									}}
 									className="flex items-center justify-center size-4 rounded-full hover:bg-white/20 transition-colors p-4 -m-4 box-content"
-									aria-label="Exit Picture in Picture"
+									aria-label={t("exitPictureInPicture")}
 								>
 									<X className="size-3" />
 								</button>

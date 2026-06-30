@@ -3,7 +3,7 @@
 import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { aiUsageEvents, organizationMembers, organizations, videos } from "@cap/database/schema";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { Organisation, Video } from "@cap/web-domain";
 
 function currentBillingMonth(): string {
@@ -68,7 +68,7 @@ export async function getMonthlySpend(scope: {
 		const [video] = await db()
 			.select({ ownerId: videos.ownerId })
 			.from(videos)
-			.where(eq(videos.id, scope.id as Video.VideoId))
+			.where(and(eq(videos.id, scope.id as Video.VideoId), isNull(videos.deletedAt)))
 			.limit(1);
 
 		if (!video || video.ownerId !== user.id) return emptyResult;

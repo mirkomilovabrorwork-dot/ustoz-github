@@ -3,16 +3,17 @@
 import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { videos } from "@cap/database/schema";
+import type { VideoMetadata } from "@cap/database/types";
 import { provideOptionalAuth, Storage, VideosPolicy } from "@cap/web-backend";
 import { Policy, type Video } from "@cap/web-domain";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { Effect, Exit, Option } from "effect";
 import { runPromise, runPromiseExit } from "@/lib/server";
 import { decodeStorageVideo } from "@/lib/video-storage";
 
 export async function getTranscript(
 	videoId: Video.VideoId,
-): Promise<{ success: boolean; content?: string; message: string }> {
+): Promise<{ success: boolean; content?: string; message: string; partial?: boolean; progress?: { completed: number; total: number } }> {
 	const user = await getCurrentUser();
 
 	if (!videoId) {
@@ -25,7 +26,7 @@ export async function getTranscript(
 	const query = await db()
 		.select({ video: videos })
 		.from(videos)
-		.where(eq(videos.id, videoId));
+		.where(and(eq(videos.id, videoId), isNull(videos.deletedAt)));
 
 	if (query.length === 0) {
 		return { success: false, message: "Video not found" };
@@ -38,13 +39,6 @@ export async function getTranscript(
 
 	const { video } = result;
 
-	if (video.transcriptionStatus !== "COMPLETE") {
-		return {
-			success: false,
-			message: "Transcript is not ready yet",
-		};
-	}
-
 	const viewExit = await Effect.gen(function* () {
 		const videosPolicy = yield* VideosPolicy;
 		return yield* Effect.void.pipe(
@@ -56,36 +50,95 @@ export async function getTranscript(
 		return { success: false, message: "Not authorized" };
 	}
 
-	try {
-		const vttContent = await Effect.gen(function* () {
-			const [bucket] = yield* Storage.getAccessForVideo(
-				decodeStorageVideo(video),
-			);
+	if (video.transcriptionStatus === "COMPLETE") {
+		try {
+			const vttContent = await Effect.gen(function* () {
+				const [bucket] = yield* Storage.getAccessForVideo(
+					decodeStorageVideo(video),
+				);
 
-			return yield* bucket.getObject(
-				`${video.ownerId}/${videoId}/transcription.vtt`,
-			);
-		}).pipe(runPromise);
+				return yield* bucket.getObject(
+					`${video.ownerId}/${videoId}/transcription.vtt`,
+				);
+			}).pipe(runPromise);
 
-		if (Option.isNone(vttContent)) {
-			console.warn("[getTranscript] VTT missing at expected key", { videoId, ownerId: video.ownerId });
-			return { success: false, message: "Transcript file not found" };
+			if (Option.isNone(vttContent)) {
+				console.warn("[getTranscript] VTT missing at expected key", { videoId, ownerId: video.ownerId });
+				return { success: false, message: "Transcript file not found" };
+			}
+
+			return {
+				success: true,
+				content: vttContent.value,
+				partial: false,
+				message: "Transcript retrieved successfully",
+			};
+		} catch (error) {
+			console.error("[getTranscript] Error fetching transcript:", {
+				error: error instanceof Error ? error.message : error,
+				videoId,
+				userId: user?.id,
+			});
+			return {
+				success: false,
+				message: "Failed to fetch transcript",
+			};
 		}
+	} else if (video.transcriptionStatus === "PROCESSING") {
+		const md = video.metadata as VideoMetadata;
+		try {
+			const vttContent = await Effect.gen(function* () {
+				const [bucket] = yield* Storage.getAccessForVideo(
+					decodeStorageVideo(video),
+				);
 
-		return {
-			success: true,
-			content: vttContent.value,
-			message: "Transcript retrieved successfully",
-		};
-	} catch (error) {
-		console.error("[getTranscript] Error fetching transcript:", {
-			error: error instanceof Error ? error.message : error,
-			videoId,
-			userId: user?.id,
-		});
+				return yield* bucket.getObject(
+					`${video.ownerId}/${videoId}/transcription-partial.vtt`,
+				);
+			}).pipe(runPromise);
+
+			if (Option.isSome(vttContent)) {
+				return {
+					success: true,
+					content: vttContent.value,
+					partial: true,
+					progress: {
+						completed: md.transcriptionChunksCompleted ?? 0,
+						total: md.transcriptionChunksTotal ?? 0,
+					},
+					message: "Partial transcript",
+				};
+			}
+
+			return {
+				success: false,
+				partial: true,
+				progress: {
+					completed: md.transcriptionChunksCompleted ?? 0,
+					total: md.transcriptionChunksTotal ?? 0,
+				},
+				message: "Transcript is not ready yet",
+			};
+		} catch (error) {
+			console.error("[getTranscript] Error fetching partial transcript:", {
+				error: error instanceof Error ? error.message : error,
+				videoId,
+				userId: user?.id,
+			});
+			return {
+				success: false,
+				partial: true,
+				progress: {
+					completed: md.transcriptionChunksCompleted ?? 0,
+					total: md.transcriptionChunksTotal ?? 0,
+				},
+				message: "Transcript is not ready yet",
+			};
+		}
+	} else {
 		return {
 			success: false,
-			message: "Failed to fetch transcript",
+			message: "Transcript is not ready yet",
 		};
 	}
 }

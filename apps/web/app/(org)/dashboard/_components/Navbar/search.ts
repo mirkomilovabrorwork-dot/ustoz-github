@@ -98,6 +98,7 @@ export async function searchDashboardVideos(
 			and(
 				eq(videos.orgId, activeOrganizationId),
 				isNull(organizations.tombstoneAt),
+				isNull(videos.deletedAt),
 				or(
 					eq(organizations.ownerId, user.id),
 					inArray(organizations.id, organizationMembershipIds),

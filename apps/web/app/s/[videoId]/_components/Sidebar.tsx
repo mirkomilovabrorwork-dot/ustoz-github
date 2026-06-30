@@ -5,6 +5,7 @@ import { Comment } from "@cap/web-domain";
 import { faComment, faEye, faSmile } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
 	forwardRef,
 	Suspense,
@@ -72,6 +73,7 @@ const SidebarAnalytics = ({
 	comments: CommentType[];
 	isOwner: boolean;
 }) => {
+	const t = useTranslations("share");
 	const [viewCount, setViewCount] = useState(
 		views instanceof Promise ? use(views) : views,
 	);
@@ -116,7 +118,7 @@ const SidebarAnalytics = ({
 					className="text-xs hover:underline"
 					style={{ color: "var(--blue-11)" }}
 				>
-					View analytics
+					{t("viewAnalytics")}
 				</Link>
 			)}
 		</div>
@@ -177,6 +179,7 @@ export const Sidebar = forwardRef<{ scrollToBottom: () => void }, SidebarProps>(
 		},
 		ref,
 	) => {
+		const t = useTranslations("share");
 		const user = useCurrentUser();
 		const [showAuthOverlay, setShowAuthOverlay] = useState(false);
 
@@ -227,7 +230,7 @@ export const Sidebar = forwardRef<{ scrollToBottom: () => void }, SidebarProps>(
 			if (!user) {
 				let theName = guestName.trim();
 				if (!theName) {
-					const prompted = window.prompt("Enter your name to react");
+					const prompted = window.prompt(t("enterNameToReact"));
 					if (!prompted || !prompted.trim()) return;
 					theName = prompted.trim().slice(0, 50);
 					setGuestName(theName);
@@ -352,13 +355,13 @@ export const Sidebar = forwardRef<{ scrollToBottom: () => void }, SidebarProps>(
 							onClick={() => setActivityExpanded(true)}
 							className="flex w-full items-center justify-between px-4 py-2 text-left"
 							style={{ minHeight: "44px", cursor: "pointer" }}
-							aria-label="Expand activity"
+							aria-label={t("expandActivity")}
 						>
 							<span className="text-sm font-semibold text-gray-12">
-								Activity <span className="text-gray-10 font-normal">(0)</span>
+								{t("activityTitle")} <span className="text-gray-10 font-normal">(0)</span>
 							</span>
 							<span aria-hidden="true" className="text-xs text-gray-10">
-								Comment
+								{t("activityCommentHint")}
 							</span>
 						</button>
 					) : (
@@ -367,7 +370,7 @@ export const Sidebar = forwardRef<{ scrollToBottom: () => void }, SidebarProps>(
 								className="flex items-center px-4 py-3"
 								style={{ borderBottom: "1px solid var(--gray-4)" }}
 							>
-								<span className="text-sm font-semibold text-gray-12">Activity</span>
+								<span className="text-sm font-semibold text-gray-12">{t("activityTitle")}</span>
 							</div>
 
 							{user && isOwnerOrMember && (

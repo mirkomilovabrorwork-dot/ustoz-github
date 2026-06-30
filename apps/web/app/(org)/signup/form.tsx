@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useEffect, useId, useState } from "react";
 import { signUp } from "@/actions/auth/signup";
+import { useTranslations } from "next-intl";
 
 const MotionLogoBadge = motion(LogoBadge);
 const MotionLink = motion(Link);
@@ -16,6 +17,7 @@ const MotionButton = motion(Button);
 const MotionInput = motion(Input);
 
 export function SignupForm() {
+	const t = useTranslations("auth");
 	const router = useRouter();
 	const theme = Cookies.get("theme") || "light";
 
@@ -45,12 +47,12 @@ export function SignupForm() {
 		setError(null);
 
 		if (password.length < 8) {
-			setError("Password must be at least 8 characters.");
+			setError(t("errorMinChars"));
 			return;
 		}
 
 		if (password !== confirmPassword) {
-			setError("Passwords do not match.");
+			setError(t("errorMismatch"));
 			return;
 		}
 
@@ -84,7 +86,7 @@ export function SignupForm() {
 			// Account created but auto-login failed; send them to login.
 			router.push("/login");
 		} catch {
-			setError("Something went wrong. Please try again.");
+			setError(t("errorGeneric"));
 			setSubmitting(false);
 		}
 	};
@@ -110,14 +112,14 @@ export function SignupForm() {
 					layout="position"
 					className="text-[1.6rem] font-semibold leading-tight text-gray-12 sm:text-2xl"
 				>
-					Sign up to data365
+					{t("signupTitle")}
 				</motion.h1>
 				<motion.p
 					key="subtitle"
 					layout="position"
 					className="mt-2 text-sm text-gray-10 sm:text-[16px]"
 				>
-					Create your account to start watching lessons.
+					{t("signupSubtitle")}
 				</motion.p>
 			</motion.div>
 			<motion.div layout="position" className="flex flex-col space-y-3">
@@ -130,7 +132,7 @@ export function SignupForm() {
 						name="name"
 						autoFocus
 						type="text"
-						placeholder="Your name"
+						placeholder={t("namePlaceholder")}
 						autoComplete="name"
 						required
 						value={name}
@@ -153,7 +155,7 @@ export function SignupForm() {
 							id={passwordInputId}
 							name="password"
 							type={showPassword ? "text" : "password"}
-							placeholder="Password (min 8 characters)"
+							placeholder={t("passwordPlaceholderMin")}
 							autoComplete="new-password"
 							required
 							minLength={8}
@@ -165,7 +167,7 @@ export function SignupForm() {
 						<button
 							type="button"
 							onClick={() => setShowPassword((v) => !v)}
-							aria-label={showPassword ? "Hide password" : "Show password"}
+							aria-label={showPassword ? t("hidePassword") : t("showPassword")}
 							tabIndex={-1}
 							className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-10 hover:text-gray-12 transition-colors"
 						>
@@ -181,7 +183,7 @@ export function SignupForm() {
 							id={confirmPasswordInputId}
 							name="confirmPassword"
 							type={showConfirmPassword ? "text" : "password"}
-							placeholder="Confirm password"
+							placeholder={t("confirmPlaceholder")}
 							autoComplete="new-password"
 							required
 							minLength={8}
@@ -193,7 +195,7 @@ export function SignupForm() {
 						<button
 							type="button"
 							onClick={() => setShowConfirmPassword((v) => !v)}
-							aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+							aria-label={showConfirmPassword ? t("hidePassword") : t("showPassword")}
 							tabIndex={-1}
 							className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-10 hover:text-gray-12 transition-colors"
 						>
@@ -222,43 +224,26 @@ export function SignupForm() {
 						disabled={submitting}
 						spinner={submitting}
 					>
-						{submitting ? "Creating account..." : "Create Account"}
+						{submitting ? t("creatingLoading") : t("createAccount")}
 					</MotionButton>
 				</form>
 				<motion.p
 					layout="position"
 					className="mt-3 mb-2 text-xs text-center text-gray-11"
 				>
-					Already have an account?{" "}
+					{t("haveAccount")}{" "}
 					<Link
 						href="/login"
 						className="text-xs font-semibold text-blue-9 hover:text-blue-8"
 					>
-						Log in here
+						{t("loginHere")}
 					</Link>
 				</motion.p>
 				<motion.p
 					layout="position"
 					className="pt-3 text-xs text-center text-gray-11"
 				>
-					By creating an account, you acknowledge that you have both read and
-					agree to data365's{" "}
-					<Link
-						href="/terms"
-						target="_blank"
-						className="text-xs font-semibold text-gray-12 hover:text-blue-300"
-					>
-						Terms of Service
-					</Link>{" "}
-					and{" "}
-					<Link
-						href="/privacy"
-						target="_blank"
-						className="text-xs font-semibold text-gray-12 hover:text-blue-300"
-					>
-						Privacy Policy
-					</Link>
-					.
+					{t.rich("termsNoticeSignup", { terms: (c) => (<Link href="/terms" target="_blank" className="text-xs font-semibold text-gray-12 hover:text-blue-300">{c}</Link>), privacy: (c) => (<Link href="/privacy" target="_blank" className="text-xs font-semibold text-gray-12 hover:text-blue-300">{c}</Link>) })}
 				</motion.p>
 			</motion.div>
 		</motion.div>

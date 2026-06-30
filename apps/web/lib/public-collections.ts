@@ -476,6 +476,7 @@ async function getPublicSpaceVideos(
 		eq(spaceVideos.spaceId, collection.id as Space.SpaceIdOrOrganisationId),
 		eq(videos.public, true),
 		isNull(organizations.tombstoneAt),
+		isNull(videos.deletedAt),
 		videoPasswordPredicate(
 			sql`${videos.id}`,
 			sql`${videos.password}`,
@@ -521,6 +522,7 @@ async function getPublicSpaceFolderVideos(
 		eq(spaceVideos.folderId, collection.id as Folder.FolderId),
 		eq(videos.public, true),
 		isNull(organizations.tombstoneAt),
+		isNull(videos.deletedAt),
 		videoPasswordPredicate(
 			sql`${videos.id}`,
 			sql`${videos.password}`,
@@ -566,6 +568,7 @@ async function getPublicOrgFolderVideos(
 		eq(sharedVideos.folderId, collection.id as Folder.FolderId),
 		eq(videos.public, true),
 		isNull(organizations.tombstoneAt),
+		isNull(videos.deletedAt),
 		videoPasswordPredicate(
 			sql`${videos.id}`,
 			sql`${videos.password}`,
@@ -611,6 +614,7 @@ async function getPublicUserFolderVideos(
 		eq(videos.folderId, collection.id as Folder.FolderId),
 		eq(videos.public, true),
 		isNull(organizations.tombstoneAt),
+		isNull(videos.deletedAt),
 		videoPasswordPredicate(
 			sql`${videos.id}`,
 			sql`${videos.password}`,
@@ -709,6 +713,7 @@ async function getPublicSpaceFolderVideoCounts(
 				inArray(spaceVideos.folderId, folderIds),
 				eq(videos.public, true),
 				isNull(organizations.tombstoneAt),
+				isNull(videos.deletedAt),
 				videoPasswordPredicate(
 					sql`${videos.id}`,
 					sql`${videos.password}`,
@@ -736,6 +741,7 @@ async function getPublicOrgFolderVideoCounts(
 				inArray(sharedVideos.folderId, folderIds),
 				eq(videos.public, true),
 				isNull(organizations.tombstoneAt),
+				isNull(videos.deletedAt),
 				videoPasswordPredicate(
 					sql`${videos.id}`,
 					sql`${videos.password}`,
@@ -762,6 +768,7 @@ async function getPublicUserFolderVideoCounts(
 				inArray(videos.folderId, folderIds),
 				eq(videos.public, true),
 				isNull(organizations.tombstoneAt),
+				isNull(videos.deletedAt),
 				videoPasswordPredicate(
 					sql`${videos.id}`,
 					sql`${videos.password}`,

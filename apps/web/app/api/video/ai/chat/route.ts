@@ -5,7 +5,7 @@ import { users, videos } from "@cap/database/schema";
 import { serverEnv } from "@cap/env";
 import { provideOptionalAuth, VideosPolicy } from "@cap/web-backend";
 import { Policy, Video } from "@cap/web-domain";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { Effect } from "effect";
 import type { NextRequest } from "next/server";
 import { BudgetExceededError, withCostGuard } from "@/lib/ai-cost-guard";
@@ -172,7 +172,12 @@ export async function POST(request: NextRequest) {
 	const [video] = await db()
 		.select()
 		.from(videos)
-		.where(eq(videos.id, Video.VideoId.make(videoId)))
+		.where(
+			and(
+				eq(videos.id, Video.VideoId.make(videoId)),
+				isNull(videos.deletedAt),
+			),
+		)
 		.limit(1);
 
 	if (!video) {

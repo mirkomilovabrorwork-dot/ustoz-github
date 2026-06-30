@@ -96,6 +96,12 @@ export async function transcribeVideoWorkflow(
 			audio,
 			videoData.ownerEncryptedGeminiKey,
 			{ userId, orgId: videoData.orgId, videoId },
+			undefined,
+			async (p) => {
+				await savePartialTranscription(
+					videoId, videoData.video, p.transcribedChunks, p.completed, p.total,
+				);
+			},
 		);
 
 		await saveTranscription(videoId, userId, videoData.video, transcription);
@@ -423,6 +429,7 @@ export async function transcribeAudioChunks(
 	ownerEncryptedGeminiKey: string | null,
 	context: { userId: string; orgId: string; videoId: string },
 	transcribeChunk: typeof transcribeAudioChunkWithRetry = transcribeAudioChunkWithRetry,
+	onProgress?: (p: { transcribedChunks: Array<{ vtt: string; offsetSec: number }>; completed: number; total: number }) => Promise<void>,
 ): Promise<string> {
 	if (audio.chunks.length === 1) {
 		const chunk = audio.chunks[0];
@@ -457,6 +464,17 @@ export async function transcribeAudioChunks(
 				error,
 			);
 			transcribedChunks.push({ vtt: "WEBVTT\n\n", offsetSec: chunk.startSec });
+		}
+		if (onProgress) {
+			try {
+				await onProgress({
+					transcribedChunks: [...transcribedChunks],
+					completed: transcribedChunks.length,
+					total: audio.chunks.length,
+				});
+			} catch (e) {
+				console.error("[transcribe] partial-save progress callback failed (non-fatal):", e);
+			}
 		}
 	}
 
@@ -512,6 +530,39 @@ export async function transcribeAudioChunkWithRetry(
 	throw lastError;
 }
 
+async function savePartialTranscription(
+	videoId: string,
+	video: typeof videos.$inferSelect,
+	transcribedChunks: Array<{ vtt: string; offsetSec: number }>,
+	completed: number,
+	total: number,
+): Promise<void> {
+	"use step";
+	const merged = mergeChunkedWebVtt(transcribedChunks);
+	const [bucket] = await getStorageAccessForVideo(video).pipe(runPromise);
+	await bucket
+		.putObject(`${video.ownerId}/${videoId}/transcription-partial.vtt`, merged, {
+			contentType: "text/vtt",
+		})
+		.pipe(runPromise);
+	// Re-read metadata to avoid clobbering concurrent writes.
+	const [row] = await db()
+		.select({ metadata: videos.metadata })
+		.from(videos)
+		.where(eq(videos.id, videoId as Video.VideoId))
+		.limit(1);
+	await db()
+		.update(videos)
+		.set({
+			metadata: {
+				...((row?.metadata as VideoMetadata) || {}),
+				transcriptionChunksCompleted: completed,
+				transcriptionChunksTotal: total,
+			} as VideoMetadata,
+		})
+		.where(eq(videos.id, videoId as Video.VideoId));
+}
+
 async function saveTranscription(
 	videoId: string,
 	_userId: string,
@@ -528,10 +579,23 @@ async function saveTranscription(
 		})
 		.pipe(runPromise);
 
+	const [row] = await db()
+		.select({ metadata: videos.metadata })
+		.from(videos)
+		.where(eq(videos.id, videoId as Video.VideoId))
+		.limit(1);
+	const md = { ...((row?.metadata as VideoMetadata) || {}) } as VideoMetadata;
+	delete (md as any).transcriptionChunksCompleted;
+	delete (md as any).transcriptionChunksTotal;
 	await db()
 		.update(videos)
-		.set({ transcriptionStatus: "COMPLETE" })
+		.set({ transcriptionStatus: "COMPLETE", metadata: md })
 		.where(eq(videos.id, videoId as Video.VideoId));
+	// best-effort delete partial file (never throw)
+	await bucket
+		.deleteObject(`${video.ownerId}/${videoId}/transcription-partial.vtt`)
+		.pipe(runPromise)
+		.catch(() => {});
 }
 
 async function cleanupTempAudioKeys(

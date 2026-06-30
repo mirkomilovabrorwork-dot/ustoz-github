@@ -2,7 +2,7 @@ import { db } from "@cap/database";
 import { videos } from "@cap/database/schema";
 import { Storage } from "@cap/web-backend";
 import type { Video } from "@cap/web-domain";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { Effect } from "effect";
 import { ImageResponse } from "next/og";
 import { runPromise } from "@/lib/server";
@@ -159,7 +159,7 @@ async function getData(videoId: Video.VideoId) {
 	const query = await db()
 		.select({ video: videos })
 		.from(videos)
-		.where(eq(videos.id, videoId));
+		.where(and(eq(videos.id, videoId), isNull(videos.deletedAt)));
 
 	const result = query[0];
 

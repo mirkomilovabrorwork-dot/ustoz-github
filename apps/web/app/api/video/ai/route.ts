@@ -3,7 +3,7 @@ import { getCurrentUser } from "@cap/database/auth/session";
 import { videos } from "@cap/database/schema";
 import type { VideoMetadata } from "@cap/database/types";
 import type { Video } from "@cap/web-domain";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
 		const result = await db()
 			.select()
 			.from(videos)
-			.where(eq(videos.id, videoId));
+			.where(and(eq(videos.id, videoId), isNull(videos.deletedAt)));
 		if (result.length === 0 || !result[0]) {
 			return Response.json(
 				{ error: true, message: "Video not found" },

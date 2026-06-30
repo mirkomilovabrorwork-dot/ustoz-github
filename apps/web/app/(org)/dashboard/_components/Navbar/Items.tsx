@@ -26,10 +26,11 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import clsx from "clsx";
 import { motion } from "framer-motion";
-import { Check, ChevronDown, Moon, MoreVertical, Plus, Sun } from "lucide-react";
+import { Check, ChevronDown, Moon, MoreVertical, Plus, Sun, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { useTranslations } from "next-intl";
 import {
 	cloneElement,
 	forwardRef,
@@ -76,6 +77,7 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 	const pathname = usePathname();
 	const [open, setOpen] = useState(false);
 	const { user, sidebarCollapsed, userCapsCount } = useDashboardContext();
+	const t = useTranslations("nav");
 
 	const DEVELOPER_DASHBOARD_ALLOWED_EMAILS = ["richie@cap.so"];
 
@@ -85,41 +87,48 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 
 	const manageNavigation = [
 		{
-			name: "Instructions",
+			name: t("instructions"),
 			href: `/dashboard/caps`,
 			extraText: userCapsCount,
 			icon: <GraduationCapIcon />,
 			subNav: [],
 		},
 		{
-			name: "Meeting Recordings",
+			name: t("meetingRecordings"),
 			href: `/dashboard/meetings`,
 			matchChildren: true,
 			icon: <UsersIcon />,
 			subNav: [],
 		},
 		{
-			name: "Analytics",
+			name: t("analytics"),
 			href: `/dashboard/analytics`,
 			matchChildren: true,
 			icon: <ChartLineIcon />,
 			subNav: [],
 		},
 		{
-			name: "New Recording",
+			name: t("trash"),
+			href: `/dashboard/trash`,
+			matchChildren: true,
+			icon: <TrashNavIcon />,
+			subNav: [],
+		},
+		{
+			name: t("newRecording"),
 			href: `/dashboard/caps/record`,
 			icon: <RecordIcon />,
 			subNav: [],
 		},
 		{
-			name: "Install Extension",
+			name: t("installExtension"),
 			href: `/dashboard/extension`,
 			matchChildren: true,
 			icon: <DownloadIcon />,
 			subNav: [],
 		},
 		{
-			name: "Organization Settings",
+			name: t("orgSettings"),
 			href: `/dashboard/settings/organization`,
 			adminOnly: true,
 			matchChildren: true,
@@ -129,7 +138,7 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 		...(showDeveloperDashboard
 			? [
 					{
-						name: "Developers",
+						name: t("developers"),
 						href: `/dashboard/developers`,
 						ownerOnly: true,
 						matchChildren: true,
@@ -141,7 +150,7 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 		...(user.isAdmin
 			? [
 					{
-						name: "Access Management",
+						name: t("accessManagement"),
 						href: `/dashboard/admin/access`,
 						matchChildren: true,
 						icon: <CogIcon />,
@@ -188,7 +197,7 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 				<Tooltip
 					disable={open || sidebarCollapsed === false}
 					position="right"
-					content={activeOrg?.organization.name ?? "No organization found"}
+					content={activeOrg?.organization.name ?? t("noOrganization")}
 				>
 					<PopoverTrigger suppressHydrationWarning asChild>
 						<motion.div
@@ -225,7 +234,7 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 										<SignedImageUrl
 											image={activeOrg?.organization.iconUrl}
 											name={
-												activeOrg?.organization.name ?? "No organization found"
+												activeOrg?.organization.name ?? t("noOrganization")
 											}
 											letterClass={clsx(
 												sidebarCollapsed ? "text-sm" : "text-[13px]",
@@ -241,7 +250,7 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 											{!sidebarCollapsed && (
 												<p className="text-sm truncate leading-tight text-gray-12">
 													{activeOrg?.organization.name ??
-														"No organization found"}
+														t("noOrganization")}
 												</p>
 											)}
 											{!sidebarCollapsed && (
@@ -273,7 +282,7 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 												<p className="w-full text-[11px] flex-1 duration-200 truncate leading-tight text-gray-11">
 													{isDomainSetupVerified
 														? activeOrg?.organization.customDomain
-														: "No custom domain set"}
+														: t("noCustomDomain")}
 												</p>
 											</Link>
 										)}
@@ -287,8 +296,8 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 								)}
 							>
 								<Command>
-									<CommandInput placeholder="Search organizations..." />
-									<CommandEmpty>No organizations found</CommandEmpty>
+									<CommandInput placeholder={t("searchOrganizations")} />
+									<CommandEmpty>{t("noOrganizationsFound")}</CommandEmpty>
 									<CommandGroup>
 										{orgData?.map((organization) => {
 											const isSelected =
@@ -343,7 +352,7 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 												className="flex gap-1 items-center my-2 w-[90%] mx-auto text-sm"
 											>
 												<Plus className="w-3.5 h-auto" />
-												New organization
+												{t("newOrganization")}
 											</Button>
 										</DialogTrigger>
 									</CommandGroup>
@@ -415,10 +424,10 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 			<DialogContent className="p-0 w-full max-w-md rounded-xl bg-gray-2">
 				<DialogHeader
 					icon={<FontAwesomeIcon icon={faBuilding} />}
-					description="A new organization to share caps with your team"
+					description={t("createOrgDescription")}
 				>
 					<DialogTitle className="text-lg text-gray-12">
-						Create New Organization
+						{t("createOrgTitle")}
 					</DialogTitle>
 				</DialogHeader>
 				<div className="p-5">
@@ -431,7 +440,7 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 				</div>
 				<DialogFooter>
 					<Button variant="gray" size="sm" onClick={() => setDialogOpen(false)}>
-						Cancel
+						{t("cancel")}
 					</Button>
 					<Button
 						variant="dark"
@@ -441,7 +450,7 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 						onClick={() => formRef.current?.requestSubmit()}
 						type="submit"
 					>
-						{createLoading ? "Creating..." : "Create"}
+						{createLoading ? t("creating") : t("create")}
 					</Button>
 				</DialogFooter>
 			</DialogContent>
@@ -454,14 +463,15 @@ const SidebarUser = ({ inline }: { inline?: boolean }) => {
 	const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
 	const { user, sidebarCollapsed } = useDashboardContext();
 	const { theme, setThemeHandler } = useTheme();
+	const t = useTranslations("nav");
 	const nextTheme = theme === "light" ? "dark" : "light";
 	const themeLabel =
-		theme === "light" ? "Toggle Dark Mode" : "Toggle Light Mode";
+		theme === "light" ? t("toggleDark") : t("toggleLight");
 
 	const menuItems = useMemo(
 		() => [
 			{
-				name: "Homepage",
+				name: t("homepage"),
 				icon: <HomeIcon />,
 				href: "/dashboard/caps",
 				onClick: () => setMenuOpen(false),
@@ -469,7 +479,7 @@ const SidebarUser = ({ inline }: { inline?: boolean }) => {
 				showCondition: true,
 			},
 			{
-				name: "Upgrade to Pro",
+				name: t("upgradeToPro"),
 				icon: <ArrowUpIcon />,
 				onClick: () => {
 					setMenuOpen(false);
@@ -479,7 +489,7 @@ const SidebarUser = ({ inline }: { inline?: boolean }) => {
 				showCondition: buildEnv.NEXT_PUBLIC_IS_CAP && !user.isPro,
 			},
 			{
-				name: "Earn 40% Referral",
+				name: t("earnReferral"),
 				icon: <ReferIcon />,
 				href: "/dashboard/refer",
 				onClick: () => setMenuOpen(false),
@@ -503,7 +513,7 @@ const SidebarUser = ({ inline }: { inline?: boolean }) => {
 				showCondition: true,
 			},
 			{
-				name: "Settings",
+				name: t("settings"),
 				icon: <SettingsGearIcon />,
 				href: "/dashboard/settings/account",
 				onClick: () => setMenuOpen(false),
@@ -511,7 +521,7 @@ const SidebarUser = ({ inline }: { inline?: boolean }) => {
 				showCondition: true,
 			},
 			{
-				name: "Sign Out",
+				name: t("signOut"),
 				icon: <LogoutIcon />,
 				onClick: () => {
 					setMenuOpen(false);
@@ -536,12 +546,12 @@ const SidebarUser = ({ inline }: { inline?: boolean }) => {
 					<div className="flex items-center gap-2 p-2 rounded-xl border border-transparent">
 						<SignedImageUrl
 							image={user.imageUrl}
-							name={user.name ?? "User"}
+							name={user.name ?? t("user")}
 							letterClass="text-xs"
 							className="flex-shrink-0 size-6 text-gray-12"
 						/>
 						<span className="text-sm truncate text-gray-12">
-							{user.name ?? "User"}
+							{user.name ?? t("user")}
 						</span>
 					</div>
 					{/* Inline menu items — each at least 44 px tall for touch targets */}
@@ -598,7 +608,7 @@ const SidebarUser = ({ inline }: { inline?: boolean }) => {
 			/>
 			<Tooltip
 				disable={!sidebarCollapsed}
-				content={user.name ?? "User"}
+				content={user.name ?? t("user")}
 				position="right"
 			>
 				<Popover open={menuOpen} onOpenChange={setMenuOpen}>
@@ -616,13 +626,13 @@ const SidebarUser = ({ inline }: { inline?: boolean }) => {
 							<div className="flex items-center gap-2">
 								<SignedImageUrl
 									image={user.imageUrl}
-									name={user.name ?? "User"}
+									name={user.name ?? t("user")}
 									letterClass="text-xs"
 									className="flex-shrink-0 size-6 text-gray-12"
 								/>
 								{!sidebarCollapsed && (
 									<span className="text-sm truncate text-gray-12">
-										{user.name ?? "User"}
+										{user.name ?? t("user")}
 									</span>
 								)}
 							</div>
@@ -748,6 +758,18 @@ const SidebarThemeMenuIcon = forwardRef<
 });
 
 SidebarThemeMenuIcon.displayName = "SidebarThemeMenuIcon";
+
+const TrashNavIcon = forwardRef<
+  DownloadIconHandle,
+  { className?: string; size?: number }
+>(({ className, size = 16 }, ref) => {
+  useImperativeHandle(ref, () => ({
+    startAnimation: () => undefined,
+    stopAnimation: () => undefined,
+  }));
+  return <Trash2 className={className} size={size} />;
+});
+TrashNavIcon.displayName = "TrashNavIcon";
 
 const NavItem = ({
 	name,
