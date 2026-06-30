@@ -212,6 +212,24 @@ export function toStandardWebVtt(raw: string): string {
     return raw;
   }
 
+  // Monotonic-repair: some Gemini VTTs contain tail cues whose start time
+  // regresses (e.g. a cue mistakenly written at 60s when it should be 600s),
+  // which the browser never activates. Re-anchor any backwards cue so the
+  // sequence stays monotonically increasing without reordering or dropping cues.
+  let maxStart = 0;
+  for (let i = 0; i < cues.length; i++) {
+    const cue = cues[i];
+    if (!cue) continue;
+    if (cue.start < maxStart) {
+      const prev = i > 0 ? cues[i - 1] : null;
+      const newStart = prev?.end ?? (prev ? prev.start + 0.001 : maxStart);
+      const duration = cue.end !== null ? cue.end - cue.start : DEFAULT_CUE_DURATION;
+      cue.start = newStart;
+      cue.end = newStart + duration;
+    }
+    if (cue.start > maxStart) maxStart = cue.start;
+  }
+
   let out = "WEBVTT\n\n";
   for (let i = 0; i < cues.length; i++) {
     const cue = cues[i];

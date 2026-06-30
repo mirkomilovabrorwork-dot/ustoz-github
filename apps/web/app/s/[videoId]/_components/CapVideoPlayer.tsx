@@ -437,6 +437,47 @@ export function CapVideoPlayer({
 			setHasError(true);
 		};
 
+		const handleLoadedMetadata = () => {
+			setVideoLoaded(true);
+			setHasError(false);
+			if (!hasPlayedOnce) {
+				setShowPlayButton(true);
+			}
+		};
+
+		video.addEventListener("loadeddata", handleLoadedData);
+		video.addEventListener("canplay", handleCanPlay);
+		video.addEventListener("loadedmetadata", handleLoadedMetadata);
+		video.addEventListener("play", handlePlay);
+		video.addEventListener("error", handleError as EventListener);
+
+		if (video.readyState === 4) {
+			handleLoadedData();
+		}
+
+		return () => {
+			video.removeEventListener("loadeddata", handleLoadedData);
+			video.removeEventListener("canplay", handleCanPlay);
+			video.removeEventListener("play", handlePlay);
+			video.removeEventListener("error", handleError as EventListener);
+			video.removeEventListener("loadedmetadata", handleLoadedMetadata);
+		};
+	}, [
+		hasPlayedOnce,
+		hasTriedRawFallback,
+		rawFallbackSrc,
+		resolvedSrc.data?.type,
+		resolvedSrc.isPending,
+		videoRef.current,
+	]);
+
+	// Separate effect for caption text-track wiring so that play/seek events
+	// (which toggle hasPlayedOnce) do NOT tear down and re-add the cuechange
+	// listener — which would cause the overlay to freeze after the first play.
+	useEffect(() => {
+		const video = videoRef.current;
+		if (!video) return;
+
 		let captionTrack: TextTrack | null = null;
 
 		const handleCueChange = (): void => {
@@ -445,11 +486,16 @@ export function CapVideoPlayer({
 
 		const setupTracks = (): void => {
 			const tracks = Array.from(video.textTracks);
-
 			for (const track of tracks) {
 				if (track.kind === "captions" || track.kind === "subtitles") {
+					// Remove any previously attached listener before (re-)attaching
+					// to stay idempotent across repeated setupTracks calls.
+					if (captionTrack && captionTrack !== track) {
+						captionTrack.removeEventListener("cuechange", handleCueChange);
+					}
 					captionTrack = track;
 					track.mode = "hidden";
+					track.removeEventListener("cuechange", handleCueChange);
 					track.addEventListener("cuechange", handleCueChange);
 					break;
 				}
@@ -467,43 +513,22 @@ export function CapVideoPlayer({
 			}
 		};
 
-		const handleLoadedMetadataWithTracks = () => {
-			setVideoLoaded(true);
-			setHasError(false);
-			if (!hasPlayedOnce) {
-				setShowPlayButton(true);
-			}
-			setupTracks();
-		};
-
 		const handleTrackChange = () => {
 			ensureTracksHidden();
 			setupTracks();
 		};
 
-		video.addEventListener("loadeddata", handleLoadedData);
-		video.addEventListener("canplay", handleCanPlay);
-		video.addEventListener("loadedmetadata", handleLoadedMetadataWithTracks);
-		video.addEventListener("play", handlePlay);
-		video.addEventListener("error", handleError as EventListener);
-
 		video.textTracks.addEventListener("change", handleTrackChange);
 		video.textTracks.addEventListener("addtrack", handleTrackChange);
 		video.textTracks.addEventListener("removetrack", handleTrackChange);
+		video.addEventListener("loadedmetadata", setupTracks);
 
-		if (video.readyState === 4) {
-			handleLoadedData();
-		}
+		// Wire up immediately in case the track + metadata already exist
+		// (covers re-mount and the case where metadata loaded before this effect ran).
+		setupTracks();
 
 		return () => {
-			video.removeEventListener("loadeddata", handleLoadedData);
-			video.removeEventListener("canplay", handleCanPlay);
-			video.removeEventListener("play", handlePlay);
-			video.removeEventListener("error", handleError as EventListener);
-			video.removeEventListener(
-				"loadedmetadata",
-				handleLoadedMetadataWithTracks,
-			);
+			video.removeEventListener("loadedmetadata", setupTracks);
 			video.textTracks.removeEventListener("change", handleTrackChange);
 			video.textTracks.removeEventListener("addtrack", handleTrackChange);
 			video.textTracks.removeEventListener("removetrack", handleTrackChange);
@@ -511,14 +536,7 @@ export function CapVideoPlayer({
 				captionTrack.removeEventListener("cuechange", handleCueChange);
 			}
 		};
-	}, [
-		hasPlayedOnce,
-		hasTriedRawFallback,
-		rawFallbackSrc,
-		resolvedSrc.data?.type,
-		resolvedSrc.isPending,
-		videoRef.current,
-	]);
+	}, [captionsSrc, resolvedSrc.data?.url, videoRef.current]);
 
 	const isUploadFailed = uploadProgress?.status === "failed";
 	const isUploadError = uploadProgress?.status === "error";
