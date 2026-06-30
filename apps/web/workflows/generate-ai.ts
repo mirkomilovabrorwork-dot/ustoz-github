@@ -1,6 +1,10 @@
 import { db } from "@cap/database";
 import { organizations, videos } from "@cap/database/schema";
-import type { AiSummary, VideoMetadata } from "@cap/database/types";
+import type {
+	AiSummary,
+	ShareLanguage,
+	VideoMetadata,
+} from "@cap/database/types";
 import { serverEnv } from "@cap/env";
 import {
 	AI_GENERATION_LANGUAGE_AUTO,
@@ -463,7 +467,14 @@ async function saveResults(
 ): Promise<void> {
 	"use step";
 
-	const { video, metadata } = videoData;
+	const { video, metadata, aiGenerationLanguage } = videoData;
+	// Only record a base language when it was explicitly resolved (not "auto" or
+	// a language outside ShareLanguage) — the client-side detectShareLanguage
+	// fallback handles "auto" by sniffing the generated summary text instead.
+	const resolvedBaseLanguage: ShareLanguage | undefined =
+		aiGenerationLanguage === "en" || aiGenerationLanguage === "ru"
+			? aiGenerationLanguage
+			: undefined;
 	const generatedTitle = result.title?.trim();
 	const currentVideo = await getCurrentVideo(videoId);
 	const currentMetadata = currentVideo
@@ -505,6 +516,7 @@ async function saveResults(
 				summary: result.summary || currentMetadata.summary,
 				chapters: result.chapters || currentMetadata.chapters,
 				aiSummary: result.aiSummary ?? currentMetadata.aiSummary,
+				aiBaseLanguage: resolvedBaseLanguage ?? currentMetadata.aiBaseLanguage,
 				aiGenerationStatus: summaryIsUsable
 					? "COMPLETE"
 					: currentMetadata.summary || currentMetadata.aiSummary

@@ -32,7 +32,7 @@ import { BelowVideoTabs } from "./BelowVideoTabs";
 import { useCaptionContext } from "./CaptionContext";
 import { CapVideoPlayer } from "./CapVideoPlayer";
 import { GenerateAiPanel } from "./GenerateAiPanel";
-import { LanguagePicker } from "./LanguagePicker";
+import { detectShareLanguage, LanguagePicker } from "./LanguagePicker";
 import {
 	shouldDeferPlaybackSource,
 	shouldReloadPlaybackAfterUploadCompletes,
@@ -639,6 +639,15 @@ export const ShareVideo = forwardRef<
 			Object.keys(data.metadata?.aiSummaryByLanguage ?? {}) as ShareLanguage[]
 		).filter((lang) => !!data.metadata?.aiSummaryByLanguage?.[lang]);
 
+		// Detect from the BASE summary (not activeAiSummary) so the base label
+		// never changes when the user switches to a translated language.
+		const baseLanguage = useMemo(
+			() =>
+				data.metadata?.aiBaseLanguage ??
+				detectShareLanguage(data.metadata?.aiSummary?.overview),
+			[data.metadata?.aiBaseLanguage, data.metadata?.aiSummary?.overview],
+		);
+
 		const activeAiSummary =
 			selectedLanguage !== "base"
 				? (data.metadata?.aiSummaryByLanguage?.[selectedLanguage] ?? data.metadata?.aiSummary)
@@ -690,7 +699,7 @@ export const ShareVideo = forwardRef<
 
 				<div className="mt-4 flex justify-end">
 					<LanguagePicker
-						baseLanguage={data.metadata?.aiBaseLanguage}
+						baseLanguage={baseLanguage}
 						available={available}
 						selected={selectedLanguage}
 						onSelect={setSelectedLanguage}
