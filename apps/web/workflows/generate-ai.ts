@@ -691,11 +691,13 @@ async function callAiApi(
 				const data = (await res.json()) as {
 					candidates?: Array<{
 						content: { parts: Array<{ text?: string }> };
+						finishReason?: string;
 					}>;
 					usageMetadata?: {
 						promptTokenCount?: number;
 						candidatesTokenCount?: number;
 					};
+					promptFeedback?: { blockReason?: string };
 					error?: { message: string };
 				};
 
@@ -708,7 +710,15 @@ async function callAiApi(
 				return { data };
 			});
 
-			const content = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
+			const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+			if (!rawText) {
+				console.error("[generate-ai] empty AI response", {
+					finishReason: data.candidates?.[0]?.finishReason,
+					blockReason: data.promptFeedback?.blockReason,
+					candidateCount: data.candidates?.length ?? 0,
+				});
+			}
+			const content = rawText ?? "{}";
 			const inputTokens = data.usageMetadata?.promptTokenCount ?? 0;
 			const outputTokens = data.usageMetadata?.candidatesTokenCount ?? 0;
 
@@ -863,7 +873,27 @@ ${transcriptWithTimestamps}`;
 	};
 
 	const cleanedText = refinedResult.content.trim();
-	if (cleanedText.length === 0) return { chapters: [], ...usage };
+	if (cleanedText.length === 0) {
+		// AI cleaning returned nothing — fall back to the raw transcript text so
+		// the Refined tab is never blank when a transcript exists.
+		const rawParagraphs = transcriptWithTimestamps
+			.split("\n")
+			.map((line) => line.replace(/^\[\d+:\d+(?::\d+)?\]\s*/, ""))
+			.join("\n")
+			.split(/\n\s*\n/)
+			.map((p) => p.trim())
+			.filter((p) => p.length > 0);
+		return {
+			chapters: [
+				{
+					startSec,
+					title: chapterTitle,
+					paragraphs: rawParagraphs.length > 0 ? rawParagraphs : [transcriptWithTimestamps],
+				},
+			],
+			...usage,
+		};
+	}
 
 	const paragraphs = cleanedText
 		.split(/\n\s*\n/)
@@ -987,7 +1017,23 @@ ${chunk.text}`;
 				totalInputTokens += refinedResult.inputTokens;
 				totalOutputTokens += refinedResult.outputTokens;
 				const cleanedText = refinedResult.content.trim();
-				if (cleanedText.length === 0) continue;
+				if (cleanedText.length === 0) {
+					// AI cleaning returned nothing for this chunk — use raw text as fallback
+					// so every chunk contributes a chapter to the Refined tab.
+					const rawParagraphs = chunk.text
+						.split("\n")
+						.map((line) => line.replace(/^\[\d+:\d+(?::\d+)?\]\s*/, ""))
+						.join("\n")
+						.split(/\n\s*\n/)
+						.map((p) => p.trim())
+						.filter((p) => p.length > 0);
+					refinedChapters.push({
+						startSec: chunk.startTime,
+						title: chapterTitle,
+						paragraphs: rawParagraphs.length > 0 ? rawParagraphs : [chunk.text],
+					});
+					continue;
+				}
 				const paragraphs = cleanedText
 					.split(/\n\s*\n/)
 					.map((p) => p.trim())

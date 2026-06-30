@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { formatTimeMinutes, clampStartSec } from "../utils/transcript-utils";
 
 interface SummaryPanelProps {
 	data: {
@@ -23,10 +22,6 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 	const { aiSummary } = data;
 	const topics = aiSummary?.topics ?? [];
 	const nextSteps = aiSummary?.nextSteps ?? [];
-	const chapters = (aiSummary?.chapters ?? []).map((c) => ({
-		...c,
-		startSec: clampStartSec(c.startSec, data.duration),
-	}));
 
 	if (!aiSummary) {
 		return (
@@ -50,31 +45,6 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 				>
 					{aiSummary.overview}
 				</p>
-			)}
-
-			{/* Chapters */}
-			{chapters.length > 0 && (
-				<div>
-					<h3
-						className="mb-2"
-						style={{ fontSize: "14px", fontWeight: 700, color: "var(--gray-12)", letterSpacing: "-.01em" }}
-					>
-						{t("chaptersHeading")}
-					</h3>
-					<div>
-						{chapters.map((chapter, idx) => {
-							const isLast = idx === chapters.length - 1;
-							return (
-								<ChapterRow
-									key={chapter.startSec}
-									chapter={chapter}
-									isLast={isLast}
-									onVideoJump={onVideoJump}
-								/>
-							);
-						})}
-					</div>
-				</div>
 			)}
 
 			{/* Topics */}
@@ -142,64 +112,9 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 			)}
 
 			{/* Empty state when all sections are empty */}
-			{topics.length === 0 && nextSteps.length === 0 && chapters.length === 0 && !aiSummary.overview && (
+			{topics.length === 0 && nextSteps.length === 0 && !aiSummary.overview && (
 				<p className="text-sm text-gray-10">{t("noContentYet")}</p>
 			)}
-		</div>
-	);
-}
-
-function ChapterRow({
-	chapter,
-	isLast,
-	onVideoJump,
-}: {
-	chapter: { startSec: number; title: string; body: string };
-	isLast: boolean;
-	onVideoJump?: (seconds: number) => void;
-}) {
-	const [hovered, setHovered] = useState(false);
-	return (
-		<div
-			style={{
-				display: "grid",
-				gridTemplateColumns: "64px 1fr",
-				gap: "14px",
-				paddingBottom: isLast ? 0 : "14px",
-				borderBottom: isLast ? "none" : "1px solid var(--gray-3)",
-				marginBottom: isLast ? 0 : "14px",
-			}}
-		>
-			<button
-				type="button"
-				onClick={() => onVideoJump?.(chapter.startSec)}
-				onMouseEnter={() => setHovered(true)}
-				onMouseLeave={() => setHovered(false)}
-				style={{
-					fontSize: "11px",
-					fontWeight: 600,
-					color: hovered ? "var(--blue-11)" : "var(--gray-11)",
-					background: hovered ? "var(--blue-3)" : "var(--gray-3)",
-					border: "none",
-					borderRadius: "999px",
-					padding: "4px 0",
-					textAlign: "center",
-					cursor: "pointer",
-					transition: "background 200ms, color 200ms",
-				}}
-			>
-				{formatTimeMinutes(chapter.startSec)}
-			</button>
-			<div className="min-w-0">
-				<p style={{ fontSize: "15px", fontWeight: 600, color: "var(--gray-12)", marginBottom: "3px" }}>
-					{chapter.title}
-				</p>
-				{chapter.body && (
-					<p style={{ fontSize: "13px", lineHeight: 1.6, color: "var(--gray-11)" }}>
-						{chapter.body}
-					</p>
-				)}
-			</div>
 		</div>
 	);
 }
