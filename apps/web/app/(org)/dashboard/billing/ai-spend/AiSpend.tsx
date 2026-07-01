@@ -8,6 +8,7 @@ import {
 	type GetOrgAiSpendResult,
 	getOrgAiSpend,
 } from "@/actions/billing/get-org-ai-spend";
+import { formatUzs } from "@/lib/format-uzs";
 
 type DateRange = "this_month" | "last_month" | "last_90_days";
 type Operation = "all" | "transcription" | "summary" | "embedding" | "chat";
@@ -34,7 +35,7 @@ const OPERATION_COLORS: Record<string, string> = {
 };
 
 function formatCents(cents: number): string {
-	return `$${(cents / 100).toFixed(2)}`;
+	return formatUzs(cents);
 }
 
 function trendPercent(current: number, previous: number): number | null {

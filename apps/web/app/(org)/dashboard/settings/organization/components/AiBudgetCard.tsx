@@ -5,6 +5,7 @@ import { useEffect, useId, useState } from "react";
 import { toast } from "sonner";
 import { getMonthlySpend } from "@/actions/billing/get-monthly-spend";
 import { saveAiBudget } from "@/actions/billing/save-ai-budget";
+import { formatUzs, USD_TO_UZS } from "@/lib/format-uzs";
 import {
 	canManageOrganizationSettings,
 	getEffectiveOrganizationRole,
@@ -43,13 +44,15 @@ export const AiBudgetCard = () => {
 	)?.preferences?.aiBudget;
 
 	const [enabled, setEnabled] = useState(savedBudget?.enabled ?? false);
-	const [dollars, setDollars] = useState(
-		savedBudget ? (savedBudget.monthlyUsdCents / 100).toFixed(2) : "10.00",
+	const [som, setSom] = useState(
+		savedBudget
+			? String(Math.round((savedBudget.monthlyUsdCents / 100) * USD_TO_UZS))
+			: String(10 * USD_TO_UZS),
 	);
 	const [alertPct, setAlertPct] = useState(savedBudget?.alertAtPct ?? 80);
 	const [saving, setSaving] = useState(false);
 	const [orgSpentCents, setOrgSpentCents] = useState<number | null>(null);
-	const dollarsId = useId();
+	const somId = useId();
 	const alertId = useId();
 
 	const orgId = activeOrganization?.organization.id;
@@ -61,9 +64,10 @@ export const AiBudgetCard = () => {
 		});
 	}, [orgId]);
 
-	const monthlyUsdCents = Math.max(0, Math.round(parseFloat(dollars) * 100));
-	const spentDollars =
-		orgSpentCents != null ? (orgSpentCents / 100).toFixed(2) : null;
+	const monthlyUsdCents = Math.max(
+		0,
+		Math.round((parseFloat(som) / USD_TO_UZS) * 100),
+	);
 	const spentPct =
 		orgSpentCents != null && monthlyUsdCents > 0
 			? Math.round((orgSpentCents / monthlyUsdCents) * 100)
@@ -76,8 +80,8 @@ export const AiBudgetCard = () => {
 			: null;
 
 	const handleSave = async () => {
-		if (Number.isNaN(parseFloat(dollars))) {
-			toast.error("Enter a valid dollar amount");
+		if (Number.isNaN(parseFloat(som))) {
+			toast.error("Enter a valid som amount");
 			return;
 		}
 		setSaving(true);
@@ -114,21 +118,21 @@ export const AiBudgetCard = () => {
 			</div>
 
 			<div className="flex flex-col gap-1">
-				<label htmlFor={dollarsId} className="text-xs text-gray-10">
+				<label htmlFor={somId} className="text-xs text-gray-10">
 					Monthly limit
 				</label>
 				<div className="flex items-center gap-1">
-					<span className="text-sm text-gray-12">$</span>
 					<input
-						id={dollarsId}
+						id={somId}
 						type="number"
 						min="0"
 						step="1"
-						value={dollars}
-						onChange={(e) => setDollars(e.target.value)}
+						value={som}
+						onChange={(e) => setSom(e.target.value)}
 						disabled={!enabled}
 						className="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-3 bg-gray-1 text-gray-12 disabled:opacity-50 focus:outline-none focus:ring-1 focus:ring-blue-11"
 					/>
+					<span className="text-sm text-gray-12">so'm</span>
 				</div>
 			</div>
 
@@ -156,18 +160,20 @@ export const AiBudgetCard = () => {
 				</div>
 			</div>
 
-			{spentDollars != null && (
+			{orgSpentCents != null && (
 				<p className="text-xs text-gray-10">
 					This month so far:{" "}
-					<span className="font-medium text-gray-12">${spentDollars}</span>
+					<span className="font-medium text-gray-12">
+						{formatUzs(orgSpentCents)}
+					</span>
 					{monthlyUsdCents > 0 && <span> ({spentPct}%)</span>}
 				</p>
 			)}
 
 			{effectiveCap != null && (
 				<p className="text-xs text-blue-11">
-					Your effective cap: ${(effectiveCap / 100).toFixed(2)} (limited by
-					your personal budget)
+					Your effective cap: {formatUzs(effectiveCap)} (limited by your
+					personal budget)
 				</p>
 			)}
 
