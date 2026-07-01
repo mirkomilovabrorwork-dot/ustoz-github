@@ -106,6 +106,7 @@
 		"signupHere": "Bu yerda ro'yxatdan o'ting",
 		"haveAccount": "Hisobingiz bormi?",
 		"loginHere": "Bu yerda kiring",
+		"forgotPassword": "Parolni unutdingizmi? Admin bilan bog'laning:",
 		"termsNoticeSignin": "Tizimga kirish orqali siz data365'ning <terms>Foydalanish shartlari</terms> va <privacy>Maxfiylik siyosati</privacy> bilan tanishganingizni va roziligingizni tasdiqlaysiz.",
 		"termsNoticeSignup": "Hisob yaratish orqali siz data365'ning <terms>Foydalanish shartlari</terms> va <privacy>Maxfiylik siyosati</privacy> bilan tanishganingizni va roziligingizni tasdiqlaysiz."
 	},

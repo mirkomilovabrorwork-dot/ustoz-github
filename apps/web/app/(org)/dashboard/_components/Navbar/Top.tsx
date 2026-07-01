@@ -17,6 +17,7 @@ import {
 } from "react";
 import { markAsRead } from "@/actions/notifications/mark-as-read";
 import Notifications from "@/app/(org)/dashboard/_components/Notifications";
+import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { SignedImageUrl } from "@/components/SignedImageUrl";
 import { useDashboardContext } from "../../Contexts";
 import {
@@ -105,6 +106,7 @@ const Top = () => {
 				<DashboardSearch />
 			</div>
 			<div className="flex gap-4 justify-end items-center shrink-0">
+				<LocaleSwitcher />
 				{buildEnv.NEXT_PUBLIC_IS_CAP && <ReferButton />}
 				<div className="hidden relative lg:flex">
 					<button

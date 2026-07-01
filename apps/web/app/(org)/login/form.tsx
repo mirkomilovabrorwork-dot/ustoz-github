@@ -180,6 +180,15 @@ export function LoginForm() {
 						>
 							{loading ? t("signinLoading") : t("signin")}
 						</MotionButton>
+						<p className="text-xs text-center text-gray-11">
+							{t("forgotPassword")}{" "}
+							<a
+								href="mailto:mirkomilovabrorwork@gmail.com"
+								className="font-semibold text-gray-12 hover:text-blue-9"
+							>
+								mirkomilovabrorwork@gmail.com
+							</a>
+						</p>
 					</form>
 					<motion.p
 						layout="position"

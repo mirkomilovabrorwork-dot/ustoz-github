@@ -3,10 +3,12 @@
 import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { organizationMembers, organizations, videos } from "@cap/database/schema";
-import type { VideoMetadata } from "@cap/database/types";
 import type { Video } from "@cap/web-domain";
 import { and, eq, isNull } from "drizzle-orm";
 import { getEffectiveOrganizationRole } from "@/lib/permissions/roles";
+import { patchVideoMetadata } from "@/lib/video-metadata";
+
+class InvalidTaskIndexError extends Error {}
 
 export async function updateTaskStatus(
 	videoId: Video.VideoId,
@@ -69,55 +71,53 @@ export async function updateTaskStatus(
 			return { success: false, error: "forbidden" };
 		}
 
-		const metadata = (video.metadata as VideoMetadata) || {};
+		await patchVideoMetadata(videoId, (current) => {
+			if (
+				!current.aiSummary ||
+				taskIndex < 0 ||
+				taskIndex >= current.aiSummary.tasks.length
+			) {
+				throw new InvalidTaskIndexError();
+			}
 
-		if (
-			!metadata.aiSummary ||
-			taskIndex < 0 ||
-			taskIndex >= metadata.aiSummary.tasks.length
-		) {
-			return { success: false, error: "invalid" };
-		}
+			const updatedAiSummary = {
+				...current.aiSummary,
+				tasks: current.aiSummary.tasks.map((task, i) =>
+					i === taskIndex ? { ...task, done } : task,
+				),
+			};
 
-		const updatedAiSummary = {
-			...metadata.aiSummary,
-			tasks: metadata.aiSummary.tasks.map((task, i) =>
-				i === taskIndex ? { ...task, done } : task,
-			),
-		};
+			const updatedAiSummaryByLanguage = current.aiSummaryByLanguage
+				? Object.fromEntries(
+						Object.entries(current.aiSummaryByLanguage).map(([lang, summary]) => {
+							if (!summary || taskIndex >= summary.tasks.length) {
+								return [lang, summary];
+							}
+							return [
+								lang,
+								{
+									...summary,
+									tasks: summary.tasks.map((task, i) =>
+										i === taskIndex ? { ...task, done } : task,
+									),
+								},
+							];
+						}),
+					)
+				: current.aiSummaryByLanguage;
 
-		const updatedAiSummaryByLanguage = metadata.aiSummaryByLanguage
-			? Object.fromEntries(
-					Object.entries(metadata.aiSummaryByLanguage).map(([lang, summary]) => {
-						if (!summary || taskIndex >= summary.tasks.length) {
-							return [lang, summary];
-						}
-						return [
-							lang,
-							{
-								...summary,
-								tasks: summary.tasks.map((task, i) =>
-									i === taskIndex ? { ...task, done } : task,
-								),
-							},
-						];
-					}),
-				)
-			: metadata.aiSummaryByLanguage;
-
-		await db()
-			.update(videos)
-			.set({
-				metadata: {
-					...metadata,
-					aiSummary: updatedAiSummary,
-					aiSummaryByLanguage: updatedAiSummaryByLanguage,
-				},
-			})
-			.where(eq(videos.id, videoId));
+			return {
+				...current,
+				aiSummary: updatedAiSummary,
+				aiSummaryByLanguage: updatedAiSummaryByLanguage,
+			};
+		});
 
 		return { success: true };
 	} catch (error) {
+		if (error instanceof InvalidTaskIndexError) {
+			return { success: false, error: "invalid" };
+		}
 		console.error("Error updating task status:", error);
 		return {
 			success: false,

@@ -21,6 +21,7 @@ import { BudgetExceededError, withCostGuard } from "@/lib/ai-cost-guard";
 import { withGeminiRetry } from "@/lib/gemini-retry";
 import { runPromise } from "@/lib/server";
 import { normalizeWebVttVoiceText } from "@/lib/transcript-vtt";
+import { patchVideoMetadata } from "@/lib/video-metadata";
 import { getStorageAccessForVideo } from "@/lib/video-storage";
 
 interface GenerateAiWorkflowPayload {
@@ -58,45 +59,57 @@ interface AiResult {
 	_usage?: { model: string; inputTokens: number; outputTokens: number };
 }
 
+// Resilient by design: the AI's structured JSON is imperfect on long (2h+)
+// multi-chunk syntheses — a single item missing an inner field (e.g. a chapter
+// with no `body`) used to fail the WHOLE parse (parseAiSummary → null), which
+// stored a COMPLETE video with an EMPTY structured summary (no tasks/topics/
+// refined). Every field now has a default and every array/scalar `.catch`es
+// parse errors, so partial imperfections degrade gracefully instead of nuking
+// the entire structured summary.
 const AiSummarySchema = z.object({
-	overview: z.string().default(""),
+	overview: z.string().catch(""),
 	topics: z
-		.array(z.object({ title: z.string(), body: z.string() }))
-		.default([]),
-	nextSteps: z.array(z.string()).default([]),
+		.array(
+			z.object({
+				title: z.string().catch(""),
+				body: z.string().catch(""),
+			}),
+		)
+		.catch([]),
+	nextSteps: z.array(z.string()).catch([]),
 	tasks: z
 		.array(
 			z.object({
-				title: z.string(),
-				assignee: z.string().default(""),
-				priority: z.enum(["high", "medium", "low"]).default("medium"),
-				deadline: z.string().default(""),
-				done: z.boolean().default(false),
+				title: z.string().catch(""),
+				assignee: z.string().catch(""),
+				priority: z.enum(["high", "medium", "low"]).catch("medium"),
+				deadline: z.string().catch(""),
+				done: z.boolean().catch(false),
 			}),
 		)
-		.default([]),
+		.catch([]),
 	chapters: z
 		.array(
 			z.object({
-				startSec: z.number(),
-				title: z.string(),
-				body: z.string(),
+				startSec: z.number().catch(0),
+				title: z.string().catch(""),
+				body: z.string().catch(""),
 			}),
 		)
-		.default([]),
+		.catch([]),
 	refinedTranscript: z
 		.object({
 			chapters: z
 				.array(
 					z.object({
-						startSec: z.number(),
-						title: z.string(),
-						paragraphs: z.array(z.string()),
+						startSec: z.number().catch(0),
+						title: z.string().catch(""),
+						paragraphs: z.array(z.string()).catch([]),
 					}),
 				)
-				.default([]),
+				.catch([]),
 		})
-		.default({ chapters: [] }),
+		.catch({ chapters: [] }),
 });
 
 function parseAiSummary(raw: unknown): AiSummary | null {
@@ -311,6 +324,10 @@ async function generateWithAi(
 		videoDurationSeconds: videoDuration,
 	});
 
+	// The refined transcript is generated as a SEPARATE chapter-aligned pass below
+	// (its chapters mirror aiSummary.chapters exactly, like the raw "Matn" tab).
+	// The chunk paths must NOT produce their own chunk-shaped refined — that both
+	// mis-aligns the sections AND doubles the AI spend. So pass `false` here.
 	let result: AiResult;
 	if (chunks.length === 1) {
 		result = await generateSingleChunk(
@@ -318,7 +335,7 @@ async function generateWithAi(
 			videoDuration,
 			languageInstruction,
 			context,
-			includeRefinedTranscript,
+			false,
 		);
 	} else {
 		result = await generateMultipleChunks(
@@ -326,7 +343,7 @@ async function generateWithAi(
 			videoDuration,
 			languageInstruction,
 			context,
-			includeRefinedTranscript,
+			false,
 		);
 	}
 
@@ -338,11 +355,29 @@ async function generateWithAi(
 			result.aiSummary.chapters,
 			videoDuration,
 		);
-		result.aiSummary.refinedTranscript.chapters =
-			result.aiSummary.refinedTranscript.chapters.map((ch) => ({
-				...ch,
-				startSec: sanitizeStartSec(ch.startSec, videoDuration) ?? 0,
-			}));
+	}
+
+	// Chapter-aligned refined transcript: clean the transcript slice under each
+	// finalized summary chapter so "Refined" and "Matn" share the same sections.
+	if (includeRefinedTranscript) {
+		const refined = await generateChapterAlignedRefined(
+			transcript.segments,
+			result.aiSummary?.chapters ?? [],
+			context,
+		);
+		if (refined.chapters.length > 0) {
+			if (result.aiSummary) {
+				result.aiSummary.refinedTranscript = { chapters: refined.chapters };
+			} else {
+				result.aiSummary = parseAiSummary({
+					refinedTranscript: { chapters: refined.chapters },
+				});
+			}
+		}
+		if (result._usage) {
+			result._usage.inputTokens += refined.inputTokens;
+			result._usage.outputTokens += refined.outputTokens;
+		}
 	}
 
 	return result;
@@ -509,35 +544,30 @@ async function saveResults(
 	const resultHasContent =
 		resultSummaryText.length > 0 || Boolean(result.aiSummary);
 
-	const updatedMetadata: VideoMetadata = resultHasContent
-		? {
-				...currentMetadata,
-				aiTitle: generatedTitle || currentMetadata.aiTitle,
-				summary: result.summary || currentMetadata.summary,
-				chapters: result.chapters || currentMetadata.chapters,
-				aiSummary: result.aiSummary ?? currentMetadata.aiSummary,
-				aiBaseLanguage: resolvedBaseLanguage ?? currentMetadata.aiBaseLanguage,
-				aiGenerationStatus: summaryIsUsable
-					? "COMPLETE"
-					: currentMetadata.summary || currentMetadata.aiSummary
+	await patchVideoMetadata(videoId, (current) => {
+		return resultHasContent
+			? {
+					...current,
+					aiTitle: generatedTitle || current.aiTitle,
+					summary: result.summary || current.summary,
+					chapters: result.chapters || current.chapters,
+					aiSummary: result.aiSummary ?? current.aiSummary,
+					aiBaseLanguage: resolvedBaseLanguage ?? current.aiBaseLanguage,
+					aiGenerationStatus: summaryIsUsable
 						? "COMPLETE"
-						: "ERROR",
-			}
-		: {
-				// This run produced nothing usable: preserve any existing
-				// content (don't clobber it with the failure placeholder) and
-				// surface a retryable ERROR only when there's nothing to show.
-				...currentMetadata,
-				aiGenerationStatus:
-					currentMetadata.summary || currentMetadata.aiSummary
-						? "COMPLETE"
-						: "ERROR",
-			};
-
-	await db()
-		.update(videos)
-		.set({ metadata: updatedMetadata })
-		.where(eq(videos.id, videoId as Video.VideoId));
+						: current.summary || current.aiSummary
+							? "COMPLETE"
+							: "ERROR",
+				}
+			: {
+					// This run produced nothing usable: preserve any existing
+					// content (don't clobber it with the failure placeholder) and
+					// surface a retryable ERROR only when there's nothing to show.
+					...current,
+					aiGenerationStatus:
+						current.summary || current.aiSummary ? "COMPLETE" : "ERROR",
+				};
+	});
 
 	if (
 		generatedTitle &&
@@ -837,10 +867,12 @@ ${transcriptWithTimestamps}`;
 	// Full cleaned transcripts are useful but expensive because output length is
 	// close to raw transcript length. Keep them automatic only for short videos.
 	const refined = includeRefinedTranscript
-		? await generateRefinedTranscriptSingle(
-				transcriptWithTimestamps,
-				parsed.chapters ?? [],
-				segments[0]?.start ?? 0,
+		? await generateChapterAlignedRefined(
+				segments,
+				(parsed.chapters ?? []).map((c) => ({
+					startSec: c.start,
+					title: c.title,
+				})),
 				context,
 			)
 		: { chapters: [], inputTokens: 0, outputTokens: 0 };
@@ -872,22 +904,60 @@ ${transcriptWithTimestamps}`;
 	};
 }
 
-// Produces the cleaned full transcript for the single-chunk path with its own
-// dedicated (non-JSON) model call, mirroring the per-chunk refined prompt used by
-// the multi-chunk path. Because it does not share the summary/tasks/chapters JSON
-// budget, the cleaned text is never truncated regardless of transcript length.
-async function generateRefinedTranscriptSingle(
-	transcriptWithTimestamps: string,
-	chapters: { title: string; start: number }[],
-	startSec: number,
+// Produces a chapter-aligned refined transcript: for each finalized summary
+// chapter, clean ONLY the transcript segments that fall under that chapter's
+// time range. This makes the "Refined" tab split into the SAME sections as the
+// raw "Matn" tab (same count/titles/startSec) instead of coarse ~24KB chunks.
+// Each chapter is cleaned with its own dedicated non-JSON call, so output is
+// never truncated. Falls back to the raw slice text if the model returns empty.
+async function generateChapterAlignedRefined(
+	segments: VttSegment[],
+	chapters: { startSec: number; title: string }[],
 	context: AiCallContext,
 ): Promise<{
 	chapters: { startSec: number; title: string; paragraphs: string[] }[];
 	inputTokens: number;
 	outputTokens: number;
 }> {
-	const chapterTitle = chapters[0]?.title ?? "Transcript";
-	const refinedPrompt = `You are a transcript editor. Your ONLY job is to produce a clean, complete, full version of the spoken text below — NOT a summary.
+	const sorted = [...chapters]
+		.filter((c) => Number.isFinite(c.startSec))
+		.sort((a, b) => a.startSec - b.startSec);
+
+	// No usable chapters (e.g. summary JSON failed) → clean the whole transcript
+	// as a single section so the Refined tab is never empty.
+	const ranges =
+		sorted.length > 0
+			? sorted.map((c, i) => ({
+					startSec: c.startSec,
+					title: c.title,
+					endSec: sorted[i + 1]?.startSec ?? Number.POSITIVE_INFINITY,
+				}))
+			: [
+					{
+						startSec: segments[0]?.start ?? 0,
+						title: "Transcript",
+						endSec: Number.POSITIVE_INFINITY,
+					},
+				];
+
+	let inputTokens = 0;
+	let outputTokens = 0;
+	const out: { startSec: number; title: string; paragraphs: string[] }[] = [];
+
+	for (const range of ranges) {
+		const slice = segments.filter(
+			(s) => s.start >= range.startSec && s.start < range.endSec,
+		);
+		if (slice.length === 0) continue;
+
+		const timestamped = slice
+			.map(
+				(s) =>
+					`[${Math.floor(s.start / 60)}:${String(s.start % 60).padStart(2, "0")}] ${s.text}`,
+			)
+			.join("\n");
+
+		const refinedPrompt = `You are a transcript editor. Your ONLY job is to produce a clean, complete, full version of the spoken text below — NOT a summary.
 
 RULES (strict):
 - Remove ONLY: filler words ("uh", "um", "a-a", "er", "well", "you know", "like" used as filler), exact word-for-word repetitions, false starts (e.g. "I was — I mean, we should"), and off-topic jokes that add zero informational content.
@@ -902,56 +972,43 @@ ${MIXED_LANGUAGE_PRESERVATION_RULES}
 Return ONLY the cleaned text. No JSON. No explanations.
 
 Transcript:
-${transcriptWithTimestamps}`;
+${timestamped}`;
 
-	const refinedResult = await callAiApi(
-		refinedPrompt,
-		{ json: false },
-		context,
-	);
-	const usage = {
-		inputTokens: refinedResult.inputTokens,
-		outputTokens: refinedResult.outputTokens,
-	};
+		let paragraphs: string[] = [];
+		try {
+			const refinedResult = await callAiApi(
+				refinedPrompt,
+				{ json: false },
+				context,
+			);
+			inputTokens += refinedResult.inputTokens;
+			outputTokens += refinedResult.outputTokens;
+			paragraphs = refinedResult.content
+				.trim()
+				.split(/\n\s*\n/)
+				.map((p) => p.trim())
+				.filter((p) => p.length > 0);
+		} catch (error) {
+			console.error(
+				"[generate-ai] chapter-aligned refine failed for chapter; using raw slice",
+				{ startSec: range.startSec, error },
+			);
+		}
 
-	const cleanedText = refinedResult.content.trim();
-	if (cleanedText.length === 0) {
-		// AI cleaning returned nothing — fall back to the raw transcript text so
-		// the Refined tab is never blank when a transcript exists.
-		const rawParagraphs = transcriptWithTimestamps
-			.split("\n")
-			.map((line) => line.replace(/^\[\d+:\d+(?::\d+)?\]\s*/, ""))
-			.join("\n")
-			.split(/\n\s*\n/)
-			.map((p) => p.trim())
-			.filter((p) => p.length > 0);
-		return {
-			chapters: [
-				{
-					startSec,
-					title: chapterTitle,
-					paragraphs: rawParagraphs.length > 0 ? rawParagraphs : [transcriptWithTimestamps],
-				},
-			],
-			...usage,
-		};
+		if (paragraphs.length === 0) {
+			paragraphs = slice
+				.map((s) => s.text.trim())
+				.filter((t) => t.length > 0);
+		}
+
+		out.push({
+			startSec: range.startSec,
+			title: range.title,
+			paragraphs,
+		});
 	}
 
-	const paragraphs = cleanedText
-		.split(/\n\s*\n/)
-		.map((p) => p.trim())
-		.filter((p) => p.length > 0);
-
-	return {
-		chapters: [
-			{
-				startSec,
-				title: chapterTitle,
-				paragraphs: paragraphs.length > 0 ? paragraphs : [cleanedText],
-			},
-		],
-		...usage,
-	};
+	return { chapters: out, inputTokens, outputTokens };
 }
 
 async function generateMultipleChunks(

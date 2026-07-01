@@ -1,7 +1,9 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useCurrentUser } from "@/app/Layout/AuthContext";
 import {
 	formatSeconds,
 	parseTimestampToSeconds,
@@ -54,7 +56,11 @@ function renderBoldAndBreaks(
 			segments.push(...splitByLineBreak(before, i));
 			i++;
 		}
-		segments.push(<strong key={`b-${i++}`}>{match[1]}</strong>);
+		segments.push(
+			<span key={`b-${i++}`} className="text-blue-11">
+				{match[1]}
+			</span>,
+		);
 		last = match.index + match[0].length;
 	}
 
@@ -208,6 +214,8 @@ export function AIChatPopup({
 	isOpen = false,
 }: AIChatPopupProps) {
 	const t = useTranslations("share");
+	const user = useCurrentUser();
+	const pathname = usePathname();
 	const QUICK_ACTIONS = [
 		{
 			label: t("aiQuickSummary"),
@@ -266,6 +274,9 @@ export function AIChatPopup({
 		async (text: string) => {
 			const trimmed = text.trim();
 			if (!trimmed || isStreaming) return;
+			// Guests cannot use paid AI chat (server returns 401); the footer shows
+			// a sign-in CTA instead, so never attempt a submit without a user.
+			if (!user) return;
 
 			const userMsg: Message = {
 				id: nextMsgId(),
@@ -395,7 +406,7 @@ export function AIChatPopup({
 				abortRef.current = null;
 			}
 		},
-		[videoId, messages, isStreaming],
+		[videoId, messages, isStreaming, user, t],
 	);
 
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -496,19 +507,21 @@ export function AIChatPopup({
 							</div>
 							<div className="ws">{t("aiWelcomeSubtitle")}</div>
 						</div>
-						<div className="ai-chips">
-							{QUICK_ACTIONS.map((action, idx) => (
-								<button
-									key={action.query}
-									type="button"
-									className="ai-chip"
-									onClick={() => sendMessage(action.query)}
-								>
-									{CHIP_ICONS[idx]}
-									{action.label}
-								</button>
-							))}
-						</div>
+						{user && (
+							<div className="ai-chips">
+								{QUICK_ACTIONS.map((action, idx) => (
+									<button
+										key={action.query}
+										type="button"
+										className="ai-chip"
+										onClick={() => sendMessage(action.query)}
+									>
+										{CHIP_ICONS[idx]}
+										{action.label}
+									</button>
+								))}
+							</div>
+						)}
 					</>
 				)}
 
@@ -547,41 +560,54 @@ export function AIChatPopup({
 			</div>
 
 			<div className="ai-foot">
-				<div className="ai-inputbar">
-					<textarea
-						ref={textareaRef}
-						rows={1}
-						placeholder={t("aiPlaceholder")}
-						value={input}
-						onChange={(e) => {
-							setInput(e.target.value);
-							adjustTextarea();
-						}}
-						onKeyDown={handleKeyDown}
-						disabled={isStreaming}
-					/>
-					<button
-						type="button"
-						className="ai-send"
-						onClick={() => sendMessage(input)}
-						disabled={!input.trim() || isStreaming}
-						aria-label={t("aiSendAriaLabel")}
-					>
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth="2.4"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-							aria-hidden="true"
+				{user ? (
+					<>
+						<div className="ai-inputbar">
+							<textarea
+								ref={textareaRef}
+								rows={1}
+								placeholder={t("aiPlaceholder")}
+								value={input}
+								onChange={(e) => {
+									setInput(e.target.value);
+									adjustTextarea();
+								}}
+								onKeyDown={handleKeyDown}
+								disabled={isStreaming}
+							/>
+							<button
+								type="button"
+								className="ai-send"
+								onClick={() => sendMessage(input)}
+								disabled={!input.trim() || isStreaming}
+								aria-label={t("aiSendAriaLabel")}
+							>
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="2.4"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									aria-hidden="true"
+								>
+									<path d="M12 20V5" />
+									<path d="m6 11 6-6 6 6" />
+								</svg>
+							</button>
+						</div>
+						<div className="ai-disclaimer">{t("aiDisclaimer")}</div>
+					</>
+				) : (
+					<div className="px-4 py-3 text-center text-sm text-gray-11">
+						<a
+							href={`/login?next=${encodeURIComponent(pathname)}`}
+							className="font-medium text-blue-11 hover:underline"
 						>
-							<path d="M12 20V5" />
-							<path d="m6 11 6-6 6 6" />
-						</svg>
-					</button>
-				</div>
-				<div className="ai-disclaimer">{t("aiDisclaimer")}</div>
+							{t("aiAuthRequired")}
+						</a>
+					</div>
+				)}
 			</div>
 		</div>
 	);

@@ -13,6 +13,7 @@ import { z } from "zod";
 import { withCostGuard } from "@/lib/ai-cost-guard";
 import { withGeminiRetry } from "@/lib/gemini-retry";
 import { runPromise } from "@/lib/server";
+import { patchVideoMetadata } from "@/lib/video-metadata";
 import { getStorageAccessForVideo } from "@/lib/video-storage";
 
 interface TranslateAiContentPayload {
@@ -28,7 +29,16 @@ const SHARE_LANGUAGE_NAMES: Record<ShareLanguage, string> = {
 };
 
 function getTranslationLanguageInstruction(language: ShareLanguage): string {
-	return `Translate ALL text fields into ${SHARE_LANGUAGE_NAMES[language]}. Preserve the original meaning exactly — do not summarize, shorten, or add content. Keep technical terms, product names, brand names, and code identifiers in their original form when there is no natural equivalent. Output the SAME JSON structure as the input, with every text field translated.`;
+	return [
+		`Translate ALL text fields into ${SHARE_LANGUAGE_NAMES[language]}.`,
+		"Preserve the original meaning exactly — do not summarize, shorten, or add content.",
+		// Mirror the generation-time preservation rule so a mixed-language meeting
+		// stays consistent after translation: foreign/technical words that were kept
+		// as-spoken in the base analysis must NOT get translated away here.
+		'Do NOT translate or transliterate technical terms, product names, brand names, code identifiers, acronyms, or English/Russian words used as technical/foreign terms — keep them EXACTLY as written in the source. For example: "dashboard" must NOT become "boshqaruv paneli", "deadline" must NOT become "muddat" or "dedlayn", "сразу" must NOT become "srazu". Translate only the ordinary surrounding prose.',
+		"Preserve any existing markdown **bold** markers exactly, around the same words.",
+		"Output the SAME JSON structure as the input, with every text field translated.",
+	].join(" ");
 }
 
 const AiSummarySchema = z.object({
@@ -504,18 +514,6 @@ async function getCurrentVideoRow(videoId: string) {
 	return row ?? null;
 }
 
-async function patchMetadata(
-	videoId: string,
-	patch: (current: VideoMetadata) => VideoMetadata,
-): Promise<void> {
-	const row = await getCurrentVideoRow(videoId);
-	const current = (row?.metadata as VideoMetadata) || {};
-	await db()
-		.update(videos)
-		.set({ metadata: patch(current) })
-		.where(eq(videos.id, videoId as Video.VideoId));
-}
-
 export async function translateAiContent({
 	videoId,
 	userId,
@@ -534,7 +532,7 @@ export async function translateAiContent({
 		);
 	}
 
-	await patchMetadata(videoId, (current) => ({
+	await patchVideoMetadata(videoId, (current) => ({
 		...current,
 		aiTranslationStatus: {
 			...current.aiTranslationStatus,
@@ -576,7 +574,7 @@ export async function translateAiContent({
 			}
 		}
 
-		await patchMetadata(videoId, (current) => ({
+		await patchVideoMetadata(videoId, (current) => ({
 			...current,
 			aiSummaryByLanguage: {
 				...current.aiSummaryByLanguage,
@@ -592,7 +590,7 @@ export async function translateAiContent({
 			`[translate-ai] translation failed for video ${videoId} language ${language}:`,
 			error,
 		);
-		await patchMetadata(videoId, (current) => ({
+		await patchVideoMetadata(videoId, (current) => ({
 			...current,
 			aiTranslationStatus: {
 				...current.aiTranslationStatus,

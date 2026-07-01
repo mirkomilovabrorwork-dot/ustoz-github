@@ -3,6 +3,7 @@ import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { LoginForm } from "./form";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +33,9 @@ export default async function LoginPage(props: {
 				/>
 				<span>Home</span>
 			</Link>
+			<div className="mb-6 flex w-full justify-end sm:absolute sm:right-10 sm:top-10 sm:mb-0 sm:w-auto">
+				<LocaleSwitcher />
+			</div>
 			<LoginForm />
 		</div>
 	);
