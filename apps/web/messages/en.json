@@ -367,6 +367,7 @@
 		"aiStartAnalysis": "Start AI analysis",
 		"aiReanalyze": "Re-analyze",
 		"aiReanalyzeHint": "Re-run AI analysis on the existing transcript (uses AI credits).",
+		"aiIncompleteHint": "This analysis looks incomplete — re-run it.",
 		"aiNotAvailable": "AI analysis not available.",
 		"retryProcessingStarted": "Video processing restarted.",
 		"retryProcessingStillRunning": "Video is still processing.",

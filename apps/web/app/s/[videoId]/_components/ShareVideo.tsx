@@ -240,6 +240,20 @@ export const ShareVideo = forwardRef<
 		const effectiveAiStatus =
 			aiStatusQuery.data?.aiGenerationStatus ?? optimisticAiStatus ?? aiGenerationStatus;
 
+		// "chala" (incomplete-looking) analysis: empty-but-complete, or refined
+		// sections fewer than summary chapters (misaligned old-data case).
+		const aiIncomplete = useMemo(() => {
+			const ai = data.metadata?.aiSummary;
+			if (!ai) return false;
+			const chapters = ai.chapters?.length ?? 0;
+			const refined = ai.refinedTranscript?.chapters?.length ?? 0;
+			const hasContent =
+				(ai.overview?.trim()?.length ?? 0) > 0 ||
+				(ai.topics?.length ?? 0) > 0 ||
+				chapters > 0;
+			return !hasContent || (chapters > 0 && refined > 0 && refined < chapters);
+		}, [data.metadata?.aiSummary, effectiveAiStatus]);
+
 		// Handle comments data
 		useEffect(() => {
 			if (comments) {
@@ -726,6 +740,7 @@ export const ShareVideo = forwardRef<
 											| undefined
 									}
 									aiGenerationStatus={effectiveAiStatus}
+									aiIncomplete={aiIncomplete}
 									duration={data.duration}
 									onStarted={handleAiStarted}
 								/>

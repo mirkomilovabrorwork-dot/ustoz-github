@@ -367,6 +367,7 @@
 		"aiStartAnalysis": "AI tahlilini boshlash",
 		"aiReanalyze": "Qayta analiz",
 		"aiReanalyzeHint": "AI tahlilni mavjud transkript asosida qayta ishga tushirish (AI krediti sarflanadi).",
+		"aiIncompleteHint": "Bu tahlil chala ko'rinadi — qayta ishga tushiring.",
 		"aiNotAvailable": "AI tahlili mavjud emas.",
 		"retryProcessingStarted": "Video qayta ishlanishga boshlandi.",
 		"retryProcessingStillRunning": "Video hali ham ishlanmoqda.",

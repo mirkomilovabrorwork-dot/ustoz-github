@@ -1,30 +1,29 @@
-# QA Plan — data365 (cap fork) — RUN 3 (CORE VIDEO PIPELINE focus)
+# QA Plan — Ustoz (Cap fork) — RUN 4 (deploy 112c812, live Playwright)
 
-> History: RUN 1 = full pass (production-ready). RUN 2 = dark-mode/UI (complete, 0 new Crit/High/Med). RUN 3 (this) = the record→play→transcript→AI→share pipeline, triggered because the owner kept hitting one pipeline bug after another and wants ALL breaks found + fixed in ONE sweep (stop the whack-a-mole).
+> History: RUN 1 full pass · RUN 2 dark-mode/UI · RUN 3 core pipeline. RUN 4 (this) = live Playwright verification of deploy `112c812` (retry-AI / re-analyze button, in-recording camera toggle, extension pause, UI polish) + core flow regression, on the LIVE Railway build.
 
 ## Project
-- **Name:** data365 (self-hosted cap fork) — Loom-style recorder (record → R2/S3 → share `/s/[videoId]` → AI transcript/summary/chapters).
-- **Platform:** Web monorepo (pnpm workspace), NOT Android. Evidence: root `package.json` + `pnpm-workspace.yaml`; `apps/web` = **Next.js 16.2.1** (App Router, React 19); `apps/browser-extension` = Chrome MV3; no `android/`. Live on Railway → https://capweb-production-dd85.up.railway.app (branch `qa-fixes`, auto-deploy). Effect/Drizzle + MySQL 8 + Cloudflare R2.
-- **Tooling THIS run:** evidence = Railway logs + HTTP + code (the pipeline is mostly auth-gated / owner-physical, so headless UI driving is low-yield):
-  - **Railway production logs** `railway logs --service @cap/web` (RAILWAY_TOKEN set this session) — PRIMARY evidence for upload/transcribe/AI. Already proven invaluable (pinned the transcription bug exactly).
-  - **HTTP probes** (curl) for public surfaces: `/s/` viewer, `/api/playlist` (source resolution + file sizes), `/api/health`.
-  - **Code review** for paths not drivable headlessly.
-  - Chrome/Preview MCP + Playwright (`test:e2e`) exist (G3 clear) but not required for this read-mostly pass.
-- **Run / build / test commands:** dev `pnpm dev:web` → http://localhost:3001 (root `.env` → LIVE MySQL); build `pnpm build:web`; **GATE (typecheck)** `pnpm --dir apps/web exec next typegen && pnpm tsc -b` (ROOT; the `-F @cap/web` variant is a no-op false-green); unit `pnpm test:web` (vitest, ~20 pre-existing mock failures = test-debt, not app bugs); lint `pnpm exec biome lint`. Node not on PATH → `$env:Path = "C:\Program Files\nodejs;" + $env:Path`. BOM-check changed files.
-- **Hardening tools detected:** biome ✅ · vitest + Playwright ✅ · CI `ci.yml`+`recover-cron.yml` ✅ · Sentry ❌ (no SDK) · Lighthouse ❌ · a11y ❌ · `pnpm audit` available · bundle analyser ❌.
+- **Name:** Ustoz (Cap V2 fork) — Loom-style recorder (record → R2 → share `/s/[videoId]` → AI transcript/summary/chapters).
+- **Platform:** Web (Next.js 16.2.1, App Router, React 19) pnpm monorepo. Evidence: `package.json`, `pnpm-workspace.yaml`, `apps/web` next dep. Plus `apps/browser-extension` (Chrome MV3, NOT headless-testable). No `android/`.
+- **Tooling THIS run:** Playwright chromium 1228 (installed at `~/AppData/Local/ms-playwright`) pointed at the LIVE Railway URL via `PLAYWRIGHT_BASE_URL`. Owner explicitly requested "full playwright" → gate G3 satisfied.
+- **Target:** LIVE HEAD `112c812` — https://capweb-production-dd85.up.railway.app · admin@ustoz.uz / UstozAdmin2026!
+- **Run / build / test commands:** dev `pnpm --filter @cap/web dev` (3001); build `next build`; unit `pnpm --filter @cap/web run test`; e2e `pnpm --filter @cap/web exec playwright test`; GATE ROOT `pnpm tsc -b`. Node PATH prefix `$env:Path="C:\Program Files\nodejs;"+$env:Path`.
+- **Hardening tools detected:** biome ✅ · vitest + Playwright ✅ · CI `ci.yml`+`recover-cron.yml` ✅ · Sentry ❌ · Lighthouse ❌ · a11y ❌.
 
-## Scope (focused)
-> record (Meet/extension · browser-extension · in-app) → upload → trim → play → transcript → AI summary / action-items / chapters → share / viewer
-Regression-check the 3 fixes shipped this session: extension short-recording empty-video (dfc6ef8, ext **v0.1.1**) · Stripe priceId + Discord relay guard (c73eef0/09231e8) · transcription raw-upload fallback (ddc6b95). Known still-open: **C1** = AI summary/analysis not auto-triggered after transcription ("Start AI analysis" / "hasn't been run yet").
+## Safety adaptation (live target)
+Live per owner direction. NO test will trigger AI generation/spend (the re-analyze Confirm is opened then CANCELLED — the reprocess POST was already verified live returning started:true), send messages, mutate/delete data, or deploy. Read-only navigation + login + assertions only.
 
-## Coverage pre-flight (honest, set BEFORE the run)
-- **CAN verify (evidence available):** upload→storage-key resolution, transcription pipeline (logs), AI-analysis trigger/state, `/api/playlist` source + raw-upload fallback, trim endpoint, share/viewer playback, the 3 regressions — via Railway logs + HTTP + code.
-- **OWNER-PHYSICAL → `Unverified — needs owner action`:** the 3 RECORDING methods (owner's real browser + live Google Meet + loaded extension). I give exact click-steps and verify the RESULT (uploaded file + logs) after the owner records.
-- **Auth-gated dashboard UI:** verified via code + logs + public viewer, not forged login.
-- **NO real side effects during QA:** no payments, no real emails/messages, no prod DB writes, **no deploys/`git push`** — fixes are batched, gated locally, deployed only with owner approval after the sweep.
+## Scope
+Deploy `112c812` changes + core flow regression:
+1. Owner "Qayta analiz" (re-analyze) button — visible ONLY to owner/admin on COMPLETE analysis; cost dialog opens on click.
+2. LocaleSwitcher — real SVG flags (uz/eng/ru), not letters.
+3. AI **bold** — dark-grey semibold, not link-blue.
+4. Anonymous viewer — no generate/re-analyze; AI chat → sign-in.
+5. Core: login, dashboard caps list, share page render, language switch, light/dark.
+OWNER-PHYSICAL (Unverified): in-recording camera toggle, extension pause/resume, real recording upload, actual AI re-run result.
 
 ## Status
-Step 0 ✅ · Step 1 ✅ · Step 2 ✅ · Step 3 ✅ · Step 4 ✅ (4 fixes shipped `cba69a0`: C1 budget, C3, S-07, C8; C4+C5/C7 deferred per owner) · Step 5 ⏳ (hardening — pending)
+Step 0 ✅ · Step 1 ⏳ · Step 2 ⏳ · Step 3 ⏳ · Step 4 ⏳ · Step 5 ⏳
 
 ## The 6 steps
 - Step 1 — Map flows + gaps → QA_FLOWS.md
@@ -34,7 +33,7 @@ Step 0 ✅ · Step 1 ✅ · Step 2 ✅ · Step 3 ✅ · Step 4 ✅ (4 fixes ship
 - Step 5 — Production hardening → QA_HARDENING.md
 
 ## Non-disruptive rules
-- Headless / logs / HTTP only — no GUI windows on the owner's desktop. Screenshots ≤1800px, read via Read tool. Web: select by data-testid / aria-label / visible text. Test/sandbox data only; no real payments/messages/destructive actions; no silent production deploys during QA.
+Headless only, no GUI windows. Screenshots ≤1800px, read via Read tool. Select by data-testid / aria-label / visible text. No payments/messages/AI-spend/destructive actions/deploys during QA.
 
 ## Hand-off contract
-Each step: (1) read this file + confirm next step; (2) do the work; (3) write its output file; (4) update Status above. Files are the source of truth — not chat.
+Each step reads this file first, does its work, writes its output file, updates Status. Files are source of truth.

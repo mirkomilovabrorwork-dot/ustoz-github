@@ -367,6 +367,7 @@
 		"aiStartAnalysis": "Запустить AI-анализ",
 		"aiReanalyze": "Повторный анализ",
 		"aiReanalyzeHint": "Повторно запустить ИИ-анализ на существующей расшифровке (расходует ИИ-кредиты).",
+		"aiIncompleteHint": "Этот анализ выглядит неполным — запустите повторно.",
 		"aiNotAvailable": "AI-анализ недоступен.",
 		"retryProcessingStarted": "Обработка видео перезапущена.",
 		"retryProcessingStillRunning": "Видео ещё обрабатывается.",

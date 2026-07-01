@@ -6,8 +6,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "@cap/ui";
 import type { Video } from "@cap/web-domain";
+import { MoreVertical } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -31,6 +36,9 @@ interface GenerateAiPanelProps {
   transcriptionStatus: TranscriptionStatus | null | undefined;
   aiGenerationStatus: AiGenerationStatus | null | undefined;
   duration?: number | null;
+  /** When true, the completed analysis looks incomplete ("chala") and the
+   * re-analyze affordance should be shown prominently instead of tucked away. */
+  aiIncomplete?: boolean;
   /** Called after a successful POST so the parent can refetch status */
   onStarted?: () => void;
 }
@@ -98,6 +106,7 @@ export function GenerateAiPanel({
   transcriptionStatus,
   aiGenerationStatus,
   duration,
+  aiIncomplete = false,
   onStarted,
 }: GenerateAiPanelProps) {
   const t = useTranslations("generateAi");
@@ -276,25 +285,58 @@ export function GenerateAiPanel({
     );
   }
 
-  // ── Owner re-analyze (retry) when analysis already complete ───────────────
+  // ── Owner re-analyze when analysis already complete ────────────────────────
   if (
     canGenerate &&
     transcriptionStatus === "COMPLETE" &&
     aiGenerationStatus === "COMPLETE"
   ) {
+    // Incomplete-looking ("chala") analysis: keep a visible, calm prompt so
+    // the owner notices and re-runs it.
+    if (aiIncomplete) {
+      return (
+        <>
+          <div className="flex flex-col gap-2 rounded-xl border border-gray-4 bg-gray-2 px-4 py-3">
+            <p className="text-xs text-gray-10">{tShare("aiIncompleteHint")}</p>
+            {error && <p className="text-xs text-red-10">{error}</p>}
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => requestStart(true)}
+              className="self-start rounded-lg border border-gray-5 bg-gray-3 px-4 py-2 text-sm font-medium text-gray-12 transition-colors hover:bg-gray-4 disabled:opacity-60"
+            >
+              {loading ? tShare("aiStarting") : tShare("aiReanalyze")}
+            </button>
+          </div>
+          {confirmDialog}
+        </>
+      );
+    }
+
+    // Good analysis: don't alarm the owner with a panel — tuck re-analyze
+    // into a discreet overflow menu instead.
     return (
       <>
-        <div className="flex flex-col gap-2 rounded-xl border border-gray-4 bg-gray-2 px-4 py-3">
-          <p className="text-xs text-gray-10">{tShare("aiReanalyzeHint")}</p>
-          {error && <p className="text-xs text-red-10">{error}</p>}
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() => requestStart(true)}
-            className="self-start rounded-lg border border-gray-5 bg-gray-3 px-4 py-2 text-sm font-medium text-gray-12 transition-colors hover:bg-gray-4 disabled:opacity-60"
-          >
-            {loading ? tShare("aiStarting") : tShare("aiReanalyze")}
-          </button>
+        <div className="flex justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label={tShare("aiReanalyze")}
+                className="rounded-md p-1.5 text-gray-9 hover:bg-gray-3 hover:text-gray-11"
+              >
+                <MoreVertical className="size-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                disabled={loading}
+                onClick={() => requestStart(true)}
+              >
+                {tShare("aiReanalyze")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         {confirmDialog}
       </>
