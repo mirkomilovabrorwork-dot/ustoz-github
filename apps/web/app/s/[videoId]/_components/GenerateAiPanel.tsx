@@ -1,11 +1,6 @@
 "use client";
 
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -109,12 +104,9 @@ export function GenerateAiPanel({
   aiIncomplete = false,
   onStarted,
 }: GenerateAiPanelProps) {
-  const t = useTranslations("generateAi");
   const tShare = useTranslations("share");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [reprocessMode, setReprocessMode] = useState(false);
   const isRunning =
     transcriptionStatus === "PROCESSING" ||
     aiGenerationStatus === "QUEUED" ||
@@ -133,67 +125,32 @@ export function GenerateAiPanel({
     transcriptionStatus === "ERROR" || aiGenerationStatus === "ERROR";
   const aiNotice = getAiAnalysisNotice(duration);
 
-  // Open the cost-confirmation dialog instead of firing AI immediately, so the
-  // user consciously approves the spend before any Gemini budget is used.
+  // Fire AI generation directly on click — one click is enough. No second
+  // confirmation dialog (AI is admin-only and the panel already states it uses
+  // extra time + budget).
   const requestStart = (reprocess = false) => {
-    setError(null);
-    setReprocessMode(reprocess);
-    setConfirmOpen(true);
-  };
-
-  const handleStart = async () => {
-    setConfirmOpen(false);
     setLoading(true);
     setError(null);
-    try {
-      const res = await fetch(`/api/videos/${videoId}/generate`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ reprocess: reprocessMode }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        setError((body as { error?: string }).error ?? "An error occurred");
-      } else {
-        onStarted?.();
+    void (async () => {
+      try {
+        const res = await fetch(`/api/videos/${videoId}/generate`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ reprocess }),
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          setError((body as { error?: string }).error ?? "An error occurred");
+        } else {
+          onStarted?.();
+        }
+      } catch {
+        setError("An error occurred");
+      } finally {
+        setLoading(false);
       }
-    } catch {
-      setError("An error occurred");
-    } finally {
-      setLoading(false);
-    }
+    })();
   };
-
-  const confirmDialog = (
-    <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("confirmTitle")}</DialogTitle>
-        </DialogHeader>
-        <p className="px-5 py-4 text-sm text-gray-11">
-          {t("confirmBody")}
-          {aiNotice ? ` ${tShare(aiNotice === "long" ? "aiNoticeLong" : "aiNoticeMedium")}` : ""}
-        </p>
-        <DialogFooter>
-          <button
-            type="button"
-            onClick={() => setConfirmOpen(false)}
-            className="rounded-lg border border-gray-5 bg-gray-3 px-4 py-2 text-sm font-medium text-gray-12 transition-colors hover:bg-gray-4"
-          >
-            {t("confirmCancel")}
-          </button>
-          <button
-            type="button"
-            disabled={loading}
-            onClick={handleStart}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
-          >
-            {t("confirmStart")}
-          </button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
 
   // ── Running state: persisted pipeline stage ──────────────────────────────
   if (isRunning) {
@@ -260,28 +217,23 @@ export function GenerateAiPanel({
   // ── Error state ───────────────────────────────────────────────────────────
   if (hasError && canGenerate) {
     return (
-      <>
-        <div className="flex flex-col gap-3 rounded-xl border border-red-6 bg-red-3 px-4 py-4">
-          <p className="text-sm text-red-11">
-            {tShare("aiAnalysisFailed")}{" "}
-            {transcriptionStatus === "ERROR"
-              ? tShare("aiTranscriptionFailed")
-              : tShare("aiGenerationError")}
-          </p>
-          {error && (
-            <p className="text-xs text-red-10">{error}</p>
-          )}
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() => requestStart(false)}
-            className="self-start rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-60"
-          >
-            {loading ? tShare("aiStarting") : tShare("aiRetry")}
-          </button>
-        </div>
-        {confirmDialog}
-      </>
+      <div className="flex flex-col gap-3 rounded-xl border border-red-6 bg-red-3 px-4 py-4">
+        <p className="text-sm text-red-11">
+          {tShare("aiAnalysisFailed")}{" "}
+          {transcriptionStatus === "ERROR"
+            ? tShare("aiTranscriptionFailed")
+            : tShare("aiGenerationError")}
+        </p>
+        {error && <p className="text-xs text-red-10">{error}</p>}
+        <button
+          type="button"
+          disabled={loading}
+          onClick={() => requestStart(false)}
+          className="self-start rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-60"
+        >
+          {loading ? tShare("aiStarting") : tShare("aiRetry")}
+        </button>
+      </div>
     );
   }
 
@@ -295,51 +247,45 @@ export function GenerateAiPanel({
     // the owner notices and re-runs it.
     if (aiIncomplete) {
       return (
-        <>
-          <div className="flex flex-col gap-2 rounded-xl border border-gray-4 bg-gray-2 px-4 py-3">
-            <p className="text-xs text-gray-10">{tShare("aiIncompleteHint")}</p>
-            {error && <p className="text-xs text-red-10">{error}</p>}
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => requestStart(true)}
-              className="self-start rounded-lg border border-gray-5 bg-gray-3 px-4 py-2 text-sm font-medium text-gray-12 transition-colors hover:bg-gray-4 disabled:opacity-60"
-            >
-              {loading ? tShare("aiStarting") : tShare("aiReanalyze")}
-            </button>
-          </div>
-          {confirmDialog}
-        </>
+        <div className="flex flex-col gap-2 rounded-xl border border-gray-4 bg-gray-2 px-4 py-3">
+          <p className="text-xs text-gray-10">{tShare("aiIncompleteHint")}</p>
+          {error && <p className="text-xs text-red-10">{error}</p>}
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => requestStart(true)}
+            className="self-start rounded-lg border border-gray-5 bg-gray-3 px-4 py-2 text-sm font-medium text-gray-12 transition-colors hover:bg-gray-4 disabled:opacity-60"
+          >
+            {loading ? tShare("aiStarting") : tShare("aiReanalyze")}
+          </button>
+        </div>
       );
     }
 
     // Good analysis: don't alarm the owner with a panel — tuck re-analyze
     // into a discreet overflow menu instead.
     return (
-      <>
-        <div className="flex justify-end">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                aria-label={tShare("aiReanalyze")}
-                className="rounded-md p-1.5 text-gray-9 hover:bg-gray-3 hover:text-gray-11"
-              >
-                <MoreVertical className="size-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                disabled={loading}
-                onClick={() => requestStart(true)}
-              >
-                {tShare("aiReanalyze")}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        {confirmDialog}
-      </>
+      <div className="flex justify-end">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label={tShare("aiReanalyze")}
+              className="rounded-md p-1.5 text-gray-9 hover:bg-gray-3 hover:text-gray-11"
+            >
+              <MoreVertical className="size-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              disabled={loading}
+              onClick={() => requestStart(true)}
+            >
+              {tShare("aiReanalyze")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     );
   }
 
@@ -351,30 +297,23 @@ export function GenerateAiPanel({
         aiGenerationStatus !== "COMPLETE"))
   ) {
     return (
-      <>
-        <div className="flex flex-col gap-3 rounded-xl border border-blue-6 bg-blue-3 px-4 py-4">
-          <p className="text-sm text-gray-12">
-            {tShare("aiNotRunYet")}
+      <div className="flex flex-col gap-3 rounded-xl border border-blue-6 bg-blue-3 px-4 py-4">
+        <p className="text-sm text-gray-12">{tShare("aiNotRunYet")}</p>
+        {aiNotice && (
+          <p className="text-xs text-gray-10">
+            {tShare(aiNotice === "long" ? "aiNoticeLong" : "aiNoticeMedium")}
           </p>
-          {aiNotice && (
-            <p className="text-xs text-gray-10">
-              {tShare(aiNotice === "long" ? "aiNoticeLong" : "aiNoticeMedium")}
-            </p>
-          )}
-          {error && (
-            <p className="text-xs text-red-10">{error}</p>
-          )}
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() => requestStart(false)}
-            className="self-start rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
-          >
-            {loading ? tShare("aiStarting") : tShare("aiStartAnalysis")}
-          </button>
-        </div>
-        {confirmDialog}
-      </>
+        )}
+        {error && <p className="text-xs text-red-10">{error}</p>}
+        <button
+          type="button"
+          disabled={loading}
+          onClick={() => requestStart(false)}
+          className="self-start rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
+        >
+          {loading ? tShare("aiStarting") : tShare("aiStartAnalysis")}
+        </button>
+      </div>
     );
   }
 
@@ -382,9 +321,7 @@ export function GenerateAiPanel({
   if (!transcriptionStatus && !aiGenerationStatus) {
     return (
       <div className="rounded-xl border border-gray-4 bg-gray-2 px-4 py-6 text-center">
-        <p className="text-sm text-gray-10">
-          {tShare("aiNotAvailable")}
-        </p>
+        <p className="text-sm text-gray-10">{tShare("aiNotAvailable")}</p>
       </div>
     );
   }
