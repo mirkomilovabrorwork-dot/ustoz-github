@@ -367,6 +367,18 @@ async function generateWithAi(
 		);
 		if (refined.chapters.length > 0) {
 			if (result.aiSummary) {
+				// Keep the summary chapters and the refined chapters as ONE list.
+				// generateChapterAlignedRefined drops any chapter whose time window
+				// contains no transcript segments (a boundary Gemini placed in a dead
+				// zone — common when the transcript VTT has inflated/runaway
+				// timestamps). Without this, aiSummary.chapters (e.g. 5) can outnumber
+				// refinedTranscript.chapters (e.g. 4), so the "Matn" tab shows a
+				// chapter heading with no refined body — the intermittent "chala" bug.
+				// Align summary chapters to exactly the ones that produced content.
+				result.aiSummary.chapters = alignChaptersToRefined(
+					result.aiSummary.chapters,
+					refined.chapters,
+				);
 				result.aiSummary.refinedTranscript = { chapters: refined.chapters };
 			} else {
 				result.aiSummary = parseAiSummary({
@@ -910,6 +922,27 @@ ${transcriptWithTimestamps}`;
 // raw "Matn" tab (same count/titles/startSec) instead of coarse ~24KB chunks.
 // Each chapter is cleaned with its own dedicated non-JSON call, so output is
 // never truncated. Falls back to the raw slice text if the model returns empty.
+/**
+ * Force the summary chapters and the refined-transcript chapters to be the SAME
+ * set. generateChapterAlignedRefined emits a refined chapter only for windows
+ * that actually contain transcript segments; a summary chapter whose window is
+ * empty (a dead-zone boundary, common with inflated/runaway VTT timestamps) has
+ * no refined counterpart. Keeping both lists in sync prevents the intermittent
+ * "chala" bug where the "Matn" tab shows a heading with no refined body.
+ * Matches by startSec (refined ranges reuse the chapter startSec verbatim).
+ * If the intersection is empty (e.g. summary had no chapters), the original list
+ * is returned unchanged so we never blank out a usable summary.
+ */
+export function alignChaptersToRefined<T extends { startSec: number }>(
+	chapters: T[],
+	refinedChapters: { startSec: number }[],
+): T[] {
+	if (refinedChapters.length === 0) return chapters;
+	const refinedStarts = new Set(refinedChapters.map((c) => c.startSec));
+	const aligned = chapters.filter((c) => refinedStarts.has(c.startSec));
+	return aligned.length > 0 ? aligned : chapters;
+}
+
 async function generateChapterAlignedRefined(
 	segments: VttSegment[],
 	chapters: { startSec: number; title: string }[],
