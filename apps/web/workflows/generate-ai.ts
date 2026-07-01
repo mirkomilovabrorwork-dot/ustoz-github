@@ -18,6 +18,7 @@ import { Effect, Option } from "effect";
 import { FatalError } from "workflow";
 import { z } from "zod";
 import { BudgetExceededError, withCostGuard } from "@/lib/ai-cost-guard";
+import { AI_CHUNK_CONCURRENCY, mapWithConcurrency } from "@/lib/concurrency";
 import { withGeminiRetry } from "@/lib/gemini-retry";
 import { runPromise } from "@/lib/server";
 import { normalizeWebVttVoiceText } from "@/lib/transcript-vtt";
@@ -1001,22 +1002,24 @@ async function generateChapterAlignedRefined(
 
 	let inputTokens = 0;
 	let outputTokens = 0;
-	const out: { startSec: number; title: string; paragraphs: string[] }[] = [];
 
-	for (const range of ranges) {
-		const slice = segments.filter(
-			(s) => s.start >= range.startSec && s.start < range.endSec,
-		);
-		if (slice.length === 0) continue;
+	const results = await mapWithConcurrency(
+		ranges,
+		AI_CHUNK_CONCURRENCY,
+		async (range) => {
+			const slice = segments.filter(
+				(s) => s.start >= range.startSec && s.start < range.endSec,
+			);
+			if (slice.length === 0) return null;
 
-		const timestamped = slice
-			.map(
-				(s) =>
-					`[${Math.floor(s.start / 60)}:${String(s.start % 60).padStart(2, "0")}] ${s.text}`,
-			)
-			.join("\n");
+			const timestamped = slice
+				.map(
+					(s) =>
+						`[${Math.floor(s.start / 60)}:${String(s.start % 60).padStart(2, "0")}] ${s.text}`,
+				)
+				.join("\n");
 
-		const refinedPrompt = `You are a transcript editor. Your ONLY job is to produce a clean, complete, full version of the spoken text below — NOT a summary.
+			const refinedPrompt = `You are a transcript editor. Your ONLY job is to produce a clean, complete, full version of the spoken text below — NOT a summary.
 
 RULES (strict):
 - Remove ONLY: filler words ("uh", "um", "a-a", "er", "well", "you know", "like" used as filler), exact word-for-word repetitions, false starts (e.g. "I was — I mean, we should"), and off-topic jokes that add zero informational content.
@@ -1033,39 +1036,45 @@ Return ONLY the cleaned text. No JSON. No explanations.
 Transcript:
 ${timestamped}`;
 
-		let paragraphs: string[] = [];
-		try {
-			const refinedResult = await callAiApi(
-				refinedPrompt,
-				{ json: false },
-				context,
-			);
-			inputTokens += refinedResult.inputTokens;
-			outputTokens += refinedResult.outputTokens;
-			paragraphs = refinedResult.content
-				.trim()
-				.split(/\n\s*\n/)
-				.map((p) => p.trim())
-				.filter((p) => p.length > 0);
-		} catch (error) {
-			console.error(
-				"[generate-ai] chapter-aligned refine failed for chapter; using raw slice",
-				{ startSec: range.startSec, error },
-			);
-		}
+			let paragraphs: string[] = [];
+			try {
+				const refinedResult = await callAiApi(
+					refinedPrompt,
+					{ json: false },
+					context,
+				);
+				inputTokens += refinedResult.inputTokens;
+				outputTokens += refinedResult.outputTokens;
+				paragraphs = refinedResult.content
+					.trim()
+					.split(/\n\s*\n/)
+					.map((p) => p.trim())
+					.filter((p) => p.length > 0);
+			} catch (error) {
+				console.error(
+					"[generate-ai] chapter-aligned refine failed for chapter; using raw slice",
+					{ startSec: range.startSec, error },
+				);
+			}
 
-		if (paragraphs.length === 0) {
-			paragraphs = slice
-				.map((s) => s.text.trim())
-				.filter((t) => t.length > 0);
-		}
+			if (paragraphs.length === 0) {
+				paragraphs = slice
+					.map((s) => s.text.trim())
+					.filter((t) => t.length > 0);
+			}
 
-		out.push({
-			startSec: range.startSec,
-			title: range.title,
-			paragraphs,
-		});
-	}
+			return {
+				startSec: range.startSec,
+				title: range.title,
+				paragraphs,
+			};
+		},
+	);
+
+	const out = results.filter(
+		(r): r is { startSec: number; title: string; paragraphs: string[] } =>
+			r !== null,
+	);
 
 	return { chapters: out, inputTokens, outputTokens };
 }
@@ -1090,11 +1099,13 @@ async function generateMultipleChunks(
 	let totalOutputTokens = 0;
 	let usedModel = "unknown";
 
-	for (let i = 0; i < chunks.length; i++) {
-		const chunk = chunks[i];
-		if (!chunk) continue;
+	const chunkResults = await mapWithConcurrency(
+		chunks,
+		AI_CHUNK_CONCURRENCY,
+		async (chunk, i) => {
+			if (!chunk) return null;
 
-		const chunkPrompt = `You are data365 AI, an expert at analyzing video content. This is section ${i + 1} of ${chunks.length} from a video that is ${videoDuration} seconds long (${Math.floor(videoDuration / 60)}:${String(Math.floor(videoDuration % 60)).padStart(2, "0")} total). This section covers timestamp ${Math.floor(chunk.startTime / 60)}:${String(chunk.startTime % 60).padStart(2, "0")} to ${Math.floor(chunk.endTime / 60)}:${String(chunk.endTime % 60).padStart(2, "0")}.
+			const chunkPrompt = `You are data365 AI, an expert at analyzing video content. This is section ${i + 1} of ${chunks.length} from a video that is ${videoDuration} seconds long (${Math.floor(videoDuration / 60)}:${String(Math.floor(videoDuration % 60)).padStart(2, "0")} total). This section covers timestamp ${Math.floor(chunk.startTime / 60)}:${String(chunk.startTime % 60).padStart(2, "0")} to ${Math.floor(chunk.endTime / 60)}:${String(chunk.endTime % 60).padStart(2, "0")}.
 
 Analyze this section thoroughly and provide JSON:
 {
@@ -1112,24 +1123,41 @@ Return ONLY valid JSON without any markdown formatting or code blocks.
 Transcript section:
 ${chunk.text}`;
 
-		const chunkResult = await callAiApi(chunkPrompt, {}, context);
-		totalInputTokens += chunkResult.inputTokens;
-		totalOutputTokens += chunkResult.outputTokens;
-		usedModel = chunkResult.model;
-		try {
-			const parsed = JSON.parse(cleanJsonResponse(chunkResult.content).trim());
-			chunkSummaries.push({
-				summary: parsed.summary || "",
-				keyPoints: parsed.keyPoints || [],
-				chapters: parsed.chapters || [],
-				startTime: chunk.startTime,
-				endTime: chunk.endTime,
-				rawText: chunk.text,
-			});
-		} catch {
-			console.error("[generate-ai] per-chunk summary JSON parse FAILED (chunk skipped)", { startTime: chunk.startTime, endTime: chunk.endTime, contentLength: chunkResult.content.length, tail: chunkResult.content.slice(-150) });
-		}
-	}
+			const chunkResult = await callAiApi(chunkPrompt, {}, context);
+			totalInputTokens += chunkResult.inputTokens;
+			totalOutputTokens += chunkResult.outputTokens;
+			usedModel = chunkResult.model;
+			try {
+				const parsed = JSON.parse(cleanJsonResponse(chunkResult.content).trim());
+				return {
+					summary: parsed.summary || "",
+					keyPoints: parsed.keyPoints || [],
+					chapters: parsed.chapters || [],
+					startTime: chunk.startTime,
+					endTime: chunk.endTime,
+					rawText: chunk.text,
+				};
+			} catch {
+				console.error("[generate-ai] per-chunk summary JSON parse FAILED (chunk skipped)", { startTime: chunk.startTime, endTime: chunk.endTime, contentLength: chunkResult.content.length, tail: chunkResult.content.slice(-150) });
+				return null;
+			}
+		},
+	);
+
+	chunkSummaries.push(
+		...chunkResults.filter(
+			(
+				r,
+			): r is {
+				summary: string;
+				keyPoints: string[];
+				chapters: { title: string; start: number }[];
+				startTime: number;
+				endTime: number;
+				rawText: string;
+			} => r !== null,
+		),
+	);
 
 	// Per-chunk refined cleaning: clean raw transcript text, do NOT summarize.
 	// Iterates the ORIGINAL chunks array so every chunk is cleaned regardless of

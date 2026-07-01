@@ -15,6 +15,7 @@ import { eq } from "drizzle-orm";
 import { FatalError } from "workflow";
 import { withCostGuard } from "@/lib/ai-cost-guard";
 import { shouldStartAiAfterTranscription } from "@/lib/ai-generation-request";
+import { AI_CHUNK_CONCURRENCY, mapWithConcurrency } from "@/lib/concurrency";
 import {
 	ENHANCED_AUDIO_CONTENT_TYPE,
 	ENHANCED_AUDIO_EXTENSION,
@@ -442,41 +443,56 @@ export async function transcribeAudioChunks(
 		);
 	}
 
-	const transcribedChunks: Array<{ vtt: string; offsetSec: number }> = [];
 	let failedChunkCount = 0;
+	let completedCount = 0;
+	const completedResults = new Array<{ vtt: string; offsetSec: number } | undefined>(
+		audio.chunks.length,
+	);
 
-	for (const chunk of audio.chunks) {
-		try {
-			const vtt = await transcribeChunk({
-				chunk,
-				ownerEncryptedGeminiKey,
-				context,
-			});
-			transcribedChunks.push({ vtt, offsetSec: chunk.startSec });
-		} catch (error) {
-			// FAULT TOLERANCE (long-video fix): a single bad chunk must NOT discard the
-			// whole transcript. Previously one failed chunk threw -> the outer catch marked
-			// the ENTIRE video ERROR and dropped every successful chunk (root cause of
-			// long-video AI failures). Now: log, keep a gap at this offset, and continue.
-			failedChunkCount++;
-			console.error(
-				`[transcribe] Chunk at ${chunk.startSec}s FAILED for ${context.videoId} after retries; continuing with a gap:`,
-				error,
-			);
-			transcribedChunks.push({ vtt: "WEBVTT\n\n", offsetSec: chunk.startSec });
-		}
-		if (onProgress) {
+	const results = await mapWithConcurrency(
+		audio.chunks,
+		AI_CHUNK_CONCURRENCY,
+		async (chunk, i) => {
+			let result: { vtt: string; offsetSec: number };
 			try {
-				await onProgress({
-					transcribedChunks: [...transcribedChunks],
-					completed: transcribedChunks.length,
-					total: audio.chunks.length,
+				const vtt = await transcribeChunk({
+					chunk,
+					ownerEncryptedGeminiKey,
+					context,
 				});
-			} catch (e) {
-				console.error("[transcribe] partial-save progress callback failed (non-fatal):", e);
+				result = { vtt, offsetSec: chunk.startSec };
+			} catch (error) {
+				// FAULT TOLERANCE (long-video fix): a single bad chunk must NOT discard the
+				// whole transcript. Previously one failed chunk threw -> the outer catch marked
+				// the ENTIRE video ERROR and dropped every successful chunk (root cause of
+				// long-video AI failures). Now: log, keep a gap at this offset, and continue.
+				failedChunkCount++;
+				console.error(
+					`[transcribe] Chunk at ${chunk.startSec}s FAILED for ${context.videoId} after retries; continuing with a gap:`,
+					error,
+				);
+				result = { vtt: "WEBVTT\n\n", offsetSec: chunk.startSec };
 			}
-		}
-	}
+			completedResults[i] = result;
+			completedCount++;
+			if (onProgress) {
+				try {
+					await onProgress({
+						transcribedChunks: completedResults.filter(
+							(r): r is { vtt: string; offsetSec: number } => r !== undefined,
+						),
+						completed: completedCount,
+						total: audio.chunks.length,
+					});
+				} catch (e) {
+					console.error("[transcribe] partial-save progress callback failed (non-fatal):", e);
+				}
+			}
+			return result;
+		},
+	);
+
+	const transcribedChunks: Array<{ vtt: string; offsetSec: number }> = results;
 
 	// Only fail the whole job if EVERY chunk failed (nothing usable to save).
 	if (failedChunkCount === audio.chunks.length) {
