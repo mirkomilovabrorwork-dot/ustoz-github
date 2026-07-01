@@ -478,11 +478,11 @@ export const WebRecorderDialog = ({
 												? t("linkCopied")
 												: t("linkNotOpened")}
 										</div>
-										<div className="mt-3 flex gap-2">
+										<div className="mt-3 flex flex-col gap-2 sm:flex-row">
 											<Button
 												variant="blue"
 												size="sm"
-												className="flex-1"
+												className="w-full sm:flex-1"
 												onClick={() => {
 													navigator.clipboard
 														.writeText(completedShareUrl)
@@ -510,7 +510,7 @@ export const WebRecorderDialog = ({
 											<Button
 												variant="blue"
 												size="sm"
-												className="flex-1"
+												className="w-full sm:flex-1"
 												onClick={openCompletedShareUrl}
 											>
 												{t("openShareLink")}

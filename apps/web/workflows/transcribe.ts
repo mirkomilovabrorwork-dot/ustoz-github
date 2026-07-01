@@ -493,6 +493,35 @@ export async function transcribeAudioChunks(
 	return mergeChunkedWebVtt(transcribedChunks);
 }
 
+/**
+ * Latest cue END time (seconds) in a WebVTT string, or 0 if it has no cues.
+ * Used to detect a chunk that transcribed only the START of its audio (Gemini
+ * stopping early) — the silent-gap bug where a 15-min chunk returned ~1 min of
+ * cues, leaving a multi-minute hole in the merged transcript.
+ */
+export function webVttLastCueEndSec(vtt: string): number {
+	let maxEnd = 0;
+	for (const line of vtt.split(/\r?\n/)) {
+		const arrow = line.indexOf("-->");
+		if (arrow === -1) continue;
+		const m = line
+			.slice(arrow + 3)
+			.match(/(?:(\d+):)?(\d{2}):(\d{2})[.,](\d{3})/);
+		if (!m) continue;
+		const end =
+			(m[1] ? Number(m[1]) : 0) * 3600 +
+			Number(m[2]) * 60 +
+			Number(m[3]) +
+			Number(m[4]) / 1000;
+		if (end > maxEnd) maxEnd = end;
+	}
+	return maxEnd;
+}
+
+/** A chunk whose cues cover less than this fraction of its duration is treated
+ * as grossly incomplete (retry it). 0.5 tolerates normal trailing silence. */
+export const MIN_CHUNK_COVERAGE = 0.5;
+
 export async function transcribeAudioChunkWithRetry(
 	{
 		chunk,
@@ -507,14 +536,38 @@ export async function transcribeAudioChunkWithRetry(
 ): Promise<string> {
 	const maxAttempts = 4;
 	let lastError: unknown;
+	// Keep the BEST (most-covering) result across attempts so a retry can only
+	// improve coverage, never lose a partial we already have.
+	let bestVtt: string | null = null;
+	let bestCoverage = -1;
+	const chunkDurationSec = chunk.durationSec ?? 0;
+	const needSec =
+		chunkDurationSec > 0 ? chunkDurationSec * MIN_CHUNK_COVERAGE : 0;
 
 	for (let attempt = 1; attempt <= maxAttempts; attempt++) {
 		try {
-			return await transcribeFn(
+			const vtt = await transcribeFn(
 				chunk.url,
 				chunk.durationSec,
 				ownerEncryptedGeminiKey,
 				context,
+			);
+			const coverage = webVttLastCueEndSec(vtt);
+			if (coverage > bestCoverage) {
+				bestCoverage = coverage;
+				bestVtt = vtt;
+			}
+			// Good enough coverage, or out of attempts → return the best we have.
+			if (coverage >= needSec || attempt === maxAttempts) {
+				if (coverage < needSec) {
+					console.warn(
+						`[transcribe] Chunk at ${chunk.startSec}s for ${context.videoId} under-covered after ${attempt} attempts: cues reach ${coverage.toFixed(0)}s of ${chunk.durationSec}s — keeping partial (a transcript gap will remain here).`,
+					);
+				}
+				return bestVtt ?? vtt;
+			}
+			console.warn(
+				`[transcribe] Chunk at ${chunk.startSec}s for ${context.videoId} transcribed only ${coverage.toFixed(0)}s of ${chunk.durationSec}s (attempt ${attempt}); retrying for fuller coverage.`,
 			);
 		} catch (error) {
 			lastError = error;
@@ -527,6 +580,9 @@ export async function transcribeAudioChunkWithRetry(
 		}
 	}
 
+	// If some attempt produced a (partial) transcript, keep it rather than
+	// discarding everything — a partial is better than a fully-missing chunk.
+	if (bestVtt !== null) return bestVtt;
 	throw lastError;
 }
 
