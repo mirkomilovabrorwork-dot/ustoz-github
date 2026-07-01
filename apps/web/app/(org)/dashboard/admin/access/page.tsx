@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@cap/database/auth/session";
+import { SettingsSectionNav } from "../../settings/_components/SettingsSectionNav";
 import { AccessManagement } from "./AccessManagement";
 
 export const metadata: Metadata = {
@@ -18,5 +19,10 @@ export default async function AdminAccessPage() {
 		redirect("/dashboard");
 	}
 
-	return <AccessManagement />;
+	return (
+		<div className="flex flex-col gap-6">
+			<SettingsSectionNav isAdmin={true} />
+			<AccessManagement />
+		</div>
+	);
 }

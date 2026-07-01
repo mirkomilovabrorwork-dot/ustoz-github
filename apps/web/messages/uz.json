@@ -411,6 +411,12 @@
 		"signOut": "Chiqish",
 		"user": "Foydalanuvchi"
 	},
+	"navigation": {
+		"settingsSectionPersonal": "Shaxsiy",
+		"settingsSectionAdmin": "Admin",
+		"settingsSectionStorage": "Xotira",
+		"settingsSectionTeam": "Jamoa"
+	},
 	"mediaPlayer": {
 		"label": "Media pleyer",
 		"videoDescription": "Ijro, ovoz va ko'chirish uchun maxsus boshqaruvli video pleyer. Bo'sh tugma — ijro/pauza, ← / → — ko'chirish, ↑ / ↓ — ovoz balandligi.",

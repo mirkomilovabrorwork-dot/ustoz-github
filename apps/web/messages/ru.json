@@ -411,6 +411,12 @@
 		"signOut": "Выйти",
 		"user": "Пользователь"
 	},
+	"navigation": {
+		"settingsSectionPersonal": "Личное",
+		"settingsSectionAdmin": "Админ",
+		"settingsSectionStorage": "Хранилище",
+		"settingsSectionTeam": "Команда"
+	},
 	"mediaPlayer": {
 		"label": "Медиаплеер",
 		"videoDescription": "Видеоплеер с пользовательским управлением: воспроизведение, громкость, перемотка. Пробел — воспроизвести/пауза, ← / → — перемотка, ↑ / ↓ — громкость.",

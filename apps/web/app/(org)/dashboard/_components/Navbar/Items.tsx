@@ -89,9 +89,12 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 		{
 			name: t("instructions"),
 			href: `/dashboard/caps`,
-			extraText: userCapsCount,
+			extraText: userCapsCount as number | null,
+			adminOnly: false,
+			ownerOnly: false,
+			matchChildren: false,
 			icon: <GraduationCapIcon />,
-			subNav: [],
+			subNav: [] as { name: string; href: string }[],
 		},
 		{
 			name: t("meetingRecordings"),
@@ -121,10 +124,9 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 			subNav: [],
 		},
 		{
-			name: t("orgSettings"),
-			href: `/dashboard/settings/organization`,
-			adminOnly: true,
-			matchChildren: true,
+			name: t("settings"),
+			href: `/dashboard/settings/account`,
+			extraText: null as number | null,
 			icon: <CogIcon />,
 			subNav: [],
 		},
@@ -136,17 +138,6 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 						ownerOnly: true,
 						matchChildren: true,
 						icon: <CodeIcon />,
-						subNav: [] as { name: string; href: string }[],
-					},
-				]
-			: []),
-		...(user.isAdmin
-			? [
-					{
-						name: t("accessManagement"),
-						href: `/dashboard/admin/access`,
-						matchChildren: true,
-						icon: <CogIcon />,
 						subNav: [] as { name: string; href: string }[],
 					},
 				]

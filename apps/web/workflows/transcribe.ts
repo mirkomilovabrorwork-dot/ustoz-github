@@ -494,28 +494,30 @@ export async function transcribeAudioChunks(
 }
 
 /**
- * Latest cue END time (seconds) in a WebVTT string, or 0 if it has no cues.
- * Used to detect a chunk that transcribed only the START of its audio (Gemini
- * stopping early) — the silent-gap bug where a 15-min chunk returned ~1 min of
- * cues, leaving a multi-minute hole in the merged transcript.
+ * How far into a chunk the cues actually reach (seconds) — measured by the
+ * latest cue START, or 0 if it has no cues. We deliberately use START, not END:
+ * Gemini sometimes emits a runaway END (a cue ending 60 min later), which would
+ * make an END-based measure look fully-covered while the chunk really stopped
+ * transcribing after 1 minute. START is immune to that and detects the
+ * silent-gap bug (a 15-min chunk whose cues stop a few minutes in).
  */
-export function webVttLastCueEndSec(vtt: string): number {
-	let maxEnd = 0;
+export function webVttCoverageSec(vtt: string): number {
+	let maxStart = 0;
 	for (const line of vtt.split(/\r?\n/)) {
 		const arrow = line.indexOf("-->");
 		if (arrow === -1) continue;
 		const m = line
-			.slice(arrow + 3)
+			.slice(0, arrow)
 			.match(/(?:(\d+):)?(\d{2}):(\d{2})[.,](\d{3})/);
 		if (!m) continue;
-		const end =
+		const start =
 			(m[1] ? Number(m[1]) : 0) * 3600 +
 			Number(m[2]) * 60 +
 			Number(m[3]) +
 			Number(m[4]) / 1000;
-		if (end > maxEnd) maxEnd = end;
+		if (start > maxStart) maxStart = start;
 	}
-	return maxEnd;
+	return maxStart;
 }
 
 /** A chunk whose cues cover less than this fraction of its duration is treated
@@ -552,7 +554,7 @@ export async function transcribeAudioChunkWithRetry(
 				ownerEncryptedGeminiKey,
 				context,
 			);
-			const coverage = webVttLastCueEndSec(vtt);
+			const coverage = webVttCoverageSec(vtt);
 			if (coverage > bestCoverage) {
 				bestCoverage = coverage;
 				bestVtt = vtt;

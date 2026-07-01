@@ -328,12 +328,18 @@ export function collapseRepeatedVttCues(vtt: string): string {
 	return out;
 }
 
+// A cue may never span longer than this. Gemini sometimes emits a runaway END
+// timestamp (e.g. a cue at 15:59 ending at 75:00) — left as-is that cue stays
+// "active" for the whole span, freezing the on-screen caption on one line and
+// masking a real transcript gap. We pull every end back to the next cue's start
+// (or start + MAX) so captions advance and gaps read as blank, not frozen.
+const MAX_MERGED_CUE_SEC = 30;
+
 export function mergeChunkedWebVtt(
 	chunks: Array<{ vtt: string; offsetSec: number }>,
 ): string {
-	let output = "WEBVTT\n\n";
-	let cueIndex = 1;
 	const timingLine = new RegExp(`(${TS})\\s*-->\\s*(${TS})`);
+	const cues: Array<{ start: number; end: number; text: string }> = [];
 
 	for (const chunk of chunks) {
 		const blocks = chunk.vtt.split(/\r?\n\r?\n/);
@@ -369,9 +375,32 @@ export function mergeChunkedWebVtt(
 				continue;
 			}
 
-			output += `${cueIndex}\n${formatVttTimestamp(start + chunk.offsetSec)} --> ${formatVttTimestamp(end + chunk.offsetSec)}\n${textLines.join("\n")}\n\n`;
-			cueIndex++;
+			cues.push({
+				start: start + chunk.offsetSec,
+				end: end + chunk.offsetSec,
+				text: textLines.join("\n"),
+			});
 		}
+	}
+
+	cues.sort((a, b) => a.start - b.start);
+
+	// Clamp runaway ends: end ≤ next cue's start, and ≤ start + MAX_MERGED_CUE_SEC.
+	let output = "WEBVTT\n\n";
+	let cueIndex = 1;
+	for (let i = 0; i < cues.length; i++) {
+		const cue = cues[i];
+		if (!cue) continue;
+		const next = cues[i + 1];
+		let end = Math.min(cue.end, cue.start + MAX_MERGED_CUE_SEC);
+		if (next && next.start > cue.start) {
+			end = Math.min(end, next.start);
+		}
+		if (end <= cue.start) {
+			end = cue.start + 0.1;
+		}
+		output += `${cueIndex}\n${formatVttTimestamp(cue.start)} --> ${formatVttTimestamp(end)}\n${cue.text}\n\n`;
+		cueIndex++;
 	}
 
 	return collapseRepeatedVttCues(output);

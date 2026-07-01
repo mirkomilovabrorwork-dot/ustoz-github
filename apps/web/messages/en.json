@@ -411,6 +411,12 @@
 		"signOut": "Sign Out",
 		"user": "User"
 	},
+	"navigation": {
+		"settingsSectionPersonal": "Personal",
+		"settingsSectionAdmin": "Admin",
+		"settingsSectionStorage": "Storage",
+		"settingsSectionTeam": "Team"
+	},
 	"mediaPlayer": {
 		"label": "Media player",
 		"videoDescription": "Video player with custom controls for playback, volume, seeking, and more. Use space bar to play/pause, arrow keys (←/→) to seek, and arrow keys (↑/↓) to adjust volume.",
