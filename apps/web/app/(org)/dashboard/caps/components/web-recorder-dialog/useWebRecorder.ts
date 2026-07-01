@@ -145,6 +145,7 @@ export const useWebRecorder = ({
 	const [videoId, setVideoId] = useState<VideoId | null>(null);
 	const [hasAudioTrack, setHasAudioTrack] = useState(false);
 	const [isMicMuted, setIsMicMuted] = useState(false);
+	const [isCameraOff, setIsCameraOff] = useState(false);
 	const [isSettingUp, setIsSettingUp] = useState(false);
 	const [isRestarting, setIsRestarting] = useState(false);
 	const [chunkUploads, setChunkUploads] = useState<ChunkUploadState[]>([]);
@@ -601,6 +602,7 @@ export const useWebRecorder = ({
 		setHasAudioTrack(false);
 		micTracksRef.current = [];
 		setIsMicMuted(false);
+		setIsCameraOff(false);
 		replaceErrorDownload(null);
 		setCompletedShareUrl(null);
 		shareUrlOpenedRef.current = false;
@@ -723,6 +725,7 @@ export const useWebRecorder = ({
 				});
 				cameraStreamRef.current = videoStream;
 				firstTrack = videoStream.getVideoTracks()[0] ?? null;
+				setIsCameraOff(false);
 			} else {
 				const desiredSurface =
 					RECORDING_MODE_TO_DISPLAY_SURFACE[
@@ -1546,6 +1549,19 @@ export const useWebRecorder = ({
 		setIsMicMuted(nextMuted);
 	}, [isMicMuted]);
 
+	const canToggleCamera =
+		(cameraStreamRef.current?.getVideoTracks().length ?? 0) > 0;
+
+	const toggleCameraMute = useCallback(() => {
+		const tracks = cameraStreamRef.current?.getVideoTracks() ?? [];
+		if (tracks.length === 0) return;
+		const nextOff = !isCameraOff;
+		for (const track of tracks) {
+			track.enabled = !nextOff;
+		}
+		setIsCameraOff(nextOff);
+	}, [isCameraOff]);
+
 	const isPaused = phase === "paused";
 	const isRecordingActive = phase === "recording" || isPaused;
 	const isBusyPhase =
@@ -1579,6 +1595,9 @@ export const useWebRecorder = ({
 		isMicMuted,
 		toggleMicMute,
 		canToggleMic,
+		isCameraOff,
+		toggleCameraMute,
+		canToggleCamera,
 		chunkUploads,
 		errorDownload,
 		completedShareUrl,

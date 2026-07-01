@@ -13,12 +13,22 @@ import { transcribeVideo } from "@/lib/transcribe";
 export const dynamic = "force-dynamic";
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ videoId: string }> },
 ) {
   try {
     const { videoId: rawVideoId } = await params;
     const videoId = rawVideoId as Video.VideoId;
+
+    // Owner/admin "Qayta analiz" (retry) re-runs AI on the EXISTING transcript
+    // even when content already exists. No re-upload / re-transcription.
+    let reprocess = false;
+    try {
+      const body = await request.json();
+      reprocess = body?.reprocess === true;
+    } catch {
+      // no body → normal (non-forced) request
+    }
 
     const user = await getCurrentUser();
     if (!user) {
@@ -102,7 +112,7 @@ export async function POST(
 
       // AI already done — only if real content is present (summary or aiSummary).
       // If status is COMPLETE but content is missing/empty, fall through to retry.
-      if (aiStatus === "COMPLETE") {
+      if (aiStatus === "COMPLETE" && !reprocess) {
         const hasContent =
           (typeof metadata.summary === "string" && metadata.summary.length > 0) ||
           (metadata.aiSummary != null &&
@@ -115,13 +125,16 @@ export async function POST(
         // COMPLETE but empty — fall through to startAiGeneration below
       }
 
-      // AI in-flight
+      // AI in-flight (a forced reprocess must still wait for the running job)
       if (aiStatus === "PROCESSING" || aiStatus === "QUEUED") {
         return Response.json({ alreadyRunning: true });
       }
 
-      // Transcript done but AI missing or ERROR — start/retry AI generation
-      const result = await startAiGeneration(videoId, video.ownerId);
+      // Transcript done but AI missing / ERROR, or an owner-forced reprocess —
+      // start/retry AI generation on the existing transcript.
+      const result = await startAiGeneration(videoId, video.ownerId, {
+        force: reprocess,
+      });
       if (!result.success) {
         return Response.json({ error: result.message }, { status: 500 });
       }

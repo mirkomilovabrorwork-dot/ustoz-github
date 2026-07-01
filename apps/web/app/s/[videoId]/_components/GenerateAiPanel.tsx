@@ -105,6 +105,7 @@ export function GenerateAiPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [reprocessMode, setReprocessMode] = useState(false);
   const isRunning =
     transcriptionStatus === "PROCESSING" ||
     aiGenerationStatus === "QUEUED" ||
@@ -116,8 +117,8 @@ export function GenerateAiPanel({
       aiGenerationStatus === "SKIPPED" ||
       aiGenerationStatus === "ERROR");
 
-  // Nothing to show if already complete with data
-  if (isDone && aiGenerationStatus === "COMPLETE") return null;
+  // Nothing to show if already complete with data (unless owner can re-analyze)
+  if (isDone && aiGenerationStatus === "COMPLETE" && !canGenerate) return null;
 
   const hasError =
     transcriptionStatus === "ERROR" || aiGenerationStatus === "ERROR";
@@ -125,8 +126,9 @@ export function GenerateAiPanel({
 
   // Open the cost-confirmation dialog instead of firing AI immediately, so the
   // user consciously approves the spend before any Gemini budget is used.
-  const requestStart = () => {
+  const requestStart = (reprocess = false) => {
     setError(null);
+    setReprocessMode(reprocess);
     setConfirmOpen(true);
   };
 
@@ -137,6 +139,8 @@ export function GenerateAiPanel({
     try {
       const res = await fetch(`/api/videos/${videoId}/generate`, {
         method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ reprocess: reprocessMode }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -261,10 +265,35 @@ export function GenerateAiPanel({
           <button
             type="button"
             disabled={loading}
-            onClick={requestStart}
+            onClick={() => requestStart(false)}
             className="self-start rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-60"
           >
             {loading ? tShare("aiStarting") : tShare("aiRetry")}
+          </button>
+        </div>
+        {confirmDialog}
+      </>
+    );
+  }
+
+  // ── Owner re-analyze (retry) when analysis already complete ───────────────
+  if (
+    canGenerate &&
+    transcriptionStatus === "COMPLETE" &&
+    aiGenerationStatus === "COMPLETE"
+  ) {
+    return (
+      <>
+        <div className="flex flex-col gap-2 rounded-xl border border-gray-4 bg-gray-2 px-4 py-3">
+          <p className="text-xs text-gray-10">{tShare("aiReanalyzeHint")}</p>
+          {error && <p className="text-xs text-red-10">{error}</p>}
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => requestStart(true)}
+            className="self-start rounded-lg border border-gray-5 bg-gray-3 px-4 py-2 text-sm font-medium text-gray-12 transition-colors hover:bg-gray-4 disabled:opacity-60"
+          >
+            {loading ? tShare("aiStarting") : tShare("aiReanalyze")}
           </button>
         </div>
         {confirmDialog}
@@ -296,7 +325,7 @@ export function GenerateAiPanel({
           <button
             type="button"
             disabled={loading}
-            onClick={requestStart}
+            onClick={() => requestStart(false)}
             className="self-start rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
           >
             {loading ? tShare("aiStarting") : tShare("aiStartAnalysis")}

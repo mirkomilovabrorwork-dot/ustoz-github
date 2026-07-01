@@ -57,7 +57,7 @@ function renderBoldAndBreaks(
 			i++;
 		}
 		segments.push(
-			<span key={`b-${i++}`} className="text-blue-11">
+			<span key={`b-${i++}`} className="font-semibold">
 				{match[1]}
 			</span>,
 		);

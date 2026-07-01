@@ -17,7 +17,9 @@ type GenerateAiResult = {
 export async function startAiGeneration(
 	videoId: Video.VideoId,
 	userId: string,
+	opts?: { force?: boolean },
 ): Promise<GenerateAiResult> {
+	const force = opts?.force ?? false;
 	if (!userId || !videoId) {
 		return {
 			success: false,
@@ -82,6 +84,7 @@ export async function startAiGeneration(
 	}
 
 	if (
+		!force &&
 		metadata.aiGenerationStatus === "COMPLETE" &&
 		metadata.summary &&
 		metadata.chapters
@@ -110,7 +113,7 @@ export async function startAiGeneration(
 			})
 			.where(eq(videos.id, videoId));
 
-		const runGen = () => generateAiWorkflow({ videoId, userId }).catch(async (err) => {
+		const runGen = () => generateAiWorkflow({ videoId, userId, force }).catch(async (err) => {
 			console.error(
 				`[startAiGeneration] Inline workflow failed for video ${videoId}:`,
 				err,

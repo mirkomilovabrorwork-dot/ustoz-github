@@ -1,6 +1,8 @@
 "use client";
 import clsx from "clsx";
 import {
+	Camera,
+	CameraOff,
 	Mic,
 	MicOff,
 	MoreVertical,
@@ -51,6 +53,9 @@ interface InProgressRecordingBarProps {
 	isMicMuted?: boolean;
 	toggleMicMute?: () => void;
 	canToggleMic?: boolean;
+	isCameraOff?: boolean;
+	toggleCameraMute?: () => void;
+	canToggleCamera?: boolean;
 	chunkUploads: ChunkUploadState[];
 	onStop: () => void | Promise<void>;
 	onPause?: () => void | Promise<void>;
@@ -78,6 +83,9 @@ export const InProgressRecordingBar = ({
 	isMicMuted = false,
 	toggleMicMute,
 	canToggleMic = false,
+	isCameraOff = false,
+	toggleCameraMute,
+	canToggleCamera = false,
 	chunkUploads,
 	onStop,
 	onPause,
@@ -386,6 +394,20 @@ export const InProgressRecordingBar = ({
 									<MicOff className={hasAudioTrack ? "size-5" : "text-gray-7 size-5"} />
 								) : (
 									<Mic className="size-5 text-gray-12" />
+								)}
+							</ActionButton>
+
+							<ActionButton
+								data-no-drag
+								onClick={toggleCameraMute}
+								disabled={!canToggleCamera || !toggleCameraMute}
+								aria-label={isCameraOff ? t("turnCameraOn") : t("turnCameraOff")}
+								aria-pressed={isCameraOff}
+							>
+								{isCameraOff || !canToggleCamera ? (
+									<CameraOff className={canToggleCamera ? "size-5" : "text-gray-7 size-5"} />
+								) : (
+									<Camera className="size-5 text-gray-12" />
 								)}
 							</ActionButton>
 

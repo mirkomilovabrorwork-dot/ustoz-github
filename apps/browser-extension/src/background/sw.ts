@@ -454,6 +454,11 @@ async function handleMessage(
 			} else {
 				await sendToOffscreen({ type: "PAUSE_CAPTURE" });
 			}
+			if (pauseState.kind === "recording") {
+				const nextState = { ...pauseState, paused: true };
+				await setState(nextState);
+				updateBadge(nextState);
+			}
 			return { ok: true };
 		}
 
@@ -477,6 +482,11 @@ async function handleMessage(
 					.catch(() => {});
 			} else {
 				await sendToOffscreen({ type: "RESUME_CAPTURE" });
+			}
+			if (resumeState.kind === "recording") {
+				const nextState = { ...resumeState, paused: false };
+				await setState(nextState);
+				updateBadge(nextState);
 			}
 			return { ok: true };
 		}

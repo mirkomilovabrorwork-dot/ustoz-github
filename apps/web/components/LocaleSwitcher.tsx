@@ -6,26 +6,50 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@cap/ui";
-import { Check, Globe2 } from "lucide-react";
+import GB from "country-flag-icons/react/3x2/GB";
+import RU from "country-flag-icons/react/3x2/RU";
+import UZ from "country-flag-icons/react/3x2/UZ";
+import { Check } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
+import type { ComponentType } from "react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { setLanguage } from "@/actions/set-language";
 import type { Locale } from "@/i18n/locales";
 
-const LANGUAGES: Array<{ locale: Locale; label: string; flag: string }> = [
-	{ locale: "uz", label: "O'zbek", flag: "🇺🇿" },
-	{ locale: "en", label: "English", flag: "🇬🇧" },
-	{ locale: "ru", label: "Русский", flag: "🇷🇺" },
+// `code` is the SHORT UI label shown next to the flag (kept separate from the
+// internal `locale` — e.g. locale "en" shows as "eng"). Real SVG flags are used
+// (not emoji) because emoji flags don't render on Windows/Chrome — they fall
+// back to plain letters ("UZ"/"GB"), which is exactly the bug we're fixing.
+const LANGUAGES: Array<{
+	locale: Locale;
+	code: string;
+	Flag: ComponentType<{ className?: string }>;
+}> = [
+	{ locale: "uz", code: "uz", Flag: UZ },
+	{ locale: "en", code: "eng", Flag: GB },
+	{ locale: "ru", code: "ru", Flag: RU },
 ];
+
+function Flag({
+	Component,
+}: {
+	Component: ComponentType<{ className?: string }>;
+}) {
+	return (
+		<span className="inline-block h-3.5 w-5 shrink-0 overflow-hidden rounded-[2px]">
+			<Component className="block h-full w-full object-cover" />
+		</span>
+	);
+}
 
 /**
  * Compact site-language (UI locale) switcher for prominent placements like the
  * dashboard top bar and the login page. Self-contained: reads the active locale
  * from the next-intl provider and persists the choice via `setLanguage`
  * (NEXT_LOCALE cookie + user preferences), then refreshes so the server
- * re-renders in the new language.
+ * re-renders in the new language. Shows a real flag image + short code only.
  */
 export function LocaleSwitcher({ className }: { className?: string }) {
 	const t = useTranslations("settings");
@@ -61,21 +85,20 @@ export function LocaleSwitcher({ className }: { className?: string }) {
 						className ?? "",
 					].join(" ")}
 				>
-					<Globe2 className="size-3.5 shrink-0" />
-					<span>{current.flag}</span>
-					<span className="hidden sm:inline">{current.label}</span>
+					<Flag Component={current.Flag} />
+					<span>{current.code}</span>
 				</button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end">
-				{LANGUAGES.map(({ locale, label, flag }) => (
+				{LANGUAGES.map(({ locale, code, Flag: LangFlag }) => (
 					<DropdownMenuItem key={locale} onClick={() => handleSelect(locale)}>
 						{locale === activeLocale ? (
 							<Check className="mr-2 size-3.5 text-gray-12" />
 						) : (
 							<span className="mr-2 inline-block size-3.5" />
 						)}
-						<span className="mr-2">{flag}</span>
-						<span>{label}</span>
+						<Flag Component={LangFlag} />
+						<span className="ml-2">{code}</span>
 					</DropdownMenuItem>
 				))}
 			</DropdownMenuContent>

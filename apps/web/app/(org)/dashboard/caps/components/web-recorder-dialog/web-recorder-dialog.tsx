@@ -171,6 +171,9 @@ export const WebRecorderDialog = ({
 		isMicMuted,
 		toggleMicMute,
 		canToggleMic,
+		isCameraOff,
+		toggleCameraMute,
+		canToggleCamera,
 		chunkUploads,
 		errorDownload,
 		completedShareUrl,
@@ -579,6 +582,9 @@ export const WebRecorderDialog = ({
 					isMicMuted={isMicMuted}
 					toggleMicMute={toggleMicMute}
 					canToggleMic={canToggleMic}
+					isCameraOff={isCameraOff}
+					toggleCameraMute={toggleCameraMute}
+					canToggleCamera={canToggleCamera}
 					chunkUploads={chunkUploads}
 					errorDownload={errorDownload}
 					onStop={handleStopClick}

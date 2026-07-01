@@ -27,6 +27,13 @@ import { getStorageAccessForVideo } from "@/lib/video-storage";
 interface GenerateAiWorkflowPayload {
 	videoId: string;
 	userId: string;
+	/**
+	 * Force a re-run even when usable AI content already exists (owner-triggered
+	 * "Qayta analiz" / retry). Bypasses the "already generated" guard; the new
+	 * result overwrites the old one in saveResults. Uses the existing transcript
+	 * — no re-upload / re-transcription.
+	 */
+	force?: boolean;
 }
 
 interface VideoData {
@@ -153,9 +160,9 @@ export function shouldReplaceVideoTitle({
 export async function generateAiWorkflow(payload: GenerateAiWorkflowPayload) {
 	"use workflow";
 
-	const { videoId, userId } = payload;
+	const { videoId, userId, force } = payload;
 
-	const videoData = await validateAndSetProcessing(videoId);
+	const videoData = await validateAndSetProcessing(videoId, force ?? false);
 
 	const transcript = await fetchTranscript(videoId, userId, videoData.video);
 
@@ -190,7 +197,10 @@ export async function generateAiWorkflow(payload: GenerateAiWorkflowPayload) {
 	return { success: true, message: "AI generation completed successfully" };
 }
 
-async function validateAndSetProcessing(videoId: string): Promise<VideoData> {
+async function validateAndSetProcessing(
+	videoId: string,
+	force = false,
+): Promise<VideoData> {
 	"use step";
 
 	if (!serverEnv().GEMINI_API_KEY) {
@@ -214,7 +224,7 @@ async function validateAndSetProcessing(videoId: string): Promise<VideoData> {
 		throw new FatalError("Transcription not complete");
 	}
 
-	if (metadata.summary && metadata.chapters) {
+	if (!force && metadata.summary && metadata.chapters) {
 		throw new FatalError("AI metadata already generated");
 	}
 
