@@ -11,6 +11,7 @@ import type { NextRequest } from "next/server";
 import { BudgetExceededError, withCostGuard } from "@/lib/ai-cost-guard";
 import { EMBED_MODEL, embedChunksWithUsage } from "@/lib/gemini-embed";
 import { withGeminiRetry } from "@/lib/gemini-retry";
+import { AI_ACCESS_DENIED_CODE, canUseAI } from "@/lib/permissions/ai-access";
 import { runPromise } from "@/lib/server";
 import { ensureTranscriptIndex } from "@/lib/transcript-index";
 import { retrieveTopK } from "@/lib/transcript-retrieve";
@@ -126,6 +127,12 @@ export async function POST(request: NextRequest) {
 	if (!user?.id) {
 		return new Response(JSON.stringify({ error: "Unauthorized" }), {
 			status: 401,
+		});
+	}
+
+	if (!canUseAI(user)) {
+		return new Response(JSON.stringify({ error: AI_ACCESS_DENIED_CODE }), {
+			status: 403,
 		});
 	}
 

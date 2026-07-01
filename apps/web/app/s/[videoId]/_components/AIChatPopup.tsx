@@ -311,7 +311,18 @@ export function AIChatPopup({
 
 				if (!response.ok || !response.body) {
 					let errorText = t("aiError");
-					if (response.status === 401 || response.status === 403) {
+					if (response.status === 403) {
+						let body: { error?: string } = {};
+						try {
+							body = await response.clone().json();
+						} catch {
+							// non-JSON body — fall through to generic auth message
+						}
+						errorText =
+							body.error === "ai_access_required"
+								? t("aiProRequired")
+								: t("aiAuthRequired");
+					} else if (response.status === 401) {
 						errorText = t("aiAuthRequired");
 					} else if (response.status === 429) {
 						errorText = t("aiBusy");

@@ -291,6 +291,7 @@
 		"aiQuickKeyPoints": "Asosiy fikrlar",
 		"aiError": "Nimadir xato ketdi. Qayta urinib ko'ring.",
 		"aiAuthRequired": "AI suhbatdan foydalanish uchun tizimga kiring.",
+		"aiProRequired": "AI faqat adminlar uchun.",
 		"aiBusy": "AI hozir band. Birozdan so'ng qayta urinib ko'ring.",
 		"aiAnswerError": "Kechirasiz — javob bera olmadim: {error}",
 		"aiPlaceholder": "Bu video haqida so'rang…",

@@ -7,6 +7,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { requestAiGenerationAfterTranscription } from "@/lib/ai-generation-request";
 import { startAiGeneration } from "@/lib/generate-ai";
+import { AI_ACCESS_DENIED_CODE, canUseAI } from "@/lib/permissions/ai-access";
 import { getEffectiveOrganizationRole } from "@/lib/permissions/roles";
 import { transcribeVideo } from "@/lib/transcribe";
 
@@ -33,6 +34,10 @@ export async function POST(
     const user = await getCurrentUser();
     if (!user) {
       return Response.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    if (!canUseAI(user)) {
+      return Response.json({ error: AI_ACCESS_DENIED_CODE }, { status: 403 });
     }
 
     const [video] = await db()

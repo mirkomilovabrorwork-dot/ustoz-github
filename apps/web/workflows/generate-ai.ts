@@ -561,34 +561,50 @@ async function saveResults(
 					(ai.chapters?.length ?? 0) > 0 ||
 					(ai.nextSteps?.length ?? 0) > 0),
 		);
-	// Still PERSIST whatever we produced (e.g. a refined transcript that succeeded
-	// even when the summary JSON failed); only the STATUS reflects usability.
-	const resultHasContent =
-		resultSummaryText.length > 0 || Boolean(result.aiSummary);
+	// Whether a stored summary/aiSummary is actually user-facing content (not an
+	// empty shell). Used so we only report COMPLETE when there is real content —
+	// either from this run or already stored — never over an empty shell.
+	const hasUsableSummary = (
+		summary: string | null | undefined,
+		aiSummary: typeof result.aiSummary | null | undefined,
+	): boolean =>
+		(typeof summary === "string" &&
+			summary.trim().length > 0 &&
+			summary.trim() !== AI_SUMMARY_FAILURE_PLACEHOLDER) ||
+		Boolean(
+			aiSummary &&
+				((aiSummary.overview ?? "").trim().length > 0 ||
+					(aiSummary.topics?.length ?? 0) > 0 ||
+					(aiSummary.tasks?.length ?? 0) > 0 ||
+					(aiSummary.chapters?.length ?? 0) > 0 ||
+					(aiSummary.nextSteps?.length ?? 0) > 0),
+		);
 
 	await patchVideoMetadata(videoId, (current) => {
-		return resultHasContent
-			? {
-					...current,
-					aiTitle: generatedTitle || current.aiTitle,
-					summary: result.summary || current.summary,
-					chapters: result.chapters || current.chapters,
-					aiSummary: result.aiSummary ?? current.aiSummary,
-					aiBaseLanguage: resolvedBaseLanguage ?? current.aiBaseLanguage,
-					aiGenerationStatus: summaryIsUsable
-						? "COMPLETE"
-						: current.summary || current.aiSummary
-							? "COMPLETE"
-							: "ERROR",
-				}
-			: {
-					// This run produced nothing usable: preserve any existing
-					// content (don't clobber it with the failure placeholder) and
-					// surface a retryable ERROR only when there's nothing to show.
-					...current,
-					aiGenerationStatus:
-						current.summary || current.aiSummary ? "COMPLETE" : "ERROR",
-				};
+		// Only take THIS run's content when it is usable — never clobber good
+		// stored content with an empty/shell result (the retry-over-stale bug).
+		const nextSummary = summaryIsUsable
+			? result.summary || current.summary
+			: current.summary;
+		const nextChapters = summaryIsUsable
+			? result.chapters || current.chapters
+			: current.chapters;
+		const nextAiSummary = summaryIsUsable
+			? (result.aiSummary ?? current.aiSummary)
+			: current.aiSummary;
+		// COMPLETE only when the FINAL stored content is genuinely usable.
+		const finalUsable = hasUsableSummary(nextSummary, nextAiSummary);
+		return {
+			...current,
+			aiTitle: generatedTitle || current.aiTitle,
+			summary: nextSummary,
+			chapters: nextChapters,
+			aiSummary: nextAiSummary,
+			aiBaseLanguage: resolvedBaseLanguage ?? current.aiBaseLanguage,
+			aiGenerationStatus: finalUsable ? "COMPLETE" : "ERROR",
+			// Clear any stale error once we have real content; keep it otherwise.
+			aiGenerationError: finalUsable ? undefined : current.aiGenerationError,
+		};
 	});
 
 	if (

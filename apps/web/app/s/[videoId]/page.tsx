@@ -49,6 +49,7 @@ import {
 	canManageOrganizationSettings,
 	getEffectiveOrganizationRole,
 } from "@/lib/permissions/roles";
+import { canUseAI } from "@/lib/permissions/ai-access";
 import { resolveDefaultPlaybackSpeed } from "@/lib/playback-speed";
 import * as EffectRuntime from "@/lib/server";
 import { runPromise } from "@/lib/server";
@@ -778,8 +779,10 @@ async function AuthorizedContent({
 		);
 	})();
 
-	// Viewer can trigger manual AI generation if they are the video owner or an org admin/owner
+	// Viewer can trigger manual AI generation if they are the video owner or an org admin/owner,
+	// AND the paid AI actions are gated to admins / admin-granted pro users.
 	const canGenerate = await (async () => {
+		if (!canUseAI(user)) return false;
 		if (!userId) return false;
 		if (userId === video.owner.id) return true;
 		if (!video.orgId) return false;

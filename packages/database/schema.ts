@@ -113,6 +113,14 @@ export const users = mysqlTable(
 				};
 				locale?: string;
 				devModeEnabled?: boolean;
+				/**
+				 * AI access grant (ИSH batch-2): when true, this non-admin user may
+				 * use the paid AI actions (generate analysis, translate, chat).
+				 * Set by an admin via /admin/pro. Admins always have access
+				 * regardless of this flag. Separate from the global `userIsPro`
+				 * (branding/collections) which must NOT be repurposed for this.
+				 */
+				aiPro?: boolean;
 			} | null>()
 			.default(null),
 		activeOrganizationId: nanoId(

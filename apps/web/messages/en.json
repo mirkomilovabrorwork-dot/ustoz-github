@@ -291,6 +291,7 @@
 		"aiQuickKeyPoints": "Key points",
 		"aiError": "Something went wrong. Please try again.",
 		"aiAuthRequired": "Sign in to use AI chat.",
+		"aiProRequired": "AI is available to admins only.",
 		"aiBusy": "AI is busy right now. Please try again in a moment.",
 		"aiAnswerError": "Sorry — I couldn't answer: {error}",
 		"aiPlaceholder": "Ask about this video…",
