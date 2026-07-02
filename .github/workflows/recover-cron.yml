@@ -1,0 +1,35 @@
+name: Recover stale AI jobs
+
+# Hits the app's recovery endpoint on a schedule so a crash/redeploy that left a
+# video stuck in PROCESSING/QUEUED gets recovered automatically (threshold 60 min).
+# Requires the repo secret CRON_SECRET (same value as the app's CRON_SECRET env).
+# Until that secret is added, each run safely skips (no failures).
+
+on:
+  schedule:
+    - cron: "*/30 * * * *" # every 30 minutes
+  workflow_dispatch: {}
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping recover-stale-ai-jobs
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: https://capweb-production-dd85.up.railway.app
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET secret not set yet — skipping."
+            echo "Add it in: repo Settings -> Secrets and variables -> Actions -> New repository secret (name CRON_SECRET)."
+            exit 0
+          fi
+          code=$(curl -sS -o /tmp/out.txt -w "%{http_code}" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/cron/recover-stale-ai-jobs")
+          echo "HTTP $code"
+          cat /tmp/out.txt || true
+          if [ "$code" != "200" ]; then
+            echo "Recovery ping failed"
+            exit 1
+          fi
