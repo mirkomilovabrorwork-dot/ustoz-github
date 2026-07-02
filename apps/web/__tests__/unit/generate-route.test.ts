@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const currentUser = vi.hoisted(() => ({
-	value: { id: "user-1" },
+	value: { id: "user-1" } as { id: string; isAdmin?: boolean },
 }));
 const videoRows = vi.hoisted(() => ({
 	value: [] as unknown[],
@@ -68,7 +68,8 @@ vi.mock("@/lib/transcribe", () => ({
 describe("POST /api/videos/[videoId]/generate", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		currentUser.value = { id: "user-1" };
+		// AI generation is admin-gated (canUseAI) — the route 403s for non-admins.
+		currentUser.value = { id: "user-1", isAdmin: true };
 		videoRows.value = [];
 		updateSetMock.mockReturnValue({ where: updateWhereMock });
 		updateWhereMock.mockResolvedValue(undefined);
