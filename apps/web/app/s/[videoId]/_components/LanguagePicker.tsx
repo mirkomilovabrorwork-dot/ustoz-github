@@ -7,7 +7,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@cap/ui";
-import { Check, Globe2, Loader2, Plus } from "lucide-react";
+import { Check, Loader2, MoreVertical, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 const LANGUAGE_LABELS: Record<ShareLanguage, string> = {
@@ -60,22 +60,25 @@ export function LanguagePicker({
 }: LanguagePickerProps) {
 	const t = useTranslations("share");
 
-	const currentLabel =
-		selected === "base"
-			? baseLanguage
-				? LANGUAGE_LABELS[baseLanguage]
-				: t("languageOriginal")
-			: LANGUAGE_LABELS[selected];
-
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
 				<button
 					type="button"
-					className="inline-flex h-9 items-center gap-1.5 rounded-full border border-gray-6 bg-gray-3 px-3 text-sm font-medium text-gray-12 transition-colors hover:bg-gray-4"
+					aria-label={t("languageMenu")}
+					className="inline-flex size-8 items-center justify-center rounded-full transition-colors"
+					style={{
+						background: "rgba(0,0,0,0.45)",
+						color: "white",
+					}}
+					onMouseEnter={(e) => {
+						e.currentTarget.style.background = "rgba(0,0,0,0.65)";
+					}}
+					onMouseLeave={(e) => {
+						e.currentTarget.style.background = "rgba(0,0,0,0.45)";
+					}}
 				>
-					<Globe2 className="size-3.5 shrink-0" />
-					{currentLabel}
+					<MoreVertical className="size-4" />
 				</button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end">

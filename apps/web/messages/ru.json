@@ -329,6 +329,8 @@
 		"noRefinedTranscript": "Очищенного транскрипта пока нет",
 		"refinedTranscriptDesc": "Резюме и транскрипт можно использовать без этой необязательной очищенной версии",
 		"playFromChapter": "Воспроизвести с {title}",
+		"toggleChapter": "Свернуть/развернуть главу",
+		"languageMenu": "Настройки языка",
 		"costLoadError": "Не удалось загрузить данные о стоимости.",
 		"meetingCost": "Стоимость встречи",
 		"costTranscription": "Транскрипция",

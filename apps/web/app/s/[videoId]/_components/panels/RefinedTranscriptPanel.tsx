@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Play } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatTimeMinutes } from "../utils/transcript-utils";
 import { renderMarkdownBold } from "./markdownBold";
 
@@ -16,18 +16,21 @@ interface RefinedTranscriptPanelProps {
 	};
 	onVideoJump?: (seconds: number) => void;
 	duration?: number | null;
+	currentTime?: number;
 }
 
 export function RefinedTranscriptPanel({
 	refinedTranscript,
 	onVideoJump,
 	duration,
+	currentTime = 0,
 }: RefinedTranscriptPanelProps) {
 	const t = useTranslations("share");
-	const [openChapters, setOpenChapters] = useState<Set<number>>(new Set());
+	const [closedChapters, setClosedChapters] = useState<Set<number>>(new Set());
+	const activeSectionRef = useRef<HTMLElement>(null);
 
 	function toggleChapter(startSec: number) {
-		setOpenChapters((prev) => {
+		setClosedChapters((prev) => {
 			const next = new Set(prev);
 			if (next.has(startSec)) {
 				next.delete(startSec);
@@ -37,6 +40,30 @@ export function RefinedTranscriptPanel({
 			return next;
 		});
 	}
+
+	// Active chapter = the one with the largest effective startSec <= currentTime.
+	let activeStartSec: number | null = null;
+	if (refinedTranscript && currentTime > 0) {
+		for (const chapter of refinedTranscript.chapters) {
+			const startSec = formatPanelStartSec(chapter.startSec, duration);
+			if (
+				startSec <= currentTime &&
+				(activeStartSec === null || startSec > activeStartSec)
+			) {
+				activeStartSec = chapter.startSec;
+			}
+		}
+	}
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: activeStartSec drives which DOM node activeSectionRef points to; re-running when it changes is intentional
+	useEffect(() => {
+		if (activeSectionRef.current) {
+			activeSectionRef.current.scrollIntoView({
+				behavior: "smooth",
+				block: "nearest",
+			});
+		}
+	}, [activeStartSec]);
 
 	if (!refinedTranscript || refinedTranscript.chapters.length === 0) {
 		return (
@@ -70,11 +97,21 @@ export function RefinedTranscriptPanel({
 		<div className="flex flex-col gap-4">
 			{refinedTranscript.chapters.map((chapter) => {
 				const startSec = formatPanelStartSec(chapter.startSec, duration);
-				const isOpen = openChapters.has(chapter.startSec);
+				const isOpen = !closedChapters.has(chapter.startSec);
+				const isActive = chapter.startSec === activeStartSec;
 				return (
 					<section
 						key={chapter.startSec}
+						ref={isActive ? activeSectionRef : undefined}
 						className="refined-section rounded-xl border border-gray-4 bg-gray-1 p-4 shadow-sm"
+						style={
+							isActive
+								? {
+										borderLeft: "3px solid var(--blue-9)",
+										background: "var(--blue-2)",
+									}
+								: undefined
+						}
 					>
 						<div className="mb-3 flex items-center gap-2">
 							<button
@@ -92,7 +129,8 @@ export function RefinedTranscriptPanel({
 								type="button"
 								onClick={() => toggleChapter(chapter.startSec)}
 								aria-expanded={isOpen}
-								className="flex flex-1 items-center gap-1.5 text-left text-base font-bold text-gray-12"
+								aria-label={t("toggleChapter")}
+								className="flex shrink-0 items-center justify-center"
 								style={{
 									background: "transparent",
 									border: "none",
@@ -119,6 +157,18 @@ export function RefinedTranscriptPanel({
 								>
 									<polyline points="6 9 12 15 18 9" />
 								</svg>
+							</button>
+							<button
+								type="button"
+								onClick={() => onVideoJump?.(startSec)}
+								className="flex-1 text-left text-base font-bold text-gray-12"
+								style={{
+									background: "transparent",
+									border: "none",
+									cursor: "pointer",
+									padding: 0,
+								}}
+							>
 								{chapter.title}
 							</button>
 							<button

@@ -278,6 +278,12 @@ export const ShareVideo = forwardRef<
 			}
 		};
 
+		// Panels (transcript/refined/summary chapters) jump AND start playback.
+		const handleSeekAndPlay = (time: number) => {
+			handleSeek(time);
+			videoRef.current?.play()?.catch(() => {});
+		};
+
 		useEffect(() => {
 			const video = videoRef.current;
 			if (!video) return;
@@ -491,6 +497,19 @@ export const ShareVideo = forwardRef<
 			userConfirmedStopped,
 		]);
 
+		const available: ShareLanguage[] = (
+			Object.keys(data.metadata?.aiSummaryByLanguage ?? {}) as ShareLanguage[]
+		).filter((lang) => !!data.metadata?.aiSummaryByLanguage?.[lang]);
+
+		// Detect from the BASE summary (not activeAiSummary) so the base label
+		// never changes when the user switches to a translated language.
+		const baseLanguage = useMemo(
+			() =>
+				data.metadata?.aiBaseLanguage ??
+				detectShareLanguage(data.metadata?.aiSummary?.overview),
+			[data.metadata?.aiBaseLanguage, data.metadata?.aiSummary?.overview],
+		);
+
 		// All source types use the native <video> player via the mp4 playlist endpoint.
 		// The /api/playlist?videoType=mp4 route returns a signed redirect to result.mp4.
 		const videoSrc = `/api/playlist?userId=${data.owner.id}&videoId=${data.id}&videoType=mp4`;
@@ -506,6 +525,17 @@ export const ShareVideo = forwardRef<
 					className="relative aspect-video overflow-hidden rounded-2xl border border-gray-5 bg-gray-1"
 					style={{ viewTransitionName: "cap-edit-video" }}
 				>
+					<div className="absolute right-3 top-3 z-10">
+						<LanguagePicker
+							baseLanguage={baseLanguage}
+							available={available}
+							selected={selectedLanguage}
+							onSelect={setSelectedLanguage}
+							canGenerate={canGenerate}
+							generatingLanguage={generatingLanguage}
+							onGenerate={handleGenerateTranslation}
+						/>
+					</div>
 					{isActivelyRecording ? (
 						<div className="relative h-full overflow-hidden rounded-xl bg-black">
 							<CapVideoPlayer
@@ -649,19 +679,6 @@ export const ShareVideo = forwardRef<
 			</>
 		);
 
-		const available: ShareLanguage[] = (
-			Object.keys(data.metadata?.aiSummaryByLanguage ?? {}) as ShareLanguage[]
-		).filter((lang) => !!data.metadata?.aiSummaryByLanguage?.[lang]);
-
-		// Detect from the BASE summary (not activeAiSummary) so the base label
-		// never changes when the user switches to a translated language.
-		const baseLanguage = useMemo(
-			() =>
-				data.metadata?.aiBaseLanguage ??
-				detectShareLanguage(data.metadata?.aiSummary?.overview),
-			[data.metadata?.aiBaseLanguage, data.metadata?.aiSummary?.overview],
-		);
-
 		const activeAiSummary =
 			selectedLanguage !== "base"
 				? (data.metadata?.aiSummaryByLanguage?.[selectedLanguage] ?? data.metadata?.aiSummary)
@@ -711,17 +728,6 @@ export const ShareVideo = forwardRef<
 				    "Clean Transcript" (BelowVideoTabs) instead of a pinned side column. */}
 				<div className="min-w-0">{playerBlock}</div>
 
-				<div className="mt-4 flex justify-end">
-					<LanguagePicker
-						baseLanguage={baseLanguage}
-						available={available}
-						selected={selectedLanguage}
-						onSelect={setSelectedLanguage}
-						canGenerate={canGenerate}
-						generatingLanguage={generatingLanguage}
-						onGenerate={handleGenerateTranslation}
-					/>
-				</div>
 				<div className="mt-4">
 					<BelowVideoTabs
 						summary={
@@ -750,7 +756,7 @@ export const ShareVideo = forwardRef<
 										aiSummary: activeAiSummary ?? undefined,
 										speakerCount: undefined,
 									}}
-									onVideoJump={handleSeek}
+									onVideoJump={handleSeekAndPlay}
 								/>
 							</>
 						}
@@ -777,7 +783,7 @@ export const ShareVideo = forwardRef<
 										(selectedLanguage === "base" ? transcript?.content : activeTranscriptVtt) ?? undefined
 									}
 									currentTime={currentTime}
-									onVideoJump={handleSeek}
+									onVideoJump={handleSeekAndPlay}
 									duration={data.duration}
 									chapters={transcriptChapters}
 								/>
@@ -794,7 +800,7 @@ export const ShareVideo = forwardRef<
 								<TranscriptPanel
 									transcriptContent={undefined}
 									currentTime={currentTime}
-									onVideoJump={handleSeek}
+									onVideoJump={handleSeekAndPlay}
 									duration={data.duration}
 									chapters={transcriptChapters}
 								/>
@@ -806,8 +812,9 @@ export const ShareVideo = forwardRef<
 								refinedTranscript={
 									activeAiSummary?.refinedTranscript ?? undefined
 								}
-								onVideoJump={handleSeek}
+								onVideoJump={handleSeekAndPlay}
 								duration={data.duration}
+								currentTime={currentTime}
 							/>
 						}
 					/>
@@ -816,7 +823,7 @@ export const ShareVideo = forwardRef<
 				<div className={`ai-aura${aiChatOpen ? " show" : ""}`} />
 				<AIChatPopup
 					videoId={data.id}
-					onVideoJump={handleSeek}
+					onVideoJump={handleSeekAndPlay}
 					onClose={() => setAiChatOpen(false)}
 					isOpen={aiChatOpen}
 				/>

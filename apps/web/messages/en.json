@@ -329,6 +329,8 @@
 		"noRefinedTranscript": "No refined transcript yet",
 		"refinedTranscriptDesc": "Summary and transcript can still be used without this optional cleaned version",
 		"playFromChapter": "Play from {title}",
+		"toggleChapter": "Toggle chapter",
+		"languageMenu": "Language options",
 		"costLoadError": "Could not load cost data.",
 		"meetingCost": "Meeting cost",
 		"costTranscription": "Transcription",

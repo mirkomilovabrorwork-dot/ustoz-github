@@ -329,6 +329,8 @@
 		"noRefinedTranscript": "Tozalangan matn hali yo'q",
 		"refinedTranscriptDesc": "Xulosa va matn bu ixtiyoriy tozalangan versiyasiz ham ishlatilishi mumkin",
 		"playFromChapter": "{title} dan ijro etish",
+		"toggleChapter": "Bo'limni yopish/ochish",
+		"languageMenu": "Til sozlamalari",
 		"costLoadError": "Xarajat ma'lumotlarini yuklab bo'lmadi.",
 		"meetingCost": "Uchrashuv xarajati",
 		"costTranscription": "Matnga o'tkazish",

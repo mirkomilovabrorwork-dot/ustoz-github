@@ -310,6 +310,47 @@ function isActive(cue: Cue, currentTime: number): boolean {
 	return currentTime >= cue.startSeconds && currentTime < cue.endSeconds;
 }
 
+/**
+ * Word-level karaoke for the ACTIVE cue only: split the cue text into word
+ * tokens (preserving `**bold**` emphasis) and interpolate each word's start
+ * time within [startSeconds, endSeconds] by cumulative character position.
+ * Words whose interpolated start has been reached are tinted; the rest keep
+ * the normal text color.
+ */
+function renderKaraokeText(cue: Cue, currentTime: number): React.ReactNode {
+	const parts = cue.text.split(/\*\*(.+?)\*\*/g); // odd indices = bold
+	const tokens: { text: string; bold: boolean }[] = [];
+	parts.forEach((part, i) => {
+		if (!part) return;
+		const bold = i % 2 === 1;
+		for (const piece of part.split(/(\s+)/)) {
+			if (piece) tokens.push({ text: piece, bold });
+		}
+	});
+	const totalChars = tokens.reduce((n, tok) => n + tok.text.length, 0);
+	if (totalChars === 0) return renderMarkdownBold(cue.text);
+	const cueDuration = Math.max(cue.endSeconds - cue.startSeconds, 0.001);
+	let charsBefore = 0;
+	return tokens.map((tok, i) => {
+		const wordStart = cue.startSeconds + cueDuration * (charsBefore / totalChars);
+		charsBefore += tok.text.length;
+		if (/^\s+$/.test(tok.text)) return tok.text;
+		const sung = currentTime >= wordStart;
+		return (
+			<span
+				key={`kw-${i}`}
+				className={tok.bold ? "font-semibold" : undefined}
+				style={{
+					color: sung ? "var(--blue-11)" : undefined,
+					transition: "color 120ms linear",
+				}}
+			>
+				{tok.text}
+			</span>
+		);
+	});
+}
+
 function normalizeCueTimes(cues: Cue[], duration?: number | null): Cue[] {
 	if (!duration || duration <= 0) return cues;
 
@@ -378,11 +419,11 @@ export function TranscriptPanel({
 	const [searchQuery, setSearchQuery] = useState("");
 	const trimmedQuery = searchQuery.trim();
 
-	// --- Chapter accordion state (empty set = all closed by default) ---
-	const [openChapters, setOpenChapters] = useState<Set<number>>(new Set());
+	// --- Chapter accordion state (empty set = all OPEN by default) ---
+	const [closedChapters, setClosedChapters] = useState<Set<number>>(new Set());
 
 	function toggleChapter(startSec: number) {
-		setOpenChapters((prev) => {
+		setClosedChapters((prev) => {
 			const next = new Set(prev);
 			if (next.has(startSec)) {
 				next.delete(startSec);
@@ -817,7 +858,9 @@ export function TranscriptPanel({
 					>
 						{trimmedQuery && cue.text.toLowerCase().includes(trimmedQuery.toLowerCase())
 							? highlightMatch(cue.text, trimmedQuery)
-							: renderMarkdownBold(cue.text)}
+							: active
+								? renderKaraokeText(cue, currentTime)
+								: renderMarkdownBold(cue.text)}
 					</p>
 				</div>
 
@@ -869,7 +912,7 @@ export function TranscriptPanel({
 						filteredCueIds.has(c.id),
 					);
 					const isOpen =
-						openChapters.has(section.startSec) ||
+						!closedChapters.has(section.startSec) ||
 						(!!trimmedQuery && sectionHasMatch);
 					return (
 						<section
@@ -893,7 +936,8 @@ export function TranscriptPanel({
 									type="button"
 									onClick={() => toggleChapter(section.startSec)}
 									aria-expanded={isOpen}
-									className="flex flex-1 items-center gap-1.5 text-left text-base font-bold text-gray-12"
+									aria-label={t("toggleChapter")}
+									className="flex shrink-0 items-center justify-center"
 									style={{
 										background: "transparent",
 										border: "none",
@@ -920,6 +964,18 @@ export function TranscriptPanel({
 									>
 										<polyline points="6 9 12 15 18 9" />
 									</svg>
+								</button>
+								<button
+									type="button"
+									onClick={() => onVideoJump?.(section.startSec)}
+									className="flex-1 text-left text-base font-bold text-gray-12"
+									style={{
+										background: "transparent",
+										border: "none",
+										cursor: "pointer",
+										padding: 0,
+									}}
+								>
 									{section.title}
 								</button>
 							</div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { clampStartSec, formatTimeMinutes } from "../utils/transcript-utils";
 import { renderMarkdownBold } from "./markdownBold";
 
 interface SummaryPanelProps {
@@ -52,6 +53,7 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 	const { aiSummary } = data;
 	const topics = aiSummary?.topics ?? [];
 	const nextSteps = aiSummary?.nextSteps ?? [];
+	const chapters = aiSummary?.chapters ?? [];
 
 	if (!aiSummary) {
 		return (
@@ -171,10 +173,57 @@ export function SummaryPanel({ data, onVideoJump }: SummaryPanelProps) {
 				</div>
 			)}
 
-			{/* Empty state when all sections are empty */}
-			{topics.length === 0 && nextSteps.length === 0 && !aiSummary.overview && (
-				<p className="text-sm text-gray-10">{t("noContentYet")}</p>
+			{/* Chapters */}
+			{chapters.length > 0 && (
+				<div>
+					<h3
+						className="mb-2"
+						style={{ fontSize: "14px", fontWeight: 700, color: "var(--gray-12)", letterSpacing: "-.01em" }}
+					>
+						{t("chaptersHeading")}
+					</h3>
+					<div className="flex flex-col">
+						{chapters.map((chapter) => {
+							const startSec = clampStartSec(chapter.startSec, data.duration);
+							return (
+								<button
+									key={chapter.startSec}
+									type="button"
+									onClick={() => onVideoJump?.(startSec)}
+									className="flex items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-gray-3"
+									style={{
+										background: "transparent",
+										border: "none",
+										cursor: "pointer",
+									}}
+								>
+									<span
+										className="font-mono"
+										style={{
+											fontSize: "12.5px",
+											color: "var(--blue-11)",
+											flexShrink: 0,
+										}}
+									>
+										{formatTimeMinutes(startSec)}
+									</span>
+									<span style={{ fontSize: "13px", color: "var(--gray-12)" }}>
+										{chapter.title}
+									</span>
+								</button>
+							);
+						})}
+					</div>
+				</div>
 			)}
+
+			{/* Empty state when all sections are empty */}
+			{topics.length === 0 &&
+				nextSteps.length === 0 &&
+				chapters.length === 0 &&
+				!aiSummary.overview && (
+					<p className="text-sm text-gray-10">{t("noContentYet")}</p>
+				)}
 		</div>
 	);
 }
