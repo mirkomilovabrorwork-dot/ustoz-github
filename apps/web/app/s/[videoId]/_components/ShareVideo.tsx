@@ -285,11 +285,28 @@ export const ShareVideo = forwardRef<
 		};
 
 		useEffect(() => {
-			const video = videoRef.current;
-			if (!video) return;
-			const onTimeUpdate = () => setCurrentTime(video.currentTime);
-			video.addEventListener("timeupdate", onTimeUpdate);
-			return () => video.removeEventListener("timeupdate", onTimeUpdate);
+			// The <video> mounts inside CapVideoPlayer AFTER this effect first
+			// runs, so retry until the ref is populated — otherwise currentTime
+			// never follows playback (karaoke/active-chapter follow stays frozen).
+			let attached: HTMLVideoElement | null = null;
+			let raf = 0;
+			const onTimeUpdate = () => {
+				if (videoRef.current) setCurrentTime(videoRef.current.currentTime);
+			};
+			const attach = () => {
+				const video = videoRef.current;
+				if (!video) {
+					raf = requestAnimationFrame(attach);
+					return;
+				}
+				attached = video;
+				video.addEventListener("timeupdate", onTimeUpdate);
+			};
+			attach();
+			return () => {
+				cancelAnimationFrame(raf);
+				attached?.removeEventListener("timeupdate", onTimeUpdate);
+			};
 		}, []);
 
 		useEffect(() => {
