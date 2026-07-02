@@ -8,9 +8,12 @@ export type AiGenerationStatus =
 	| "ERROR"
 	| "SKIPPED";
 
+export type AiProcessingStep = "transcribe" | "summary" | "refined" | "done";
+
 type AiStatusResult = {
 	processing: boolean;
 	aiGenerationStatus: AiGenerationStatus | null;
+	aiProcessingStep: AiProcessingStep | null;
 	hasContent: boolean;
 };
 
@@ -26,6 +29,7 @@ export const useAiStatus = (videoId: Video.VideoId, enabled: boolean) => {
 			return {
 				processing: !!body.processing,
 				aiGenerationStatus: body.aiGenerationStatus ?? null,
+				aiProcessingStep: body.aiProcessingStep ?? null,
 				hasContent: !!(body.summary || body.chapters),
 			};
 		},

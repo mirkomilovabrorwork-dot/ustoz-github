@@ -59,6 +59,7 @@ export interface VideoMetadata {
 		| "COMPLETE"
 		| "ERROR"
 		| "SKIPPED";
+	aiProcessingStep?: "transcribe" | "summary" | "refined" | "done";
 	aiGenerationRequestedAt?: string;
 	aiGenerationRequestedBy?: string;
 	aiGenerationError?: string;

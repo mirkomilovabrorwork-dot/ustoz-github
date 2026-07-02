@@ -237,6 +237,7 @@ async function validateAndSetProcessing(
 				...metadata,
 				aiGenerationStatus: "PROCESSING",
 				aiProcessingStartedAt: new Date().toISOString(),
+				aiProcessingStep: "summary",
 			} as VideoMetadata,
 		})
 		.where(eq(videos.id, videoId as Video.VideoId));
@@ -372,6 +373,10 @@ async function generateWithAi(
 	// Chapter-aligned refined transcript: clean the transcript slice under each
 	// finalized summary chapter so "Refined" and "Matn" share the same sections.
 	if (includeRefinedTranscript) {
+		await patchVideoMetadata(context.videoId, (current) => ({
+			...current,
+			aiProcessingStep: "refined",
+		}));
 		const refined = await generateChapterAlignedRefined(
 			transcript.segments,
 			result.aiSummary?.chapters ?? [],
@@ -605,6 +610,7 @@ export function buildSaveResultsPatch(
 		// Success clears any stale error; failure records THIS run's outcome
 		// instead of leaving a message from an older run lying around.
 		aiGenerationError: finalUsable ? undefined : AI_EMPTY_RESULT_ERROR,
+		aiProcessingStep: finalUsable ? "done" : current.aiProcessingStep,
 	};
 }
 

@@ -30,6 +30,7 @@ type AiGenerationStatus =
 export interface VideoStatusResult {
 	transcriptionStatus: TranscriptionStatus | null;
 	aiGenerationStatus: AiGenerationStatus | null;
+	aiProcessingStep: VideoMetadata["aiProcessingStep"] | null;
 	name: string | null;
 	aiTitle: string | null;
 	summary: string | null;
@@ -53,6 +54,7 @@ const getAiStatusData = (metadata: VideoMetadata) => {
 		summary: aiSummary?.overview || metadata.summary || null,
 		chapters: legacyChapters,
 		aiSummary,
+		aiProcessingStep: metadata.aiProcessingStep || null,
 	};
 };
 

@@ -163,6 +163,7 @@ async function validateVideo(videoId: string): Promise<VideoData> {
 			metadata: {
 				...((result.video.metadata as VideoMetadata) || {}),
 				processingStartedAt: new Date().toISOString(),
+				aiProcessingStep: "transcribe",
 			} as VideoMetadata,
 		})
 		.where(eq(videos.id, videoId as Video.VideoId));

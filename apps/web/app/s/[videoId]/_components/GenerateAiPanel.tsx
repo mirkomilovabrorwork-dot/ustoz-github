@@ -25,11 +25,14 @@ type AiGenerationStatus =
   | "ERROR"
   | "SKIPPED";
 
+type AiProcessingStep = "transcribe" | "summary" | "refined" | "done";
+
 interface GenerateAiPanelProps {
   videoId: Video.VideoId;
   canGenerate: boolean;
   transcriptionStatus: TranscriptionStatus | null | undefined;
   aiGenerationStatus: AiGenerationStatus | null | undefined;
+  aiProcessingStep?: AiProcessingStep | null;
   duration?: number | null;
   /** When true, the completed analysis looks incomplete ("chala") and the
    * re-analyze affordance should be shown prominently instead of tucked away. */
@@ -100,6 +103,7 @@ export function GenerateAiPanel({
   canGenerate,
   transcriptionStatus,
   aiGenerationStatus,
+  aiProcessingStep,
   duration,
   aiIncomplete = false,
   onStarted,
@@ -158,26 +162,50 @@ export function GenerateAiPanel({
       transcriptionStatus,
       aiGenerationStatus,
     );
+    const stepOrder: AiProcessingStep[] = ["transcribe", "summary", "refined", "done"];
+    const stepIndex = aiProcessingStep ? stepOrder.indexOf(aiProcessingStep) : -1;
+    const aiComplete =
+      aiGenerationStatus === "COMPLETE" || aiGenerationStatus === "SKIPPED";
+
     const steps = [
       {
-        key: "transcribing",
-        label: tShare("aiStepTranscribing"),
+        key: "transcribe",
+        label: tShare("stepTranscribe"),
         state:
           transcriptionStatus === "COMPLETE"
             ? "done"
-            : phase === "transcribing"
+            : transcriptionStatus === "PROCESSING" ||
+                aiProcessingStep === "transcribe" ||
+                phase === "transcribing"
               ? "current"
               : "pending",
       },
       {
-        key: "generating",
-        label: tShare("aiStepAiAnalysis"),
-        state:
-          aiGenerationStatus === "COMPLETE" || aiGenerationStatus === "SKIPPED"
-            ? "done"
-            : phase === "queued" || phase === "generating"
-              ? "current"
+        key: "summary",
+        label: tShare("stepSummary"),
+        state: aiComplete
+          ? "done"
+          : aiProcessingStep === "summary"
+            ? "current"
+            : stepIndex > stepOrder.indexOf("summary")
+              ? "done"
               : "pending",
+      },
+      {
+        key: "refined",
+        label: tShare("stepRefined"),
+        state: aiComplete
+          ? "done"
+          : aiProcessingStep === "refined"
+            ? "current"
+            : stepIndex > stepOrder.indexOf("refined")
+              ? "done"
+              : "pending",
+      },
+      {
+        key: "done",
+        label: tShare("stepDone"),
+        state: aiComplete || aiProcessingStep === "done" ? "done" : "pending",
       },
     ] as const;
 

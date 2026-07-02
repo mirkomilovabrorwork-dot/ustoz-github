@@ -240,6 +240,9 @@ export const ShareVideo = forwardRef<
 		const effectiveAiStatus =
 			aiStatusQuery.data?.aiGenerationStatus ?? optimisticAiStatus ?? aiGenerationStatus;
 
+		const effectiveAiProcessingStep =
+			aiStatusQuery.data?.aiProcessingStep ?? data.metadata?.aiProcessingStep ?? null;
+
 		// "chala" (incomplete-looking) analysis: empty-but-complete, or refined
 		// sections fewer than summary chapters (misaligned old-data case).
 		const aiIncomplete = useMemo(() => {
@@ -763,6 +766,7 @@ export const ShareVideo = forwardRef<
 											| undefined
 									}
 									aiGenerationStatus={effectiveAiStatus}
+									aiProcessingStep={effectiveAiProcessingStep}
 									aiIncomplete={aiIncomplete}
 									duration={data.duration}
 									onStarted={handleAiStarted}

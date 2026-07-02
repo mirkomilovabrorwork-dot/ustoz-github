@@ -97,6 +97,7 @@ export async function GET(request: NextRequest) {
 					summary: metadata.summary ?? null,
 					chapters: metadata.chapters ?? null,
 					aiGenerationStatus: metadata.aiGenerationStatus ?? null,
+					aiProcessingStep: metadata.aiProcessingStep ?? null,
 				},
 				{ status: 200 },
 			);
@@ -114,6 +115,7 @@ export async function GET(request: NextRequest) {
 					processing: true,
 					message: "AI metadata generation in progress",
 					aiGenerationStatus: metadata.aiGenerationStatus,
+					aiProcessingStep: metadata.aiProcessingStep ?? null,
 				},
 				{ status: 200 },
 			);
@@ -129,6 +131,7 @@ export async function GET(request: NextRequest) {
 			{
 				processing: false,
 				aiGenerationStatus: metadata.aiGenerationStatus ?? null,
+				aiProcessingStep: metadata.aiProcessingStep ?? null,
 			},
 			{ status: 200 },
 		);
