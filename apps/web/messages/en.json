@@ -293,6 +293,7 @@
 		"aiAuthRequired": "Sign in to use AI chat.",
 		"aiProRequired": "AI is available to admins only.",
 		"aiBusy": "AI is busy right now. Please try again in a moment.",
+		"aiChatDailyLimit": "Daily question limit reached (20/day). Please try again tomorrow.",
 		"aiAnswerError": "Sorry — I couldn't answer: {error}",
 		"aiPlaceholder": "Ask about this video…",
 		"aiSendAriaLabel": "Send",

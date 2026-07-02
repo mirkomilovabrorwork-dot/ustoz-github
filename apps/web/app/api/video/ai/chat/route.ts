@@ -1,17 +1,22 @@
 import { db } from "@cap/database";
 import { decrypt } from "@cap/database/crypto";
 import { getCurrentUser } from "@cap/database/auth/session";
-import { users, videos } from "@cap/database/schema";
+import { nanoId } from "@cap/database/helpers";
+import { aiChatUsage, users, videos } from "@cap/database/schema";
 import { serverEnv } from "@cap/env";
 import { provideOptionalAuth, VideosPolicy } from "@cap/web-backend";
 import { Policy, Video } from "@cap/web-domain";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { Effect } from "effect";
 import type { NextRequest } from "next/server";
+import {
+	AI_CHAT_CLIENT_COOKIE,
+	DAILY_CHAT_LIMIT_CODE,
+	isOverDailyChatLimit,
+} from "@/lib/ai-chat-limit";
 import { BudgetExceededError, withCostGuard } from "@/lib/ai-cost-guard";
 import { EMBED_MODEL, embedChunksWithUsage } from "@/lib/gemini-embed";
 import { withGeminiRetry } from "@/lib/gemini-retry";
-import { AI_ACCESS_DENIED_CODE, canUseAI } from "@/lib/permissions/ai-access";
 import { runPromise } from "@/lib/server";
 import { ensureTranscriptIndex } from "@/lib/transcript-index";
 import { retrieveTopK } from "@/lib/transcript-retrieve";
@@ -123,18 +128,40 @@ export async function POST(request: NextRequest) {
 		);
 	}
 
+	// Chat is open to everyone who can view the video, including anonymous
+	// guests. Abuse is bounded by the per-minute limiter below plus a DB-backed
+	// daily question limit keyed by user id (signed in) or a browser cookie.
 	const user = await getCurrentUser();
-	if (!user?.id) {
-		return new Response(JSON.stringify({ error: "Unauthorized" }), {
-			status: 401,
-		});
+
+	const ip =
+		request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+		request.headers.get("x-real-ip") ||
+		"unknown";
+
+	let clientId: string;
+	let setClientCookie: string | null = null;
+	if (user?.id) {
+		clientId = user.id;
+	} else {
+		const cookieCid = request.cookies.get(AI_CHAT_CLIENT_COOKIE)?.value;
+		if (cookieCid) {
+			clientId = cookieCid;
+		} else {
+			// No cookie yet: key this request by IP so a client that simply
+			// drops the Set-Cookie can't reset its daily count to zero on every
+			// request (that would defeat the whole cost limit). Still hand out a
+			// cookie so an honest browser gets its own per-browser bucket next time.
+			clientId = `guest_ip:${ip}`;
+			const secure =
+				process.env.NODE_ENV === "production" ? "; Secure" : "";
+			setClientCookie = `${AI_CHAT_CLIENT_COOKIE}=${nanoId()}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000${secure}`;
+		}
 	}
 
-	if (!canUseAI(user)) {
-		return new Response(JSON.stringify({ error: AI_ACCESS_DENIED_CODE }), {
-			status: 403,
-		});
-	}
+	const withClientCookie = (res: Response): Response => {
+		if (setClientCookie) res.headers.append("Set-Cookie", setClientCookie);
+		return res;
+	};
 
 	const typedMessages = messages as Array<{
 		role: "user" | "assistant";
@@ -147,19 +174,54 @@ export async function POST(request: NextRequest) {
 		.find((m) => m.role === "user");
 
 	if (!lastUserMessage) {
-		return new Response(JSON.stringify({ error: "No user message found" }), {
-			status: 400,
-		});
+		return withClientCookie(
+			new Response(JSON.stringify({ error: "No user message found" }), {
+				status: 400,
+			}),
+		);
 	}
 
-	const ip =
-		request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-		request.headers.get("x-real-ip") ||
-		"unknown";
 	if (isRateLimited(`${videoId}:${ip}`)) {
-		return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
-			status: 429,
+		return withClientCookie(
+			new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
+				status: 429,
+			}),
+		);
+	}
+
+	const todayUtc = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+	await db()
+		.insert(aiChatUsage)
+		.values({
+			id: nanoId(),
+			videoId: Video.VideoId.make(videoId),
+			clientId,
+			dateUtc: todayUtc,
+			requestCount: 1,
+		})
+		.onDuplicateKeyUpdate({
+			set: { requestCount: sql`${aiChatUsage.requestCount} + 1` },
 		});
+
+	const [usageRow] = await db()
+		.select({ requestCount: aiChatUsage.requestCount })
+		.from(aiChatUsage)
+		.where(
+			and(
+				eq(aiChatUsage.videoId, Video.VideoId.make(videoId)),
+				eq(aiChatUsage.clientId, clientId),
+				eq(aiChatUsage.dateUtc, todayUtc),
+			),
+		)
+		.limit(1);
+
+	if (usageRow && isOverDailyChatLimit(usageRow.requestCount)) {
+		return withClientCookie(
+			new Response(
+				JSON.stringify({ error: DAILY_CHAT_LIMIT_CODE, code: DAILY_CHAT_LIMIT_CODE }),
+				{ status: 429 },
+			),
+		);
 	}
 
 	const canView = await Effect.gen(function* () {
@@ -176,9 +238,11 @@ export async function POST(request: NextRequest) {
 	);
 
 	if (!canView) {
-		return new Response(JSON.stringify({ error: "Forbidden" }), {
-			status: 403,
-		});
+		return withClientCookie(
+			new Response(JSON.stringify({ error: "Forbidden" }), {
+				status: 403,
+			}),
+		);
 	}
 
 	const [video] = await db()
@@ -193,9 +257,11 @@ export async function POST(request: NextRequest) {
 		.limit(1);
 
 	if (!video) {
-		return new Response(JSON.stringify({ error: "Video not found" }), {
-			status: 404,
-		});
+		return withClientCookie(
+			new Response(JSON.stringify({ error: "Video not found" }), {
+				status: 404,
+			}),
+		);
 	}
 
 	const [owner] = await db()
@@ -219,9 +285,11 @@ export async function POST(request: NextRequest) {
 	}
 
 	if (!apiKey) {
-		return new Response(
-			JSON.stringify({ error: "No Gemini API key configured" }),
-			{ status: 500 },
+		return withClientCookie(
+			new Response(
+				JSON.stringify({ error: "No Gemini API key configured" }),
+				{ status: 500 },
+			),
 		);
 	}
 
@@ -447,11 +515,13 @@ export async function POST(request: NextRequest) {
 		},
 	});
 
-	return new Response(stream, {
-		headers: {
-			"Content-Type": "text/event-stream",
-			"Cache-Control": "no-cache",
-			Connection: "keep-alive",
-		},
-	});
+	return withClientCookie(
+		new Response(stream, {
+			headers: {
+				"Content-Type": "text/event-stream",
+				"Cache-Control": "no-cache",
+				Connection: "keep-alive",
+			},
+		}),
+	);
 }

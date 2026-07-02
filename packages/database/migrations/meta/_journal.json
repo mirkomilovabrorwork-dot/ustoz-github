@@ -253,6 +253,13 @@
       "when": 1782763114653,
       "tag": "0035_exotic_brother_voodoo",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "5",
+      "when": 1782974230455,
+      "tag": "0036_ai_chat_usage",
+      "breakpoints": true
     }
   ]
 }

@@ -17,6 +17,7 @@ import {
 	bigint,
 	boolean,
 	customType,
+	date,
 	datetime,
 	float,
 	foreignKey,
@@ -1604,6 +1605,26 @@ export const aiUsageEventsRelations = relations(aiUsageEvents, ({ one }) => ({
 		references: [videos.id],
 	}),
 }));
+
+export const aiChatUsage = mysqlTable(
+	"ai_chat_usage",
+	{
+		id: nanoId("id").notNull().primaryKey(),
+		videoId: nanoId("videoId").notNull().$type<Video.VideoId>(),
+		clientId: varchar("clientId", { length: 64 }).notNull(),
+		dateUtc: date("dateUtc", { mode: "string" }).notNull(),
+		requestCount: int("requestCount").notNull().default(0),
+		createdAt: timestamp("createdAt").notNull().defaultNow(),
+		updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
+	},
+	(table) => [
+		uniqueIndex("video_client_date_idx").on(
+			table.videoId,
+			table.clientId,
+			table.dateUtc,
+		),
+	],
+);
 
 export const auditLog = mysqlTable("audit_log", {
 	id: varchar("id", { length: 36 }).primaryKey().default(sql`(UUID())`),
