@@ -20,6 +20,7 @@ import { z } from "zod";
 import { BudgetExceededError, withCostGuard } from "@/lib/ai-cost-guard";
 import { AI_CHUNK_CONCURRENCY, mapWithConcurrency } from "@/lib/concurrency";
 import { withGeminiRetry } from "@/lib/gemini-retry";
+import { MIXED_LANGUAGE_PRESERVATION_RULES } from "@/lib/prompt-rules";
 import { runPromise } from "@/lib/server";
 import { normalizeWebVttVoiceText } from "@/lib/transcript-vtt";
 import { patchVideoMetadata } from "@/lib/video-metadata";
@@ -440,10 +441,9 @@ export function shouldGenerateRefinedTranscript({
 	return transcriptCharCount > 0;
 }
 
-const MIXED_LANGUAGE_PRESERVATION_RULES = `Mixed-language preservation rules:
-- Uzbek words may be cleaned or summarized in Uzbek Latin, but English, Russian, technical terms, product names, brand names, code identifiers, and acronyms must stay exactly as spoken.
-- Do NOT translate or transliterate foreign/technical words: deadline must not become dedlayn, dashboard must not become boshqaruv paneli, and сразу must not become srazu.
-- Preserve existing markdown bold around foreign terms when present.`;
+// Shared, strengthened rules — single source in lib/prompt-rules.ts.
+// (imported below; kept as a const alias so the many template-literal
+// call sites in this file stay unchanged)
 
 function getVideoDuration(segments: VttSegment[]): number {
 	if (segments.length === 0) return 0;
@@ -518,6 +518,96 @@ function sanitizeSummaryChapters<T extends { startSec: number }>(
 	return deduped;
 }
 
+/**
+ * Whether a summary/aiSummary pair is actually user-facing content (not an
+ * empty shell). A refined-transcript-only shell (built when the summary JSON
+ * failed or truncated) is NOT usable.
+ */
+function hasUsableSummaryContent(
+	summary: string | null | undefined,
+	aiSummary: AiSummary | null | undefined,
+): boolean {
+	return (
+		(typeof summary === "string" &&
+			summary.trim().length > 0 &&
+			summary.trim() !== AI_SUMMARY_FAILURE_PLACEHOLDER) ||
+		Boolean(
+			aiSummary &&
+				((aiSummary.overview ?? "").trim().length > 0 ||
+					(aiSummary.topics?.length ?? 0) > 0 ||
+					(aiSummary.tasks?.length ?? 0) > 0 ||
+					(aiSummary.chapters?.length ?? 0) > 0 ||
+					(aiSummary.nextSteps?.length ?? 0) > 0),
+		)
+	);
+}
+
+export const AI_EMPTY_RESULT_ERROR =
+	"AI generation returned no usable content";
+
+/**
+ * Pure metadata-patch decision for saveResults. Exported for unit tests.
+ *
+ * Rules:
+ * - Content from THIS run is merged only when THIS run is usable — an
+ *   empty/shell retry never clobbers good stored content.
+ * - A run whose own result is NOT usable is always reported as ERROR — even
+ *   when usable content from a previous run is already stored. Reporting
+ *   COMPLETE for a failed run masks the failure (empty-shell-COMPLETE bug).
+ * - On failure the error text describes THIS run (never a stale message from
+ *   a previous run); on success any stale error is cleared.
+ * - result.aiSummary only replaces a stored aiSummary when the new one is
+ *   itself usable (a text-only summary run must not wipe stored topics/tasks).
+ */
+export function buildSaveResultsPatch(
+	current: VideoMetadata,
+	result: AiResult,
+	opts: {
+		generatedTitle?: string;
+		resolvedBaseLanguage?: ShareLanguage;
+	} = {},
+): VideoMetadata {
+	// Judge usability from THIS run's result only (not merged with old
+	// metadata) — otherwise an empty "{}" retry could overwrite `summary` with
+	// the failure placeholder yet still be marked COMPLETE because stale
+	// content existed.
+	const resultSummaryText = result.summary?.trim() ?? "";
+	const runIsUsable =
+		(resultSummaryText.length > 0 &&
+			resultSummaryText !== AI_SUMMARY_FAILURE_PLACEHOLDER) ||
+		hasUsableSummaryContent(null, result.aiSummary);
+
+	// Only take THIS run's content when it is usable — never clobber good
+	// stored content with an empty/shell result (the retry-over-stale bug).
+	const nextSummary = runIsUsable
+		? result.summary || current.summary
+		: current.summary;
+	const nextChapters = runIsUsable
+		? result.chapters || current.chapters
+		: current.chapters;
+	const nextAiSummary = runIsUsable
+		? hasUsableSummaryContent(null, result.aiSummary)
+			? (result.aiSummary ?? current.aiSummary)
+			: current.aiSummary
+		: current.aiSummary;
+	// COMPLETE requires BOTH: this run produced usable content AND the final
+	// stored content is genuinely usable.
+	const finalUsable =
+		runIsUsable && hasUsableSummaryContent(nextSummary, nextAiSummary);
+	return {
+		...current,
+		aiTitle: opts.generatedTitle || current.aiTitle,
+		summary: nextSummary,
+		chapters: nextChapters,
+		aiSummary: nextAiSummary,
+		aiBaseLanguage: opts.resolvedBaseLanguage ?? current.aiBaseLanguage,
+		aiGenerationStatus: finalUsable ? "COMPLETE" : "ERROR",
+		// Success clears any stale error; failure records THIS run's outcome
+		// instead of leaving a message from an older run lying around.
+		aiGenerationError: finalUsable ? undefined : AI_EMPTY_RESULT_ERROR,
+	};
+}
+
 async function saveResults(
 	videoId: string,
 	videoData: VideoData,
@@ -540,73 +630,12 @@ async function saveResults(
 		: metadata;
 	const currentTitle = currentVideo?.name ?? video.name;
 
-	// Judge usability from THIS run's result only (not merged with old
-	// metadata) — otherwise an empty "{}" retry could overwrite `summary` with
-	// the failure placeholder yet still be marked COMPLETE because stale
-	// content existed.
-	const resultSummaryText = result.summary?.trim() ?? "";
-	const ai = result.aiSummary;
-	// "Usable" = the actual user-facing summary content (overview / topics /
-	// tasks / chapters / nextSteps) is non-empty. A refined-transcript-only shell
-	// (built when the summary JSON failed or truncated) is NOT usable and must NOT
-	// be reported as COMPLETE — otherwise the page shows a "done" state over empty
-	// summary/chapters/tasks (the silent-empty-but-success bug class).
-	const summaryIsUsable =
-		(resultSummaryText.length > 0 &&
-			resultSummaryText !== AI_SUMMARY_FAILURE_PLACEHOLDER) ||
-		Boolean(
-			ai &&
-				((ai.overview ?? "").trim().length > 0 ||
-					(ai.topics?.length ?? 0) > 0 ||
-					(ai.tasks?.length ?? 0) > 0 ||
-					(ai.chapters?.length ?? 0) > 0 ||
-					(ai.nextSteps?.length ?? 0) > 0),
-		);
-	// Whether a stored summary/aiSummary is actually user-facing content (not an
-	// empty shell). Used so we only report COMPLETE when there is real content —
-	// either from this run or already stored — never over an empty shell.
-	const hasUsableSummary = (
-		summary: string | null | undefined,
-		aiSummary: typeof result.aiSummary | null | undefined,
-	): boolean =>
-		(typeof summary === "string" &&
-			summary.trim().length > 0 &&
-			summary.trim() !== AI_SUMMARY_FAILURE_PLACEHOLDER) ||
-		Boolean(
-			aiSummary &&
-				((aiSummary.overview ?? "").trim().length > 0 ||
-					(aiSummary.topics?.length ?? 0) > 0 ||
-					(aiSummary.tasks?.length ?? 0) > 0 ||
-					(aiSummary.chapters?.length ?? 0) > 0 ||
-					(aiSummary.nextSteps?.length ?? 0) > 0),
-		);
-
-	await patchVideoMetadata(videoId, (current) => {
-		// Only take THIS run's content when it is usable — never clobber good
-		// stored content with an empty/shell result (the retry-over-stale bug).
-		const nextSummary = summaryIsUsable
-			? result.summary || current.summary
-			: current.summary;
-		const nextChapters = summaryIsUsable
-			? result.chapters || current.chapters
-			: current.chapters;
-		const nextAiSummary = summaryIsUsable
-			? (result.aiSummary ?? current.aiSummary)
-			: current.aiSummary;
-		// COMPLETE only when the FINAL stored content is genuinely usable.
-		const finalUsable = hasUsableSummary(nextSummary, nextAiSummary);
-		return {
-			...current,
-			aiTitle: generatedTitle || current.aiTitle,
-			summary: nextSummary,
-			chapters: nextChapters,
-			aiSummary: nextAiSummary,
-			aiBaseLanguage: resolvedBaseLanguage ?? current.aiBaseLanguage,
-			aiGenerationStatus: finalUsable ? "COMPLETE" : "ERROR",
-			// Clear any stale error once we have real content; keep it otherwise.
-			aiGenerationError: finalUsable ? undefined : current.aiGenerationError,
-		};
-	});
+	await patchVideoMetadata(videoId, (current) =>
+		buildSaveResultsPatch(current, result, {
+			generatedTitle,
+			resolvedBaseLanguage,
+		}),
+	);
 
 	if (
 		generatedTitle &&

@@ -10,6 +10,7 @@ import type { Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
 import { Option } from "effect";
 import { z } from "zod";
+import { MIXED_LANGUAGE_PRESERVATION_RULES } from "@/lib/prompt-rules";
 import { withCostGuard } from "@/lib/ai-cost-guard";
 import { withGeminiRetry } from "@/lib/gemini-retry";
 import { runPromise } from "@/lib/server";
@@ -32,10 +33,12 @@ function getTranslationLanguageInstruction(language: ShareLanguage): string {
 	return [
 		`Translate ALL text fields into ${SHARE_LANGUAGE_NAMES[language]}.`,
 		"Preserve the original meaning exactly — do not summarize, shorten, or add content.",
-		// Mirror the generation-time preservation rule so a mixed-language meeting
-		// stays consistent after translation: foreign/technical words that were kept
-		// as-spoken in the base analysis must NOT get translated away here.
-		'Do NOT translate or transliterate technical terms, product names, brand names, code identifiers, acronyms, or English/Russian words used as technical/foreign terms — keep them EXACTLY as written in the source. For example: "dashboard" must NOT become "boshqaruv paneli", "deadline" must NOT become "muddat" or "dedlayn", "сразу" must NOT become "srazu". Translate only the ordinary surrounding prose.',
+		// Shared generation-time preservation rules (lib/prompt-rules.ts) so a
+		// mixed-language meeting stays consistent after translation: foreign/
+		// technical words kept as-spoken in the base analysis must NOT get
+		// translated or transliterated away here.
+		MIXED_LANGUAGE_PRESERVATION_RULES,
+		"Translate only the ordinary surrounding prose.",
 		"Preserve any existing markdown **bold** markers exactly, around the same words.",
 		"Output the SAME JSON structure as the input, with every text field translated.",
 	].join(" ");

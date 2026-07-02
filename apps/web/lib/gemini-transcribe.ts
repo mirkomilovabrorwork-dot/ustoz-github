@@ -476,6 +476,7 @@ Cue granularity — match how Loom / YouTube / Whisper subtitle a recording:
 - Do not translate words from one language into another.
 - Do not transliterate Russian words into Latin.
 - Do not convert English/technical words into the dominant language's spelling.
+- These are HARD requirements: writing a Russian word in Latin letters (любой → lyuboy) is an ERROR; writing an English word in local spelling (deadline → dedlayn) is an ERROR. Never transliterate between scripts in either direction.
 - Bold every word or phrase spoken in a language other than the dominant one.
 
 Mixed-language examples (here the dominant language is Uzbek):
